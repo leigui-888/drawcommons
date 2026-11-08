@@ -1,0 +1,12 @@
+{
+ "columns": [
+  "reviewer",
+  "sample",
+  "P1",
+  "P4",
+  "P5",
+  "note"
+ ],
+ "rows": [],
+ "source_note": "由资料库表格节点镜像而来（平台不接受 .csv 作文件节点）；列与行逐字一致"
+}

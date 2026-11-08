@@ -1,0 +1,42 @@
+# MANIFEST ｜ 校验：在仓库根目录执行 sha256sum -c MANIFEST
+# 口径（2026-11-08 重排，按审查 P2-06）：代码/数据取节点原始字节，全量入表，强制校验；
+#   文档单列于末尾注释区，不参与 sha256 校验——导出件字节随编辑变化，纳入校验只会制造假失败。
+# 文档侧的完整性另有两条：① 每份文档自带「判据 + 证据」段；② 目录统计与件数以资料库为准。
+# 重算时点：2026-11-08。文档字节指纹待 M1 收口重算（平台当日导出配额 100 份已用尽）。
+cd6e245a808604c08d20010383460c9438ff75dca6ded64e826e649ff5680dda *evidence/asset_decl_check.py
+99664da24d65ea9bd96c8a4a1e8c25793d3637b5f7693a13a541ed71cbac3a64 *evidence/blind/key.json
+bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind/results.json
+1f8ca46cfa206dc803ab5dd410d56fcf90e954bcc7d131c5034bf6fa0a2cf030 *evidence/blind_agreement.py
+790159ee742b12f5d263b4552740b801ddc5a6af30e62508d5cf835263a8ee1b *evidence/cert_terms.py
+4fb4e1b322c1967ccd48ae0b367e5e3d64966954bc83928f56fe8853ab528ff0 *evidence/license_matrix.py
+58c59297ec78d06855ebf62320d3cbb249121e2dceb6bbf69313c80348cc7531 *evidence/repo_lint.py
+5d41bc45991bfde630dc16167206a2685d6c0af7bad2d3031c26ce2dfa2dbe21 *evidence/tm_class_check.py
+2dfeb237994596e5bc973a8341729d5507520b81f19acc297559046dab71f834 *repo/DCO
+c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 *repo/LICENSE
+2ac6552bb1c1b7775c9713c3ca8d3d17e99bd06cc9bc1220dfda0e29f6719c38 *repo/NOTICE
+73939083ed1a319caf77115be320d63c2ea8b13d9bd6cb62265ab77f3f86ab40 *repo/spec/ledger-entry.schema.json
+565400197e492a52c54861dd693afba35ddddaf9bd16f949d8dcc7b327144e94 *repo/spec/ledger-entry.schema.json.license
+5fec0fd38c1a29bcf665c79b5b24a8148a0ffc7d92338c7408a526eae625a8ba *repo/src/ledger_hash.py
+0f2429c890de7114564b5aad86153a97855ff8b7615bba1e32cdc02c730ddeeb *repo/spec/contribution-entry.schema.json
+40c6db30491125f119147acc08b3bcc8beed2172ed602aff41f4f6fb42558f4b *repo/spec/contribution-entry.schema.json.license
+# 说明（2026-11-08，P1-04 的可行部分）：资料库不支持删除或改名节点，repo/spec/ 下另存两个无扩展名副本，
+#   与对应 .schema.json 逐字节相同；打包入库以 .schema.json 为准，副本不带入仓库，仅保留在资料库供对照。
+#   副本字节指纹如下（不入 sha256 清单，避免与入库文件混淆）：
+#   ledger-entry.schema         2702 B  sha256 73939083ed1a319c…
+#   contribution-entry.schema   4956 B  sha256 0f2429c890de7114…
+# —— 以下为文档清单，不参与校验 ——
+#   evidence/blind/samples.md
+#   repo/CONTRIBUTING.md
+#   repo/LICENSE-CC-BY-4.0.md
+#   repo/LICENSE-CC-BY-SA-4.0.md
+#   repo/LICENSE-CC0-1.0.md
+#   repo/README.md
+#   repo/TRADEMARK.md
+#   数字丐帮2.0·W6-00 周索引 README（含 G5′ 判定）.md
+#   数字丐帮2.0·W6-01 许可矩阵（L1）.md
+#   数字丐帮2.0·W6-02 仓库落地包（L2）.md
+#   数字丐帮2.0·W6-03 商标与认证规则（L3）.md
+#   数字丐帮2.0·W6-04 商标检索委托与备名预案（L4）.md
+#   数字丐帮2.0·W6-05 资产权属三声明（L-14 闭合）.md
+#   数字丐帮2.0·W6-06 许可门取证记录（G5′）.md
+#   数字丐帮2.0·W6-07 任务清单与完成状态.md
