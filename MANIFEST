@@ -2,7 +2,11 @@
 # 口径（2026-11-08 重排，按审查 P2-06）：代码/数据取节点原始字节，全量入表，强制校验；
 #   文档单列于末尾注释区，不参与 sha256 校验——导出件字节随编辑变化，纳入校验只会制造假失败。
 # 文档侧的完整性另有两条：① 每份文档自带「判据 + 证据」段；② 目录统计与件数以资料库为准。
-# 重算时点：2026-11-08。文档字节指纹待 M1 收口重算（平台当日导出配额 100 份已用尽）。
+# 重算时点：2026-11-10（C1 仓库改名）。此前为 2026-11-08。
+# C1 变更（2026-11-10）：仓库 dgb2-w6 → drawcommons；名称「数字丐帮」→「众汲之井」（旧名留 90 日曾用名说明）。
+#   本次重算 7 条：evidence/tm_class_check.py、repo/NOTICE、repo/spec/*.json（2 条 title）、
+#   repo/spec/*.license（2 条 SPDX）、repo/src/ledger_hash.py。其余 9 条字节未变。
+#   0-snapshot/ 为 2.0-final 冻结基线，本次未动，故 5 份周 MANIFEST 与 35 件校验不受改名影响。
 cd6e245a808604c08d20010383460c9438ff75dca6ded64e826e649ff5680dda *evidence/asset_decl_check.py
 99664da24d65ea9bd96c8a4a1e8c25793d3637b5f7693a13a541ed71cbac3a64 *evidence/blind/key.json
 bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind/results.json
@@ -10,15 +14,15 @@ bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind
 790159ee742b12f5d263b4552740b801ddc5a6af30e62508d5cf835263a8ee1b *evidence/cert_terms.py
 4fb4e1b322c1967ccd48ae0b367e5e3d64966954bc83928f56fe8853ab528ff0 *evidence/license_matrix.py
 58c59297ec78d06855ebf62320d3cbb249121e2dceb6bbf69313c80348cc7531 *evidence/repo_lint.py
-5d41bc45991bfde630dc16167206a2685d6c0af7bad2d3031c26ce2dfa2dbe21 *evidence/tm_class_check.py
+c02eea4c91a7e50db838d1a40f8925b8f6fbe2dfb25b56cc8207ad000b99d549 *evidence/tm_class_check.py
 2dfeb237994596e5bc973a8341729d5507520b81f19acc297559046dab71f834 *repo/DCO
 c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 *repo/LICENSE
-2ac6552bb1c1b7775c9713c3ca8d3d17e99bd06cc9bc1220dfda0e29f6719c38 *repo/NOTICE
-73939083ed1a319caf77115be320d63c2ea8b13d9bd6cb62265ab77f3f86ab40 *repo/spec/ledger-entry.schema.json
-565400197e492a52c54861dd693afba35ddddaf9bd16f949d8dcc7b327144e94 *repo/spec/ledger-entry.schema.json.license
-5fec0fd38c1a29bcf665c79b5b24a8148a0ffc7d92338c7408a526eae625a8ba *repo/src/ledger_hash.py
-0f2429c890de7114564b5aad86153a97855ff8b7615bba1e32cdc02c730ddeeb *repo/spec/contribution-entry.schema.json
-40c6db30491125f119147acc08b3bcc8beed2172ed602aff41f4f6fb42558f4b *repo/spec/contribution-entry.schema.json.license
+d48423268c2e364bf6e1de91c32962019889e5924808e1826deacc1b75f19fd4 *repo/NOTICE
+8df19f55a95fcff9466adf1fe051d96d3397d4ad3be18ec582d743076b0c198a *repo/spec/ledger-entry.schema.json
+ce8e57969dafdae0735b79ae5245f2144f6a490b3486b929c1dc50ab5901e218 *repo/spec/ledger-entry.schema.json.license
+2c29eb8dac35e1b060447235e8047ecc74aa0ae84418f523e7662931e4734f05 *repo/src/ledger_hash.py
+eb5db5b26f5effa8541414bd68c52e39aafdf3a978f797b45bc69b92fb162c52 *repo/spec/contribution-entry.schema.json
+946c143d154c74177440d3fc423c98d8cca3c0bd43d5c47c88b12176fbe4411f *repo/spec/contribution-entry.schema.json.license
 # 说明（2026-11-08，P1-04 的可行部分）：资料库不支持删除或改名节点，repo/spec/ 下另存两个无扩展名副本，
 #   与对应 .schema.json 逐字节相同；打包入库以 .schema.json 为准，副本不带入仓库，仅保留在资料库供对照。
 #   副本字节指纹如下（不入 sha256 清单，避免与入库文件混淆）：

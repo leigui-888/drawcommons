@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/digital-gaibang/spec/ledger-entry.schema.json",
-  "title": "数字丐帮 2.0 账本条目",
+  "title": "众汲之井 2.0 账本条目",
   "description": "账本条目最小 schema。只定义可被第三方校验的字段；扩展字段一律可选并以 x- 前缀命名，不得成为必需项（R10 禁私有方言）。本文件以 CC0-1.0 发布，许可见同名 .license 伴生文件。",
   "x-license": "CC0-1.0",
   "x-spec-version": "0.1.0-draft",

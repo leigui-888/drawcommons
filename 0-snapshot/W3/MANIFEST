@@ -1,0 +1,20 @@
+# MANIFEST ｜ 校验：在仓库根目录执行 sha256sum -c MANIFEST
+# 口径（2026-11-08 重排，按审查 P2-06）：代码/数据取节点原始字节，全量入表，强制校验；
+#   文档单列于末尾注释区，不参与 sha256 校验——导出件字节随编辑变化，纳入校验只会制造假失败。
+# 文档侧的完整性另有两条：① 每份文档自带「判据 + 证据」段；② 目录统计与件数以资料库为准。
+# 重算时点：2026-11-09（M1 收口）。代码/数据指纹未变；文档字节指纹已逐份实测，列于末尾注释区。
+# 复现性实测（2026-11-09）：同一文档连续导出 3 次，字节数与 sha256 完全一致（21,704 B / fc8a6251…3 次同值）。
+#   故 11-08 审查方所见「与 MANIFEST 全 DIFF」不是导出器随机，而是取件时点早于当日 26 条处置改动，属内容漂移；
+#   文档指纹因此可用于留痕与漂移比对，但仍不进入强制校验位（内容一改即失效，纳入校验只会制造假失败）。
+82eaf894964fdeb87ff71fad1aaaa80ca9a44b2670ee502108bb2ba00cec089d *evidence/apply_r3.py
+446e14449cecc25b4c8d2fe42084328da2d12f5aee5cc5b6e2eb36da18aad4c7 *evidence/apply_r4.py
+e50b7c8b778f71d893f9e6ee000887e9d2e997c85e84961c99012005642ac067 *evidence/check_consistency.py
+233144bb9f04cc4d1e760e131c16df2f53186068546633738b078c388b771a5d *evidence/baseline_w3.json
+# —— 以下为文档清单，不参与校验（指纹对应 2026-11-09 导出件，供漂移比对）——
+#   W3-B2 四向一致性核对报告.md  15,549 B  sha256 e9d891f6d00b762ba2cdfe7c725ead441b2a8e7825db4c248de0b8fb5b6f27d9
+#   W3-上游文档对齐修订记录.md  8,029 B  sha256 c76efbe3881c8636cb56f5f9f2ba0453b562062c22a0a2c5482aa7221d287927
+#   W3-任务清单与完成状态.md  13,129 B  sha256 6aacf13e61c02461fa5be7c44a059763e2bc03d5428f09fa6832d45c5788df24
+#   W3-周索引 README.md  8,396 B  sha256 9ffb01708e5178901bd788a2c1f033f4cb036106425dd67836ecd3ea4d6d8403
+#   W4-C2a 协议计量载体修订工作包.md  17,633 B  sha256 ade6483ea320f618e1d8c6b8285c535841e156057dc8860f0ac30d325d458de2
+#   terms_r4.md  61,616 B  sha256 6883be3aeb7bc3cb1d95de9de9f390b1fb4d60aaa11e3ec0fafba3d1d773426e
+#   数字丐帮2.0·01 创帮白皮书 v2.0（W3 修订稿）.md  63,025 B  sha256 0642c8d605d49e0c7c0bba0395c3eddd5bdb40bcd777b9ce2054838983da0e6f

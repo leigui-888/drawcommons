@@ -1,0 +1,45 @@
+# MANIFEST ｜ 校验：在仓库根目录执行 sha256sum -c MANIFEST
+# 口径（2026-11-08 重排，按审查 P2-06）：代码/数据取节点原始字节，全量入表，强制校验；
+#   文档单列于末尾注释区，不参与 sha256 校验——导出件字节随编辑变化，纳入校验只会制造假失败。
+# 文档侧的完整性另有两条：① 每份文档自带「判据 + 证据」段；② 目录统计与件数以资料库为准。
+# 重算时点：2026-11-09（M1 收口）。代码/数据指纹未变；文档字节指纹已逐份实测，列于末尾注释区。
+# 复现性实测（2026-11-09）：同一文档连续导出 3 次，字节数与 sha256 完全一致（21,704 B / fc8a6251…3 次同值）。
+#   故 11-08 审查方所见「与 MANIFEST 全 DIFF」不是导出器随机，而是取件时点早于当日 26 条处置改动，属内容漂移；
+#   文档指纹因此可用于留痕与漂移比对，但仍不进入强制校验位（内容一改即失效，纳入校验只会制造假失败）。
+cd6e245a808604c08d20010383460c9438ff75dca6ded64e826e649ff5680dda *evidence/asset_decl_check.py
+99664da24d65ea9bd96c8a4a1e8c25793d3637b5f7693a13a541ed71cbac3a64 *evidence/blind/key.json
+bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind/results.json
+1f8ca46cfa206dc803ab5dd410d56fcf90e954bcc7d131c5034bf6fa0a2cf030 *evidence/blind_agreement.py
+790159ee742b12f5d263b4552740b801ddc5a6af30e62508d5cf835263a8ee1b *evidence/cert_terms.py
+4fb4e1b322c1967ccd48ae0b367e5e3d64966954bc83928f56fe8853ab528ff0 *evidence/license_matrix.py
+58c59297ec78d06855ebf62320d3cbb249121e2dceb6bbf69313c80348cc7531 *evidence/repo_lint.py
+5d41bc45991bfde630dc16167206a2685d6c0af7bad2d3031c26ce2dfa2dbe21 *evidence/tm_class_check.py
+2dfeb237994596e5bc973a8341729d5507520b81f19acc297559046dab71f834 *repo/DCO
+c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 *repo/LICENSE
+2ac6552bb1c1b7775c9713c3ca8d3d17e99bd06cc9bc1220dfda0e29f6719c38 *repo/NOTICE
+73939083ed1a319caf77115be320d63c2ea8b13d9bd6cb62265ab77f3f86ab40 *repo/spec/ledger-entry.schema.json
+565400197e492a52c54861dd693afba35ddddaf9bd16f949d8dcc7b327144e94 *repo/spec/ledger-entry.schema.json.license
+5fec0fd38c1a29bcf665c79b5b24a8148a0ffc7d92338c7408a526eae625a8ba *repo/src/ledger_hash.py
+0f2429c890de7114564b5aad86153a97855ff8b7615bba1e32cdc02c730ddeeb *repo/spec/contribution-entry.schema.json
+40c6db30491125f119147acc08b3bcc8beed2172ed602aff41f4f6fb42558f4b *repo/spec/contribution-entry.schema.json.license
+# 说明（2026-11-08，P1-04 的可行部分）：资料库不支持删除或改名节点，repo/spec/ 下另存两个无扩展名副本，
+#   与对应 .schema.json 逐字节相同；打包入库以 .schema.json 为准，副本不带入仓库，仅保留在资料库供对照。
+#   副本字节指纹如下（不入 sha256 清单，避免与入库文件混淆）：
+#   ledger-entry.schema         2702 B  sha256 73939083ed1a319c…
+#   contribution-entry.schema   4956 B  sha256 0f2429c890de7114…
+# —— 以下为文档清单，不参与校验（指纹对应 2026-11-09 导出件，供漂移比对）——
+#   evidence/blind/samples.md  4,103 B  sha256 3d997a632d93c051014a040fc5892d5868a128be3960fbf5a1aa52889f964dc3
+#   repo/CONTRIBUTING.md  3,759 B  sha256 49e20c42fc398aadac2d19bac8892dcc582fd588f7bf559c7c0e51c32df77ba7
+#   repo/LICENSE-CC-BY-4.0.md  1,652 B  sha256 c6760ba7e8f8e53447e26b1f1956547425671db6e8fc7044a5268ba85136be62
+#   repo/LICENSE-CC-BY-SA-4.0.md  1,593 B  sha256 01c4d1ad25f06e6bc25e22fe75aacce9baef5be474ffedef3721aaf11c088e44
+#   repo/LICENSE-CC0-1.0.md  2,388 B  sha256 48ffa4c9dbe94be135fb5b92e9c39afb9225d28d7e1f3257cd8e5fd3f435c536
+#   repo/README.md  4,061 B  sha256 82af18a3e98a4ef9090676bc7882a47242afe37276b19f816c654ee91c8b8991
+#   repo/TRADEMARK.md  7,555 B  sha256 01aeee7618f2ecf757b6321ebad5f5a61829bf83cd6ffef5a889df7333352398
+#   数字丐帮2.0·W6-00 周索引 README（含 G5′ 判定）.md  10,942 B  sha256 57393cffe25f1f4398c5a96bf1eb1c5ea4f029d5fa9ca9d61f3c39a3e29d7eec
+#   数字丐帮2.0·W6-01 许可矩阵（L1）.md  11,334 B  sha256 dbad375a2ec4d24a2443ff74b848e5f599e2511245f1f22cd6aae7564d1b354d
+#   数字丐帮2.0·W6-02 仓库落地包（L2）.md  11,515 B  sha256 556333b5f0135238776a98edc2df23090ebfd9e9e0651b5f4a5d423a6ec21ceb
+#   数字丐帮2.0·W6-03 商标与认证规则（L3）.md  11,250 B  sha256 314629cefddbeb2493135c188d50e14cd5ef6ecb59c0958a3fe425ad6930e2ca
+#   数字丐帮2.0·W6-04 商标检索委托与备名预案（L4）.md  13,556 B  sha256 06b84fe63e8707aae0c0ded805c60fa28f7d93d1b3dfa0ec70e6de6073d8de8c
+#   数字丐帮2.0·W6-05 资产权属三声明（L-14 闭合）.md  9,989 B  sha256 9e952d4e87fbd84d9bcf0dd8dd16a080fc8df976263965cccb31ef8c9aa2d4b9
+#   数字丐帮2.0·W6-06 许可门取证记录（G5′）.md  9,647 B  sha256 19d0a69053292b758286f00344e4a611f1adee88f53e13c84803ceef1b1e96c4
+#   数字丐帮2.0·W6-07 任务清单与完成状态.md  14,145 B  sha256 663eb2ddd73f2821ca9cfa1e709778c8e532715a2ccb6f2d230fde6cd98403fe

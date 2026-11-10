@@ -1,0 +1,6 @@
+# 构建产物（0-snapshot/ 内的同名文件是冻结基线，必须入库，故只锚定根级 evidence/）
+/evidence/ledger_w4.db
+
+__pycache__/
+*.pyc
+.DS_Store

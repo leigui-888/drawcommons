@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/digital-gaibang/spec/contribution-entry.schema.json",
+  "title": "数字丐帮 2.0 贡献记录",
+  "description": "记一次「交付」，不记一分钱。账本记钱（ledger-entry.schema.json），贡献记录记谁把什么东西交付给了谁。S0 阶段无账户、不收款、不开票，因此一切撮合只产生贡献记录，不产生账本条目；两者不共链——账本链只装钱，混进非金额条目会让「账能对上」这件事失去意义。本文件以 CC0-1.0 发布，许可见同名 .license 伴生文件。",
+  "x-license": "CC0-1.0",
+  "x-spec-version": "0.1.0-draft",
+  "x-no-amount": "本 schema 不含任何金额字段。带金额的交付不是本 schema 的实例，是账本条目（ledger-entry.schema.json），且 S0 阶段一律不产生。",
+  "type": "object",
+  "additionalProperties": false,
+  "not": {
+    "required": ["amount_fen"]
+  },
+  "required": [
+    "delivery_id",
+    "occurred_at",
+    "kind",
+    "provider_id",
+    "receiver_id",
+    "deliverable_uri",
+    "evidence_uri",
+    "prev_hash",
+    "hash"
+  ],
+  "properties": {
+    "delivery_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{8,64}$",
+      "description": "交付标识。同一交付在各方记录里用同一个 id，便于第三方交叉核对；一旦写入不得变更、不得复用。"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "交付完成时点，UTC，ISO 8601。注意：这是「东西交到了」的时间，不是「钱到账」的时间——S0 没有到账。"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["matching_delivery", "code_contribution", "review", "translation", "operation"],
+      "description": "matching_delivery 指经由一次撮合形成的交付（R3 的产物）；其余为非撮合型贡献。"
+    },
+    "provider_id": {
+      "type": "string",
+      "pattern": "^agent:[a-z0-9._-]{3,64}$",
+      "description": "交付方 Agent 标识。不含身份信息；自然人身份只在协议层出现，不进入本记录。"
+    },
+    "receiver_id": {
+      "type": "string",
+      "pattern": "^(agent:[a-z0-9._-]{3,64}|public)$",
+      "description": "受领方标识。receiver_id 为 public 时，表示交付面向不特定对象（公共品交付），此时不记具体受领人。"
+    },
+    "mutual_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{8,64}$",
+      "description": "关联的撮合标识。kind 为 matching_delivery 时必填；其余类型可选。"
+    },
+    "deliverable_uri": {
+      "type": "string",
+      "minLength": 1,
+      "description": "交付物位置：仓库路径、快照链接、工单号、通话记录 id。必须指向一个可被第三方独立打开的东西。"
+    },
+    "evidence_uri": {
+      "type": "string",
+      "description": "可核验证据的位置。可为空串，但空串必须在公开页显示为「无证据」，不得隐藏该字段。"
+    },
+    "quantity": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "交付量（不是金额）。没有合适单位时省略本字段，不要编一个。",
+      "properties": {
+        "unit": {
+          "type": "string",
+          "enum": ["call", "token", "hour", "item", "word"]
+        },
+        "value": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": ["unit", "value"]
+    },
+    "prev_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "同一条链上上一条记录的 hash；链首用 64 个 0。"
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "本条记录的规范化哈希，算法与 ledger_hash.py 一致（键排序、UTF-8、不转义非 ASCII）。"
+    },
+    "x-note": {
+      "type": "string",
+      "description": "可选自由文本。所有扩展字段必须带 x- 前缀且可选。"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "kind": { "const": "matching_delivery" } },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["mutual_id"]
+      }
+    }
+  ],
+  "examples": [
+    {
+      "delivery_id": "d-2026-1129-0001",
+      "occurred_at": "2026-11-29T09:12:00Z",
+      "kind": "matching_delivery",
+      "mutual_id": "m-2026-1129-0001",
+      "provider_id": "agent:pool-alpha",
+      "receiver_id": "agent:research-beta",
+      "deliverable_uri": "https://example.invalid/deliveries/d-2026-1129-0001",
+      "evidence_uri": "https://example.invalid/deliveries/d-2026-1129-0001/receipt.txt",
+      "quantity": { "unit": "call", "value": 1200 },
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "9f2c1b7e4a5d6083c1e2f4a6b8d0e2f4a6b8d0e2f4a6b8d0e2f4a6b8d0e2f4a6"
+    }
+  ]
+}
