@@ -6,6 +6,10 @@
 # 复现性实测（2026-11-09）：同一文档连续导出 3 次，字节数与 sha256 完全一致（21,704 B / fc8a6251…3 次同值）。
 #   故 11-08 审查方所见「与 MANIFEST 全 DIFF」不是导出器随机，而是取件时点早于当日 26 条处置改动，属内容漂移；
 #   文档指纹因此可用于留痕与漂移比对，但仍不进入强制校验位（内容一改即失效，纳入校验只会制造假失败）。
+# 重算时点（F3 增补）：2026-11-11（F4 整篇覆盖后）。代码/数据指纹未变（16/16 复验通过）。
+# F3 变更（2026-11-11）：W6-02 加「现状更新（2026-11-11）」段并清理 §7 两处导出残留（F4 回写，节点 raVx8KV89EFLj7BRkrehVj）。
+#   文档指纹更新：11,515 B / 556333b5…（2026-11-09）→ 12,824 B / 6f3f27bb…（2026-11-11）。
+#   其余文档行维持 2026-11-09 口径；2.1 期本地修订未回写资料库的文档，在其各自回写时重测。
 cd6e245a808604c08d20010383460c9438ff75dca6ded64e826e649ff5680dda *evidence/asset_decl_check.py
 99664da24d65ea9bd96c8a4a1e8c25793d3637b5f7693a13a541ed71cbac3a64 *evidence/blind/key.json
 bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind/results.json
@@ -37,7 +41,7 @@ c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 *repo/LICENSE
 #   repo/TRADEMARK.md  7,555 B  sha256 01aeee7618f2ecf757b6321ebad5f5a61829bf83cd6ffef5a889df7333352398
 #   数字丐帮2.0·W6-00 周索引 README（含 G5′ 判定）.md  10,942 B  sha256 57393cffe25f1f4398c5a96bf1eb1c5ea4f029d5fa9ca9d61f3c39a3e29d7eec
 #   数字丐帮2.0·W6-01 许可矩阵（L1）.md  11,334 B  sha256 dbad375a2ec4d24a2443ff74b848e5f599e2511245f1f22cd6aae7564d1b354d
-#   数字丐帮2.0·W6-02 仓库落地包（L2）.md  11,515 B  sha256 556333b5f0135238776a98edc2df23090ebfd9e9e0651b5f4a5d423a6ec21ceb
+#   数字丐帮2.0·W6-02 仓库落地包（L2）.md  12,824 B  sha256 6f3f27bbd101a77b0e57a01b43245477316f50679e08330de11cbd85a4cf5916
 #   数字丐帮2.0·W6-03 商标与认证规则（L3）.md  11,250 B  sha256 314629cefddbeb2493135c188d50e14cd5ef6ecb59c0958a3fe425ad6930e2ca
 #   数字丐帮2.0·W6-04 商标检索委托与备名预案（L4）.md  13,556 B  sha256 06b84fe63e8707aae0c0ded805c60fa28f7d93d1b3dfa0ec70e6de6073d8de8c
 #   数字丐帮2.0·W6-05 资产权属三声明（L-14 闭合）.md  9,989 B  sha256 9e952d4e87fbd84d9bcf0dd8dd16a080fc8df976263965cccb31ef8c9aa2d4b9
