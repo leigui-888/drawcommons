@@ -10,8 +10,27 @@ DB = os.path.join(os.path.dirname(__file__), "ledger_w4.db")
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CANDS = [os.path.join(_HERE, "..", "spec", "ddl_w4.sql"), os.path.join(_HERE, "ddl_w4.sql")]
 DDL_PATH = next((p for p in _CANDS if os.path.exists(p)), _CANDS[-1])
+def _reset(db):
+    """把库恢复到可重建状态。优先删文件；删不掉（占用/权限/安全策略）就地清空。
+
+    为什么不在删除失败时直接退出：这条命令要能被反复执行。复现者跑第二遍就
+    exit 1 的话，"两条命令复现 35/35"这个判据只在第一次成立。
+    """
+    try:
+        os.remove(db)
+        return
+    except OSError:
+        pass
+    c = sqlite3.connect(db)
+    objs = c.execute("SELECT type,name FROM sqlite_master "
+                     "WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%'").fetchall()
+    for typ, name in objs:
+        c.execute('DROP %s IF EXISTS "%s"' % ("TABLE" if typ == "table" else "VIEW", name))
+    c.commit()
+    c.close()
+
 if os.path.exists(DB):
-    os.remove(DB)
+    _reset(DB)
 con = sqlite3.connect(DB)
 con.executescript("""
 CREATE TABLE ledger_give(give_id TEXT PRIMARY KEY, mutual_id TEXT, from_agent_id TEXT, to_agent_id TEXT,
