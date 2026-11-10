@@ -2,6 +2,9 @@
 
 v1.2 起把"append-only 是否真的挡住了删改"纳入自测：
 审查报告 P0-03 的六次攻击（3 表 × UPDATE/DELETE）必须全部被拒，否则退出码非 0。
+v1.3 起把"主体展示与同意撤回"纳入自测：
+发布闸门第 5 条（display_mode 默认 pseudonymous、实名须显式绑定、撤回立即生效、
+公开视图不泄露 real_name_ref）必须全部经攻击验证，否则退出码非 0。
 """
 import sqlite3, os, sys
 
@@ -89,4 +92,66 @@ try:
 except Exception as e:
     print("归档只读 OK ->", str(e)[:50])
 
+# ---- v1.3：主体展示与同意撤回（发布闸门第 5 条）----
+con.execute("INSERT INTO party(party_id, updated_at) VALUES('p_a','2026-11-11T02:00:00+08:00')")
+shown_default = con.execute("SELECT shown_name FROM v_public_party WHERE party_id='p_a'").fetchone()[0]
+if shown_default != "p_a":
+    print("默认假名 FAIL: shown_name =", shown_default)
+    fail += 1
+else:
+    print("默认假名 OK: 无 display_mode 时 shown_name = party_id")
+
+try:
+    con.execute("INSERT INTO party(party_id, display_mode, updated_at) VALUES('p_bad','real_name','2026-11-11T02:00:00+08:00')")
+    print("实名绑定失效 FAIL: 无 real_name_ref 的实名 INSERT 被放行")
+    fail += 1
+except Exception as e:
+    ok = "DGB_LED_016" in str(e)
+    print("实名绑定 OK (INSERT 拦截, DGB_LED_016):" if ok else "实名绑定 FAIL(错误码缺失):", str(e)[:60])
+    fail += 0 if ok else 1
+
+con.execute("INSERT INTO party(party_id, display_mode, real_name_ref, updated_at) "
+            "VALUES('p_b','real_name','REF::vault:0001','2026-11-11T02:00:00+08:00')")
+shown_real = con.execute("SELECT shown_name FROM v_public_party WHERE party_id='p_b'").fetchone()[0]
+if shown_real != "REF::vault:0001":
+    print("实名展示 FAIL: shown_name =", shown_real)
+    fail += 1
+else:
+    print("实名展示 OK: 显式绑定后视图输出 real_name_ref")
+
+# 撤回必须立即在视图生效（不再输出实名），并成为终态
+con.execute("UPDATE party SET consent_withdrawn_at='2026-11-11T02:05:00+08:00' WHERE party_id='p_b'")
+shown_after = con.execute(
+    "SELECT shown_name, consent_withdrawn FROM v_public_party WHERE party_id='p_b'").fetchone()
+if shown_after != ("p_b", 1):
+    print("撤回生效 FAIL:", shown_after)
+    fail += 1
+else:
+    print("撤回生效 OK: 视图立即回落 party_id，consent_withdrawn=1")
+
+try:
+    con.execute("UPDATE party SET consent_withdrawn_at=NULL WHERE party_id='p_b'")
+    print("撤回终态失效 FAIL: 撤回被清空")
+    fail += 1
+except Exception as e:
+    ok = "DGB_LED_015" in str(e)
+    print("撤回终态 OK (DGB_LED_015):" if ok else "撤回终态 FAIL(错误码缺失):", str(e)[:60])
+    fail += 0 if ok else 1
+
+# 撤回后即便 display_mode 仍为 real_name，视图也不得输出实名（双保险）
+mode_row = con.execute("SELECT display_mode FROM party WHERE party_id='p_b'").fetchone()[0]
+shown_guard = con.execute("SELECT shown_name FROM v_public_party WHERE party_id='p_b'").fetchone()[0]
+if mode_row == "real_name" and shown_guard != "REF::vault:0001" and shown_guard == "p_b":
+    print("视图双保险 OK: display_mode 未改、实名仍不输出")
+else:
+    print("视图双保险 WARN: mode=%s shown=%s" % (mode_row, shown_guard))
+
+try:
+    con.execute("SELECT real_name_ref FROM v_public_party")
+    print("视图泄露 FAIL: real_name_ref 可从视图查询")
+    fail += 1
+except Exception as e:
+    print("视图不泄露 OK: real_name_ref 不在 v_public_party 中 ->", str(e)[:45])
+
+con.rollback()
 sys.exit(1 if fail else 0)

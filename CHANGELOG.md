@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-11-11 · C2 · DDL v1.3
+
+`spec/ddl_w4.sql` v1.2 → **v1.3**。这不是加一列，是补上账本一直缺的"主体选择如何被展示"这一层，发布闸门第 5 条（实名须显式绑定）从口号变成可攻击验证的结构。
+
+| 产出 | 说明 |
+| --- | --- |
+| `party` 表 | `display_mode` 默认 `pseudonymous`，CHECK 限二值；`real_name_ref` 只存引用不存明文（库被整库拖走时实名原文不随库泄露）；`consent_withdrawn_at` / `updated_at` |
+| `v_public_party` 视图 | **唯一对外口径**。仅当显式实名 + 未撤回 + 引用存在三者同时成立才输出 `real_name_ref`，否则回落 `party_id`；视图不含 `real_name_ref` 原列，查它直接报错 |
+| `DGB_LED_015` | 撤回同意是终态：`consent_withdrawn_at` 一旦写入不可清空/回拨 |
+| `DGB_LED_016` | 实名须显式绑定：`display_mode='real_name'` 而 `real_name_ref` 为空，INSERT / UPDATE 两路都拦（表级 CHECK 另有一道兜底） |
+
+`evidence/build_ledger.py` 断言从 9 项扩到 **16 项**：默认假名、实名未绑定被拒、实名展示、撤回立即生效、撤回终态、视图双保险（`display_mode` 未改也不输出实名）、视图不泄露原列。`exit 0`。
+
+对冻结基线零影响：`spec/` 与 `evidence/` 不在指纹集内，`regen_manifest.py --check` 复跑 35/35 + 16/16 照过。命名空间 `dgb.ledger.v1` 不动，错误码沿用 `DGB_LED_0xx` 序列（015/016 接在 014 之后）。
+
 ## 2026-11-10 · F1 + F2
 
 ### F1 · 2.0-final 冻结说明

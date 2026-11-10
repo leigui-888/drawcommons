@@ -1,5 +1,10 @@
 -- W4-02 账本口径增补：DDL（SQLite）
--- 版本 w4-ddl v1.2 / 2026-11-08
+-- 版本 w4-ddl v1.3 / 2026-11-11
+-- v1.3 变更（C2）：
+--   新增主体表 party：display_mode 默认 'pseudonymous'（发布闸门第 5 条：实名须显式绑定）
+--   real_name_ref 只存引用（脱敏串/外部指针），账本库不承载实名原文
+--   新增公开视图 v_public_party：唯一对外口径，按 display_mode 与撤回状态输出 shown_name
+--   触发器：DGB_LED_015 撤回同意是终态 / DGB_LED_016 实名须显式绑定（INSERT 与 UPDATE 两路都拦）
 -- v1.2 变更（对应审查报告 P0-03 / P0-04 / P2-01 / P2-02）：
 --   P0-03  append-only：三表 BEFORE UPDATE / BEFORE DELETE 一律 ABORT（DGB_LED_012 / DGB_LED_013）
 --   P0-04  旧积分列迁出主表：magnitude_legacy → archive_magnitude_v1，主表不再留可写连续量
@@ -121,3 +126,63 @@ CREATE TRIGGER trg_ledger_payback_no_delete BEFORE DELETE ON ledger_payback
 BEGIN
   SELECT RAISE(ABORT, 'DGB_LED_013: append-only: DELETE forbidden on ledger_payback');
 END;
+
+-- 8) 主体表与公开视图（v1.3，C2）
+--    背景：账本三表只有主体标识列，没有"主体选择如何被展示"的状态。
+--    实名展示是显式同意事项：默认假名；撤回同意后必须立即不再输出实名——
+--    这一隔离不靠应用层自觉，靠表结构 + 视图实现。
+--
+--    party 表是可变状态表（与账本三表的 append-only 性质不同）：
+--    display_mode / consent_withdrawn_at 本来就要随主体意愿更新。
+--    不可变的是"撤回"这个动作本身：一旦撤回，不可撤销（DGB_LED_015）。
+--
+--    real_name_ref 存"引用"而非明文：脱敏串或外部加密存储的指针。
+--    账本库被整库拖走时，实名原文不随库泄露（对应白皮书 §11.7.4 静态加密的库里落点）。
+CREATE TABLE party(
+  party_id             TEXT PRIMARY KEY,
+  display_mode         TEXT NOT NULL DEFAULT 'pseudonymous'
+                         CHECK (display_mode IN ('pseudonymous','real_name')),
+  real_name_ref        TEXT,
+  consent_withdrawn_at TEXT,
+  updated_at           TEXT NOT NULL,
+  -- 表级 CHECK 兜底：实名模式必须有引用。触发器（下）给出可审计的错误码。
+  CHECK (display_mode <> 'real_name' OR real_name_ref IS NOT NULL)
+);
+
+-- DGB_LED_015：撤回同意是终态。清空/回拨撤回时间一律拒绝。
+CREATE TRIGGER trg_party_consent_final BEFORE UPDATE ON party
+WHEN OLD.consent_withdrawn_at IS NOT NULL AND NEW.consent_withdrawn_at IS NULL
+BEGIN
+  SELECT RAISE(ABORT, 'DGB_LED_015: consent withdrawal is final; cannot un-withdraw');
+END;
+
+-- DGB_LED_016：实名须显式绑定。display_mode='real_name' 而 real_name_ref 为空，INSERT/UPDATE 两路都拦。
+CREATE TRIGGER trg_party_realname_bind_ins BEFORE INSERT ON party
+WHEN NEW.display_mode = 'real_name'
+     AND (NEW.real_name_ref IS NULL OR TRIM(NEW.real_name_ref) = '')
+BEGIN
+  SELECT RAISE(ABORT, 'DGB_LED_016: real-name display requires explicit real_name_ref');
+END;
+CREATE TRIGGER trg_party_realname_bind_upd BEFORE UPDATE ON party
+WHEN NEW.display_mode = 'real_name'
+     AND (NEW.real_name_ref IS NULL OR TRIM(NEW.real_name_ref) = '')
+BEGIN
+  SELECT RAISE(ABORT, 'DGB_LED_016: real-name display requires explicit real_name_ref');
+END;
+
+-- 公开视图：公开页与公开 API 只许查这里，不许查 party 表。
+-- 输出规则：仅当【显式选择实名】且【未撤回】且【引用存在】三者同时成立才输出 real_name_ref；
+-- 否则一律回落 party_id。视图不暴露 real_name_ref 原列，查询它直接报 no such column。
+CREATE VIEW v_public_party AS
+SELECT
+  party_id,
+  CASE
+    WHEN display_mode = 'real_name'
+         AND consent_withdrawn_at IS NULL
+         AND real_name_ref IS NOT NULL
+      THEN real_name_ref
+    ELSE party_id
+  END AS shown_name,
+  display_mode AS declared_mode,
+  CASE WHEN consent_withdrawn_at IS NULL THEN 0 ELSE 1 END AS consent_withdrawn
+FROM party;
