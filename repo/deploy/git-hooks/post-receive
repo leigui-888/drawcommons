@@ -22,6 +22,13 @@ git update-server-info
 while read -r old new ref; do
     case "$ref" in
         refs/tags/v*)
+            # 删除 tag 时 new 是 40 个 0，此时 tag 已不存在，git archive 会
+            # 报 "not a valid object name" 并被 set -e 中断（连带跳过镜像推送）。
+            # 移动 tag（先删后建）的第一跳就走这条，必须放过。
+            case "$new" in
+                *[!0]*) ;;
+                *) continue ;;
+            esac
             tag=${ref#refs/tags/}
             pkg="drawcommons-$tag.tar.gz"
             git archive --format=tar --prefix="drawcommons-$tag/" "$tag" | gzip -9 > "$DL/$pkg"
