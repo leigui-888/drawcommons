@@ -12,7 +12,7 @@
 | 照原样部署线上那套账本服务 | `deploy/` | Apache-2.0 | 保留版权与许可声明、NOTICE |
 | 实现本项目的接口/schema | `spec/` | **CC0-1.0** | **什么都不用做** |
 | 拿资源清单做自己的应用 | `data/` | CC-BY-4.0 | 署名 |
-| **不信我们，自己验一遍** | `REPRODUCE.md` | — | 三条命令，无需联网与凭据 |
+| **不信我们，自己验一遍** | `../REPRODUCE.md`（仓库根） | — | 两条命令，无需联网与凭据 |
 | 转载或改写文档 | `docs/` | CC-BY-SA-4.0 | 署名 + 改编同样开放 |
 | 说"我们兼容众汲之井" | — | 见 `TRADEMARK.md` | 遵守认证条件（免费、公开、不拒绝合规申请） |
 
@@ -26,7 +26,6 @@ DCO                             CC-BY-SA-4.0
 NOTICE                          CC-BY-SA-4.0
 CONTRIBUTING.md                 CC-BY-SA-4.0
 README.md                       CC-BY-SA-4.0
-REPRODUCE.md                    CC-BY-SA-4.0
 TRADEMARK.md                    CC-BY-SA-4.0
 src/**                          Apache-2.0
 scripts/**                      Apache-2.0

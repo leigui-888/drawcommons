@@ -23,6 +23,21 @@ drawcommons.org, www.drawcommons.org {
         -Server
     }
 
+    # 公开仓库（哑协议，只读）：第三方 clone 下来自己复现，不需要任何账号。
+    # 用哑协议而非 git-http-backend（Caddy 无 CGI），代价是不支持 push/PR——
+    # 本仓本来也不接受外部推送，只接受邮件与 issue 反馈，够用。
+    # 裸仓由 /opt/drawcommons/git/drawcommons.git 挂入（compose 内 :ro）。
+    handle_path /repo.git/* {
+        root * /srv/git/drawcommons.git
+        file_server
+    }
+
+    # 免装 git 的复现包（含 sha256），给只想核一次字节的人
+    handle_path /download/* {
+        root * /srv/git/download
+        file_server
+    }
+
     reverse_proxy app:8000 {
         # 覆写而非追加：Caddy 默认会把客户端自带的 X-Forwarded-For 追加进链条，
         # 那样客户端能伪造来源 IP，日志就不可信。这里固定成真实对端。

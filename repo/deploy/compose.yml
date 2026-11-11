@@ -13,6 +13,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./data:/data
       - ./backup:/config
+      # 公开仓库裸仓与复现包（只读挂入，由 Caddy 静态服务；见 Caddyfile 的 /repo.git 路由）
+      - ./git:/srv/git:ro
     depends_on:
       - app
 

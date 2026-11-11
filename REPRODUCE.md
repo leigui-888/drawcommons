@@ -15,6 +15,17 @@
 
 不需要联网、不需要任何凭据、不需要我们提供的任何服务。第 2 节起的命令在断网机器上同样成立。
 
+## 1.1 这个仓库长什么样
+
+clone 下来会看到两个层次，别混淆：
+
+| 路径 | 是什么 | 校验口径 |
+| --- | --- | --- |
+| `MANIFEST`、`evidence/`、`0-snapshot/`、`spec/` | 整包：证据脚本、35 件 2.0-final 冻结文档、DDL | `MANIFEST` 22 条强制校验 + `0-snapshot/*/MANIFEST` 35 条冻结校验 |
+| `repo/` | **对外授权的那一棵树**（代码、接口 schema、部署源、许可文本）。它自己的 `repo/README.md` 里有一张机器可读的逐文件许可表，表里的路径相对 `repo/` | `evidence/repo_lint.py repo` 逐件检查 |
+
+运行服务的那份代码在 `repo/deploy/`，与 <https://drawcommons.org> 线上逐字节相同。
+
 ## 2. 两条判据（都以 exit 0 结束）
 
 ```bash
@@ -29,7 +40,7 @@ python3 evidence/regen_manifest.py    # ② 重算并校验 35 件（0-snapshot�
 
 ## 3. 期望输出
 
-**① `build_ledger.py`** — 打印约 20 行，**每一行都必须以 `OK` 结尾**：
+**① `build_ledger.py`** — 打印 **19 行**：`DDL OK` 一行、两行计数（`归档行数` / `未判定 scope 行数`）、其余 **16 行全部以 `OK` 结尾**。任何一行不是 `OK` 即失败。
 
 ```
 DDL OK; ledger_give: [('g_1', 'mutual', 0, 2.0, 'self_reported', 'pr_v1.1.0'), ...]
@@ -100,7 +111,7 @@ python3 evidence/repo_lint.py repo
 跑完第 2 节，你可以自己算出线上服务展示的那个锚值：
 
 ```bash
-LEDGER_DB=evidence/ledger_w4.db python3 deploy/app/app.py &
+LEDGER_DB=evidence/ledger_w4.db python3 repo/deploy/app/app.py &
 curl -s http://127.0.0.1:8000/api/ledger/export | sha256sum
 ```
 
@@ -142,6 +153,6 @@ cdec34e5bb85018a9a0d905307ee2103fa1ee7a9f046290987cc1a801efe30a9
 - 代码（`src/`、`deploy/`）：Apache-2.0，保留版权与许可声明、NOTICE；
 - 接口与 schema（`spec/`）：CC0-1.0，随便用，不用署名；
 - 数据（`data/`、`evidence/*.db`）：CC-BY-4.0，署名即可；
-- 文档（`docs/`、`0-snapshot/`、本文件）：CC-BY-SA-4.0，署名 + 改编同样开放。
+- 文档（`repo/` 与 `0-snapshot/`）：CC-BY-SA-4.0，署名 + 改编同样开放。
 
-逐文件归属见 `README.md` 的机器可读表——`repo_lint.py` 的 R3 就是照它逐件检查的。
+逐文件归属见 `repo/README.md` 的机器可读表——`repo_lint.py` 的 R3 就是照它逐件检查的。本文件（仓库根 `REPRODUCE.md`）同为 CC-BY-SA-4.0。
