@@ -8,7 +8,7 @@
 #      文件，不刷它，clone 拿到的是上一次推送的状态（静默的旧代码）。
 #   2. 为每个新 tag 出复现包 —— 「tag 指向 A、包还是 B」时，邀请函指向旧代码。
 #      出包这步不能靠人手记得做。
-#   3. 同步 latest 别名 —— 页面链的是 /download/latest.tar.gz，写死版本号会导致
+#   3. 同步 latest 别名 —— 页面链的是 /download/drawcommons-latest.tar.gz，写死版本号会导致
 #      每打一个 tag 就要改页面，漏改一次就指向旧包。
 # 有 github remote 时顺带镜像；失败只记日志，不让镜像问题回滚本地推送。
 

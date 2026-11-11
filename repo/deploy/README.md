@@ -66,7 +66,7 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum
 | 地址 | 内容 | 实现 |
 | --- | --- | --- |
 | `https://drawcommons.org/repo.git` | 整包裸仓，`main` 分支 + tag | `/opt/drawcommons/git/drawcommons.git`，Caddy 静态服务（哑协议） |
-| `https://drawcommons.org/download/latest.tar.gz` | **稳定别名**，当前 tag 的压缩包 + `.sha256` | 钩子每次出包时同步复制 |
+| `https://drawcommons.org/download/drawcommons-latest.tar.gz` | **稳定别名**，当前 tag 的压缩包 + `.sha256` | 钩子每次出包时同步复制 |
 | `https://drawcommons.org/download/drawcommons-<tag>.tar.gz` | 版本化压缩包 + `.sha256`，可长期引用 | `git archive` 生成在 `git/download/` |
 
 维护要点：

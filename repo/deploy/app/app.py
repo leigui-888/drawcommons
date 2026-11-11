@@ -412,7 +412,7 @@ MINIMAL_PAGE = r"""<!doctype html>
      步骤写在仓库根的 <code>REPRODUCE.md</code> 里，也写明了这套东西<b>没证明什么</b>。</p>
   <ul class="links">
     <li><a href="/repo.git">/repo.git</a><span>只读仓库，git clone 后按 REPRODUCE.md 跑两条判据</span></li>
-    <li><a href="/download/latest.tar.gz">/download/latest.tar.gz</a><span>免装 git 的复现包，同目录有 .sha256</span></li>
+    <li><a href="/download/drawcommons-latest.tar.gz">/download/drawcommons-latest.tar.gz</a><span>免装 git 的复现包，同目录有 .sha256</span></li>
   </ul>
 
   <h2>说明</h2>
