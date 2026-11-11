@@ -25,6 +25,8 @@ LICENSE*                        NOASSERTION
 DCO                             CC-BY-SA-4.0
 NOTICE                          CC-BY-SA-4.0
 CONTRIBUTING.md                 CC-BY-SA-4.0
+CREDITS.md                      CC-BY-SA-4.0
+credits.json*                   CC-BY-SA-4.0
 README.md                       CC-BY-SA-4.0
 TRADEMARK.md                    CC-BY-SA-4.0
 src/**                          Apache-2.0
@@ -72,13 +74,18 @@ JSON 不能写注释，这不是可以通融的技术细节：**没有伴生文�
 ****的东西就是名称**。把名称放进许可里，要么污染许可（加限制即不再是开源），
 要么放弃防冒充（许可不限制即无法阻止）。
 
-## 5. 当前状态（2026-11-08）
+## 5. 当前状态（2026-11-11）
 
 | 项 | 状态 |
 | --- | --- |
-| 归属表 | ✅ 11 条规则，覆盖全部已跟踪文件；新增的 contribution-entry.schema.json 由 spec/\*\* 一条覆盖，未改表 |
+| 归属表 | ✅ 13 条规则，覆盖全部已跟踪文件；`credits.json` 与伴生文件由 `credits.json*` 一条覆盖 |
 | 四份许可文件 | ✅ 4/4 存在；其中全文仅 1 份（Apache-2.0），3 份为指针（见 D-06） |
-| 文件头/伴生文件 | ✅ 代码 1/1、JSON 2/2（两份 schema 各带一个同名 .license 伴生文件） |
+| 文件头/伴生文件 | ✅ 代码 1/1、JSON 3/3（两份 schema + `credits.json` 各带同名 `.license`） |
+| 名录 | ✅ `CREDITS.md` + `credits.json`，由 R12/R13 双向校验（见下） |
 | 第三方内容 | 无（NOTICE 已声明） |
 | 名称 | ⚠️ 未检索、未注册，不得对外声称已获商标保护 |
-| 仓库托管与公开 | ❌ 未公开（M2-R1） |
+| 仓库托管与公开 | ✅ 只读裸仓公开：`https://drawcommons.org/repo.git` |
+
+> **名录不是「致谢页」。** `CREDITS.md` 登记三类人（著作权贡献者 / 数据贡献者 / 支持者），
+> 因为这三类的法律基础和救济方式完全不同——支持者没有著作权，只有约定。把三者混成一张
+> 感谢名单，是对支持者承诺了法律上不存在的东西。

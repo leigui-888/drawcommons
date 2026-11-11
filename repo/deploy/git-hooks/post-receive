@@ -3,13 +3,15 @@
 # Copyright 2026 老夫 <2379731846@qq.com>
 #
 # 装到裸仓 hooks/post-receive（/opt/drawcommons/git/drawcommons.git/hooks/）。
-# 三件事，每件都是为了防一类已经踩过的错：
+# 四件事，每件都是为了防一类已经踩过的错：
 #   1. update-server-info —— 哑协议只认 info/refs 与 objects/info/packs 两个静态
 #      文件，不刷它，clone 拿到的是上一次推送的状态（静默的旧代码）。
 #   2. 为每个新 tag 出复现包 —— 「tag 指向 A、包还是 B」时，邀请函指向旧代码。
 #      出包这步不能靠人手记得做。
 #   3. 同步 latest 别名 —— 页面链的是 /download/drawcommons-latest.tar.gz，写死版本号会导致
 #      每打一个 tag 就要改页面，漏改一次就指向旧包。
+#   4. 同步名录 —— 署名承诺必须能被不装 git 的人读到；名录只活在裸仓对象库里，
+#      对浏览器就是不存在。这里把它摊到 /download/，与复现包同一个出口。
 # 有 github remote 时顺带镜像；失败只记日志，不让镜像问题回滚本地推送。
 
 set -e
@@ -45,7 +47,21 @@ while read -r old new ref; do
     esac
 done
 
+# 4. 名录摊到下载目录：署名承诺要能被不装 git 的人读到。
+#    从 HEAD 取而不是从某个 tag 取——名录是"当下有效"的记录，历史快照留在各自 tag 里，
+#    那正是 CREDITS.md §8 用来防抹除的东西（旧 tag 里的旧哈希改不掉）。
+for f in repo/CREDITS.md repo/credits.json; do
+    out=${f##*/}
+    if git show "HEAD:$f" > "$DL/$out.tmp" 2>/dev/null; then
+        mv -f "$DL/$out.tmp" "$DL/$out"
+    else
+        rm -f "$DL/$out.tmp"
+        logger -t drawcommons-hook "credits sync skipped: $f not in HEAD"
+    fi
+done
+
 if git remote | grep -qx github; then
     git push --mirror github > /dev/null 2>&1 \
         || logger -t drawcommons-hook "github mirror push failed (本地推送已完成)"
 fi
+

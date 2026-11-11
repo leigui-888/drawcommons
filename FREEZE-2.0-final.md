@@ -37,17 +37,18 @@
 
 > **署名轮（2026-11-11 深夜）**：版权行由「众汲之井 2.0/2.1 贡献者」（两种版本号并存）统一为 `Copyright 2026 老夫 <2379731846@qq.com>`，并去掉版权行里的产品版本号——版权年份与产品版本是两个维度，带版本号会让每次发版都改版权行、都要重算指纹。`repo_lint.py` 规则数 **10 → 11**（新增 R11：根 `spec/` 与 `evidence/` 的文件头 SPDX 值须为 `CC0-1.0` / `Apache-2.0`，这两处位于 `repo/` 授权树之外、R4 遍历不到）。MANIFEST 改写 15 条、**条数仍 23**；`0-snapshot/` 一字节未动，五份周 MANIFEST 与 35/35 不受影响，上表五个自指纹全部不变。
 
+> **名录轮（2026-11-11 深夜）**：署名从「文件头写谁」推进到「承诺可被核验」。新增 `repo/CREDITS.md`（三类人：著作权贡献者 / 数据贡献者 / 支持者，各自依据与承诺强度不同）与 `repo/credits.json`（机器可读副本）；`repo_lint.py` 规则数 **11 → 13**（R12 名录 ↔ git 双向一致：不漏记、不虚构、依据可查、无集体名残留；R13 两份源记录集相同）。MANIFEST **23 条 → 25 条**（`credits.json` 与伴生 `.license` 入表，`CREDITS.md` 属文档进注释区），改写 6 条。`0-snapshot/` 一字节未动，五份周 MANIFEST 与 35/35 不受影响，上表五个自指纹全部不变。
+
 ---
 
 ## 2. 怎么验
-
 
 两条命令，不联网，不需要任何凭据：
 
 ```bash
 git clone <仓库> && cd drawcommons
 python3 evidence/build_ledger.py        # exit 0，六次攻击全被拒
-python3 evidence/regen_manifest.py      # 0-snapshot 35/35，仓库根 23/23
+python3 evidence/regen_manifest.py      # 0-snapshot 35/35，仓库根 25/25
 ```
 
 `regen_manifest.py` 不带参数时**只读本地**重算并比对，不访问资料库；带 `--fetch` 才回源重新导出。**默认离线**是刻意的：独立复现者拿不到平台凭据，判据也必须成立。

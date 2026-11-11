@@ -1,0 +1,12 @@
+SPDX-License-Identifier: CC-BY-SA-4.0
+SPDX-FileCopyrightText: 2026 老夫 <2379731846@qq.com>
+
+本文件是 credits.json 的许可归属声明（伴生文件）。
+JSON 格式无法写入注释，故许可归属不能写在被许可文件内部。
+
+许可：Creative Commons Attribution-ShareAlike 4.0 International
+法律文本：https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+与 NOTICE、CONTRIBUTING 同类，名录属治理文档，用同一许可。理由：
+名录里的每个名字本身不是可以被「再许可」的财产，它是一份记录；
+用 CC-BY-SA 只约束这份记录的复制与改编，不改变各人对自身贡献的著作权。

@@ -416,6 +416,17 @@ MINIMAL_PAGE = r"""<!doctype html>
     <li><a href="/download/drawcommons-latest.tar.gz">/download/drawcommons-latest.tar.gz</a><span>免装 git 的复现包，同目录有 .sha256</span></li>
   </ul>
 
+  <h2>名录与署名</h2>
+  <p class="plain">谁做过什么、凭什么记他、名字该写在哪，都在一份公开名录里，不在对话里。
+     名录分三类，因为这三类人的依据不一样：写了东西的、录了数据的，署名是他们的权利，
+     也是我们分发时躲不掉的义务；出钱、出服务器、出地方的，<b>没有著作权</b>——单纯给钱
+     不产生作品，所以我们对他们只承诺列名、注明形式、随时可撤回，不承诺「署名权」。
+     承诺了什么、不承诺什么，名录里逐条写着，包括不承诺永久。</p>
+  <ul class="links">
+    <li><a href="/download/CREDITS.md">/download/CREDITS.md</a><span>名录全文：三类人、登记依据、认领与退出、逐版快照</span></li>
+    <li><a href="/download/credits.json">/download/credits.json</a><span>机器可读的同一条记录，可与仓库里的那份逐字比对</span></li>
+  </ul>
+
   <h2>说明</h2>
   <p class="plain">测试期：名称、口径、界面都还可能改。名称在商标检索中，所以标着「暂行名」。
      表结构与字段定义见仓库的 <code>spec/ddl_w4.sql</code> 与 <code>repo/spec/</code> 下的 JSON Schema；

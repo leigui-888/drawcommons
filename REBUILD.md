@@ -10,14 +10,18 @@ clone 后两条命令复现 W3–W7 的 35 件校验：
 
 ```bash
 python3 evidence/build_ledger.py      # 建基线库 + 执行 DDL，六次攻击全被拒则 exit 0
-python3 evidence/regen_manifest.py    # 重算并校验 35 件（0-snapshot）+ 23 件（仓库根），全一致则 exit 0
+python3 evidence/regen_manifest.py    # 重算并校验 35 件（0-snapshot）+ 25 件（仓库根），全一致则 exit 0
 ```
 
-第三条（2026-11-11 起）：`python3 evidence/repo_lint.py repo` —— 十一条许可规则。其中两条卡的是
+第三条（2026-11-11 起）：`python3 evidence/repo_lint.py repo` —— 十三条许可与署名规则。其中四条卡的是
 "同一事实写在两处、只改一处"这类分叉：R10 比 `deploy/app/ledger_hash.py` 与 `src/ledger_hash.py`
 是否逐字节相同（vendoring 的分叉不能被 `sha256sum -c` 发现，见 CHANGELOG 的 C3 条目）；R11 比
 根 `spec/` 与 `evidence/` 的文件头 SPDX 值是否与目录约定一致（这两处不在 `repo/` 授权树内，
-R4 的遍历到不了）。当前 9/11，未过的 R2、R9 为既有缺口，故本条属"附带体检"而非判据。
+R4 的遍历到不了）；R12 比名录与 git 记录是否对得上（漏记、虚构、依据不可查都会红）；
+R13 比 `CREDITS.md` 与 `credits.json` 的记录集是否相同。当前 11/13，未过的 R2、R9 为既有缺口，
+故本条属"附带体检"而非判据。
+
+R12/R13 存在的理由很简单：**署名承诺如果不能被第三方核验，就不是承诺，是客气话。**
 
 ### 目录口径
 

@@ -4,12 +4,17 @@
 # Copyright 2026 老夫 <2379731846@qq.com>
 """仓库许可体检：G5′ 许可门的机器可验部分。
 
-十一条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
-**一个陌生人 clone 下来，能不能仅凭仓库里的文件判断"这个文件我能不能用"。**
+十三条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
+**一个陌生人 clone 下来，能不能仅凭仓库里的文件判断"这个文件我能不能用"，以及
+"谁做的、能不能找到他"。**
 
 R1–R10 的视野是 `repo/`（授权树）。R11 补的是 `repo/` 之外那一层：根 `spec/`
 与 `evidence/`。它们同样被 git 跟踪、同样随 clone 公开，却不在任何规则视野内——
 R4 只遍历 `repo/`，所以这两个目录的文件此前从未被检查过是否可被判断许可。
+
+R12/R13 换了个问题：许可说得清「能不能用」，说不清「这是谁做的」。署名承诺若只写在
+CONTRIBUTING 里，就是一句没有对象的话——没有名录可查、没有依据可验、被删了也无人知道。
+R12 把名录接回 git 记录（不漏记、不虚构、依据可查），R13 卡住名录的两份表示不许分叉。
 
 用法：
     python repo_lint.py ../repo
@@ -22,6 +27,7 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -364,6 +370,173 @@ def rule11(root):
     return bool(targets) and ok == len(targets)
 
 
+def _load_credits(root):
+    """读 repo/credits.json。解析失败当作「没有名录」——宁可红，不可静默跳过。"""
+    p = os.path.join(root, "credits.json")
+    if not os.path.exists(p):
+        return None
+    try:
+        with open(p, encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception as e:  # noqa: BLE001
+        print(f"  ❌ credits.json 解析失败：{e}")
+        return None
+
+
+def _git(top, *args):
+    """在仓库根跑 git，返回 stdout；失败返回 None。"""
+    try:
+        return subprocess.run(["git", "-C", top, *args],
+                              capture_output=True, text=True, check=True).stdout
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def rule12(root):
+    """R12：署名承诺有没有真的落地。
+
+    三个问题，缺任一个，承诺就只是话：
+      ① 写过代码的人，名录里有没有？（不漏记）
+      ② 名录里的人，git 里有没有？（不虚构——给了署名却查不到贡献，是另一种伤害）
+      ③ 每条依据的 commit 是否真的存在？（可核验）
+
+    外加一条反向检查：文件头里还留着「某某版本贡献者」这类集体名没有。
+    集体名是署名承诺失效的典型形态——名字写了，但指不到人。
+    """
+    sec("R12 署名落地：名录 ↔ git 记录 ↔ 文件头")
+    data = _load_credits(root)
+    if data is None:
+        print("  ❌ 无（或无法解析）credits.json：署名承诺没有登记处")
+        return False
+
+    people = data.get("people") or []
+    pending = data.get("pending") or []
+    accounts = data.get("accounts") or []
+    print(f"  名录：people {len(people)} / pending {len(pending)} / accounts {len(accounts)}")
+
+    checks = []
+
+    top = os.path.dirname(root)
+    authors = None
+    if os.path.isdir(os.path.join(top, ".git")):
+        out = _git(top, "log", "--format=%ae")
+        if out is not None:
+            authors = {l.strip().lower() for l in out.splitlines() if l.strip()}
+
+    if authors is None:
+        print("  · 不适用：repo/ 的上级不是 git 仓库，跳过 ①②③（不计入分母）")
+        return None
+
+    known = {p.get("email", "").lower() for p in people}
+    known |= {p.get("email", "").lower() for p in pending}
+    known |= {a.get("email", "").lower() for a in accounts}
+    known.discard("")
+
+    # ① 漏记
+    missing = sorted(authors - known)
+    for m in missing:
+        print(f"    ❌ git 里有提交、名录里没有：{m}")
+    print(f"  {'✅' if not missing else '❌'} 未登记作者：{len(missing)}")
+    checks.append(not missing)
+
+    # ② 虚构
+    ghost = sorted({p.get("email", "").lower() for p in people} - authors)
+    ghost = [g for g in ghost if g]
+    for g in ghost:
+        print(f"    ❌ 名录里有、git 里没有任何提交：{g}")
+    print(f"  {'✅' if not ghost else '❌'} 无法追溯的作者：{len(ghost)}")
+    checks.append(not ghost)
+
+    # ③ 依据可核验
+    total = bad = 0
+    for p in people:
+        for sha in (p.get("evidence") or {}).get("commits") or []:
+            total += 1
+            if _git(top, "cat-file", "-e", f"{sha}^{{commit}}") is None:
+                bad += 1
+                print(f"    ❌ 依据指向不存在的提交：{p.get('id')} → {sha}")
+    print(f"  {'✅' if not bad else '❌'} 依据可核验：{total - bad}/{total}"
+          + ("" if total else "  ← 无名录依据，不判通过"))
+    checks.append(bool(total) and not bad)
+
+    # ④ 集体名残留（0-snapshot 是冻结基线，字节不可动，豁免）
+    # 只认「版权声明的行首」——正文里讨论这件事的句子（本规则自身、CONTRIBUTING 的教学段）
+    # 也会出现「贡献者」三个字，按子串抓会把它自己判成违规。
+    pat = re.compile(r"^\s*(?:#+\s*)?(?:Copyright|SPDX-FileCopyrightText)[^\n]*贡献者")
+    neg = ("不写", "此前写作", "不要写", "不再", "禁止")
+    leftover = []
+    for dirpath, dirnames, filenames in os.walk(top):
+        dirnames[:] = [d for d in dirnames if d not in (".git", "0-snapshot", "__pycache__")]
+        for f in filenames:
+            if not f.endswith((".py", ".sh", ".md", ".json", ".yml", ".yaml", ".license", "NOTICE")):
+                if f not in ("NOTICE", "DCO"):
+                    continue
+            fp = os.path.join(dirpath, f)
+            try:
+                with open(fp, encoding="utf-8", errors="ignore") as fh:
+                    for ln, line in enumerate(fh, 1):
+                        if pat.search(line) and not any(w in line for w in neg):
+                            leftover.append(f"{os.path.relpath(fp, top)}:{ln}")
+            except OSError:
+                pass
+    for l in leftover[:10]:
+        print(f"    ❌ 集体名版权行：{l}")
+    print(f"  {'✅' if not leftover else '❌'} 文件头集体名：{len(leftover)} 处")
+    checks.append(not leftover)
+
+    print(f"  结果：{sum(checks)}/{len(checks)} 项通过")
+    return all(checks)
+
+
+def rule13(root):
+    """R13：CREDITS.md 与 credits.json 是同一份记录的两个表示。
+
+    分叉的后果比「两份不一样」严重：名录是对外承诺，两份不一致时，
+    主张的人会被告知「以另一份为准」——承诺就此落空。故与 R10 同构，
+    逐条比对，不作容错。
+    """
+    sec("R13 名录两份源：CREDITS.md ↔ credits.json")
+    data = _load_credits(root)
+    if data is None:
+        print("  ❌ 无（或无法解析）credits.json")
+        return False
+    p = os.path.join(root, "CREDITS.md")
+    if not os.path.exists(p):
+        print("  ❌ 无 CREDITS.md（人读的那份不见了）")
+        return False
+
+    text = open(p, encoding="utf-8").read()
+    m = re.search(r"```credits\n(.*?)```", text, re.S)
+    if not m:
+        print("  ❌ CREDITS.md 中无 ```credits 清单块，无法比对")
+        return False
+
+    md = set()
+    for line in m.group(1).splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        cells = [c.strip() for c in line.split("|")]
+        if len(cells) >= 3:
+            md.add((cells[0], cells[1], cells[2].lower()))
+
+    js = {(x.get("id", ""), x.get("name", ""), x.get("email", "").lower())
+          for x in (data.get("people") or [])}
+
+    only_md = sorted(md - js)
+    only_js = sorted(js - md)
+    for x in only_md:
+        print(f"    ❌ 只在 CREDITS.md：{x[0]} / {x[1]}")
+    for x in only_js:
+        print(f"    ❌ 只在 credits.json：{x[0]} / {x[1]}")
+    print(f"  记录数：md {len(md)} / json {len(js)}")
+    print(f"  {'✅ 一致' if md == js else '❌ 已分叉'}")
+    if md != js:
+        print("  说明：名录对外是承诺，两份不一致时主张者会被指向另一份，承诺即落空。")
+        print("        修法：以 CREDITS.md 表格为准补齐 credits.json（或反之），再跑体检。")
+    return md == js
+
+
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else "."
     root = os.path.abspath(root)
@@ -386,6 +559,8 @@ def main():
         ("R9 MANIFEST 路径一致", rule9(root, files)),
         ("R10 deploy 副本一致", rule10(root)),
         ("R11 根受管文件声明", rule11(root)),
+        ("R12 署名落地", rule12(root)),
+        ("R13 名录两源一致", rule13(root)),
     ]
 
     print()

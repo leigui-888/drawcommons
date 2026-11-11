@@ -2,7 +2,14 @@
 # 口径（2026-11-08 重排，按审查 P2-06）：代码/数据取节点原始字节，全量入表，强制校验；
 #   文档单列于末尾注释区，不参与 sha256 校验——导出件字节随编辑变化，纳入校验只会制造假失败。
 # 文档侧的完整性另有两条：① 每份文档自带「判据 + 证据」段；② 目录统计与件数以资料库为准。
-# 重算时点：2026-11-11（署名统一：版权行改为可识别权利人）。此前为同日（C3 页面加入口）。
+# 重算时点：2026-11-11（名录落地：CREDITS.md + credits.json + R12/R13）。此前为同日（署名统一）。
+# 名录变更（2026-11-11 深夜）：新增 repo/credits.json 与 repo/credits.json.license，23 条 → 25 条；
+#   重算 6 条（repo_lint.py 加 R12/R13、app.py 加「名录与署名」节、post-receive 加名录同步、
+#   NOTICE 加署名承诺段、repo/spec 两个 .license 去掉残留集体名）。
+#   repo/CREDITS.md 属文档，进末尾注释区、不入校验。
+#   为什么 credits.json 要入表：它是名录的机器可读源，也是 R13 的比对基准。
+#   不入表则「谁改了名录」无迹可循——而名录恰恰是承诺本身。
+#   0-snapshot/ 一字节未动，35/35 不受影响。
 # 署名变更（2026-11-11 晚）：版权行「众汲之井 2.0/2.1 贡献者」→「老夫 <2379731846@qq.com>」，
 #   并去掉版权行里的产品版本号（版权年份与产品版本是两个维度，带版本号会让每次发版都改
 #   版权行→每次都要重算指纹）。本条改写 15 条：repo 下 8 个代码/配置文件（含 post-receive）
@@ -25,23 +32,25 @@ bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind
 488f77a8410fae408d81b4f5c55da62015509c74ab66f1569ee74e948ab7035c *evidence/blind_agreement.py
 d76346c1e9ba387804d25a2758f31865833172cd0705f222d509de646c66e150 *evidence/cert_terms.py
 fe309ce02f944ead706d2020019cf539e6df90981059faeac4dafabdba1259d1 *evidence/license_matrix.py
-fc39252c7af6291887cc65e909444940051f8fecf76237d4c676dfed71514d25 *evidence/repo_lint.py
+1340a7bd2cbb10236a9839909a774d81fb36491ae74497536b1cb84331396fe3 *evidence/repo_lint.py
 a2246c40ab0e4a4907a50c4650350e53f0c98e649e77cb4b5c533357ebd14586 *evidence/tm_class_check.py
 95d3be29621edd7b90c923ae74a4e77347758cf1d42b5e3057d7330422032551 *repo/deploy/app/Dockerfile
-60cc9453f6121c1e884ac8f974eb45bbc7d7a31040684ad55dc2b04f6f6e73e5 *repo/deploy/app/app.py
+e7e12d011bf5096439149a374774bf0475368e8e8a9aae2c4fd599061e7a2a94 *repo/deploy/app/app.py
 5ef229abf11bcffb76082d866c3ddd750b8123b8fc82b5bb7c6ef942451e568d *repo/deploy/app/ledger_hash.py
 7bdb2590fc15dff885478840b2fc908521d4ef04595346b807cc74f0c355d73c *repo/deploy/Caddyfile
 a155562a5a460527ce1cc204f4829e0ba1cfa06e67deccaa25c4f2244a5a2d09 *repo/deploy/compose.yml
 05a21bd99aeaf1cfcc8daf45c8849f1fe14b95241771f8c76f92cbde327c0067 *repo/deploy/daily.sh
-7a021adbdcb9a9baacb0b39547a28dbd67b1d78a01c55c4e32923adc7ef39ac3 *repo/deploy/git-hooks/post-receive
+ee978848c4e6761124906cbcbfa5b52d518a713b6899117045689a8bf1b54b7c *repo/deploy/git-hooks/post-receive
 2dfeb237994596e5bc973a8341729d5507520b81f19acc297559046dab71f834 *repo/DCO
 c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 *repo/LICENSE
-503b780b09603984e6f57ff4475e3e07fe2f2168d7bb91ee85ac7a92fbb6b21a *repo/NOTICE
+5898ffc05cb44fdeb2b51c3a5f32fe6fdb24341f7c70b32aea44a01036132728 *repo/NOTICE
+1cee27f17e53f2b4cd4c3bd118cc636804b31db74225de57234d3541f18f64ad *repo/credits.json
+b18ae5c06cebb4359a963e717d59973d857c4af9affaa9eb61d57cd11cc61431 *repo/credits.json.license
 8df19f55a95fcff9466adf1fe051d96d3397d4ad3be18ec582d743076b0c198a *repo/spec/ledger-entry.schema.json
-ce8e57969dafdae0735b79ae5245f2144f6a490b3486b929c1dc50ab5901e218 *repo/spec/ledger-entry.schema.json.license
+621bd370e2a9ddc0213b91d2fb7aa76afc8eb9cdcb3b61c4ed278af22d2d1213 *repo/spec/ledger-entry.schema.json.license
 5ef229abf11bcffb76082d866c3ddd750b8123b8fc82b5bb7c6ef942451e568d *repo/src/ledger_hash.py
 eb5db5b26f5effa8541414bd68c52e39aafdf3a978f797b45bc69b92fb162c52 *repo/spec/contribution-entry.schema.json
-946c143d154c74177440d3fc423c98d8cca3c0bd43d5c47c88b12176fbe4411f *repo/spec/contribution-entry.schema.json.license
+2d263338b2d9427c86599b2ba83ee9840b5479fb16afc395991fa204cd6e041a *repo/spec/contribution-entry.schema.json.license
 # 说明（2026-11-08，P1-04 的可行部分）：资料库不支持删除或改名节点，repo/spec/ 下另存两个无扩展名副本，
 #   与对应 .schema.json 逐字节相同；打包入库以 .schema.json 为准，副本不带入仓库，仅保留在资料库供对照。
 #   副本字节指纹如下（不入 sha256 清单，避免与入库文件混淆）：
@@ -50,6 +59,7 @@ eb5db5b26f5effa8541414bd68c52e39aafdf3a978f797b45bc69b92fb162c52 *repo/spec/cont
 # —— 以下为文档清单，不参与校验 ——
 #   evidence/blind/samples.md
 #   repo/CONTRIBUTING.md
+#   repo/CREDITS.md
 #   repo/LICENSE-CC-BY-4.0.md
 #   repo/LICENSE-CC-BY-SA-4.0.md
 #   repo/LICENSE-CC0-1.0.md
