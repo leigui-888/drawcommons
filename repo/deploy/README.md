@@ -59,6 +59,23 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum
 1. **`app.py` 必须推进 `app/`**。build context 是 `./app`，推到 `/opt/drawcommons/app.py` 会让 `docker compose build` 全程走缓存、容器仍是旧版，而构建输出照样打印 `Built`。判别：看启动横幅，或 `docker exec ledger-app python -c "import app;print(app.Handler.server_version)"`。
 2. **横幅要能看见**。2026-11-11 之前三行启动 `print` 没有 `flush=True`，stdout 接管道时是 8KB 块缓冲，`docker logs` 一片空白而容器 healthy——"用横幅核对版本"这招直接失效。现在三行都带 flush，正常应立刻出现，且第二行是 `data source: … (bind mount ✓)`。
 
-## 5. 许可
+## 5. 公开仓库与复现包（2026-11-11 起）
+
+线上同时对外提供**只读**的源码发布通道，供第三方 clone 自行复现（G3 复现邀请的落点）：
+
+| 地址 | 内容 | 实现 |
+| --- | --- | --- |
+| `https://drawcommons.org/repo.git` | 整包裸仓，`main` 分支 + tag | `/opt/drawcommons/git/drawcommons.git`，Caddy 静态服务（哑协议） |
+| `https://drawcommons.org/download/drawcommons-v2.1-rc1.tar.gz` | 与 tag 同字节的压缩包 + `.sha256` | `git archive` 生成在 `git/download/` |
+
+维护要点：
+
+- 裸仓由 `compose.yml` 的 `- ./git:/srv/git:ro` 只读挂进 caddy 容器；路由见 `Caddyfile` 的 `/repo.git/*`、`/download/*` 两个 `handle_path`。
+- **裸仓 HEAD 必须是 `refs/heads/main`**。`git init --bare` 默认指向 `master`，而本仓推的是 `main`——不设的话 clone 下来会得到 "remote HEAD refers to nonexistent ref, unable to checkout"，看起来像空仓库。设一次即可：`git symbolic-ref HEAD refs/heads/main`。
+- 哑协议靠 `info/refs` 与 `objects/info/packs` 两个文件，必须由 `post-receive` 钩子刷新（`git update-server-info`），否则推了新提交而 clone 拿到旧的。
+- 发版顺序：`git tag -a` → `git push publish main --tags` → 重新 `git archive` 出包并刷新 `.sha256`。**tag 与包必须同源**，包过期等于邀请函指向旧代码。
+- 用哑协议而非 `git-http-backend`：Caddy 无 CGI。代价是不支持 push/PR，本仓本来也只接受邮件反馈，够用。
+
+## 6. 许可
 
 本目录 `Apache-2.0`；`app/data/` 下的数据文件按 `CC-BY-4.0`（见 `../README.md` 的机器可读归属表）。`app/ledger_hash.py` 是 `../src/ledger_hash.py` 的**部署副本**，两者必须逐字节相同，由 `evidence/repo_lint.py` 的 R10 强制。

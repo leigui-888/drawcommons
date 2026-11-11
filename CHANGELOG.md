@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## 2026-11-11 · G3 · 仓库公开地址上线 + 复现说明
+
+复现邀请缺的从来不是仓库，而是一个**别人能 clone 的地址**。此前仓库只存在于本机与服务器两块磁盘上，"请你自己复现"这句话无法兑现。本次补上：
+
+| 地址 | 内容 |
+| --- | --- |
+| `https://drawcommons.org/repo.git` | 裸仓，只读哑协议，`main` + tag `v2.1-rc1` |
+| `https://drawcommons.org/download/drawcommons-v2.1-rc1.tar.gz` | 与 tag 同字节的包，附 `.sha256` |
+
+选自有域名而非先上 GitHub，理由是地址属于自己：不随平台改名、封禁、区域政策变化；路径 `/repo.git` 不含产品名，商标 11-27 出报告后若需改名，这里零成本。GitHub 镜像留待后续（需账号与推送凭据）。代价是没有 issue/PR 与 CI 绿色对勾，社交证明弱一层——用 `REPRODUCE.md` 里可复跑的判据来补。
+
+**`REPRODUCE.md` 移到仓库根**（不在 `repo/` 里）：它描述的是整个 bundle（`evidence/` + `0-snapshot/` + `repo/`），放在 `repo/` 下复现者根本找不到。
+
+**文档按实跑写，不按记忆写。** 初稿在四处与实际不符，全部由"在全新 clone 里跑一遍"暴露出来：
+
+1. `deploy/app/app.py` 实为 `repo/deploy/app/app.py`（`deploy` 在 `repo/` 之下）；
+2. `build_ledger.py` 打印 19 行，其中两行是计数（`归档行数` / `未判定 scope 行数`），其余 17 行**含** `OK` 而非**以** `OK` 结尾——照原写法 `grep 'OK$'` 会得到 0；
+3. 样例库是 **4 条**记录（`ledger_give` 2 + `ledger_receive` 1 + `ledger_payback` 1），不是 8——8 是盲测样本数；
+4. 「DDL 用到 `STRICT` 表」是错的：`STRICT` 在 `spec/ddl_w4.sql` 里出现 0 次，实际只用 `CREATE TABLE/VIEW/TRIGGER` 与 `RAISE`（11 处），故不设 SQLite 版本下限。
+
+**判据口径也改了**：`repo_lint` 从"判据"降为"附带体检"。它现在是 8/10、`exit 1`（R2 许可指针件 D-06、R9 清单命名历史口径），把它列进判据等于让每个复现者先撞一次"失败"。判据只留 `build_ledger` 与 `regen_manifest` 两条，都 `exit 0`。
+
+**验收（在全新 clone 里逐条断言，非目测）**：HEAD `4e5af53`、tag `v2.1-rc1`、① exit 0 + 19 行 + 17 行含 OK + 2 计数行、② exit 0 + 35/35 + 22/22、③ exit 1 + 8/10、本地复算锚值 `cdec34e5…` == 线上锚值、包 sha256 `fc49956f…` 与随包 `.sha256` 一致。
+
+**已知未做**：仓库首页（`/`）尚未加指向 `repo.git` 的链接，发现路径目前只靠邀请函本身；裸仓已有 `v2.0-final` 与 `v2.1-rc1` 两个 tag，`v2.0-final` 指向 2.0 冻结提交 `84cf110`。
+
 ## 2026-11-11 · C3 · 部署源入库 `deploy/` + 根 MANIFEST 16 → 22
 
 线上那套只读账本服务（`drawcommons.org`）此前**不在任何版本控制里**：只有本机一个目录、服务器一份文件，回滚靠手工归档 `.py`。一个对外提供账本验证的公开品，服务端代码不进仓库，等于"锚值可验、但算出锚值的那段代码不可验"。本次收进 `repo/deploy/`，随 `repo/` 一起对外发布。
