@@ -66,15 +66,27 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum
 | 地址 | 内容 | 实现 |
 | --- | --- | --- |
 | `https://drawcommons.org/repo.git` | 整包裸仓，`main` 分支 + tag | `/opt/drawcommons/git/drawcommons.git`，Caddy 静态服务（哑协议） |
-| `https://drawcommons.org/download/drawcommons-v2.1-rc1.tar.gz` | 与 tag 同字节的压缩包 + `.sha256` | `git archive` 生成在 `git/download/` |
+| `https://drawcommons.org/download/latest.tar.gz` | **稳定别名**，当前 tag 的压缩包 + `.sha256` | 钩子每次出包时同步复制 |
+| `https://drawcommons.org/download/drawcommons-<tag>.tar.gz` | 版本化压缩包 + `.sha256`，可长期引用 | `git archive` 生成在 `git/download/` |
 
 维护要点：
 
 - 裸仓由 `compose.yml` 的 `- ./git:/srv/git:ro` 只读挂进 caddy 容器；路由见 `Caddyfile` 的 `/repo.git/*`、`/download/*` 两个 `handle_path`。
 - **裸仓 HEAD 必须是 `refs/heads/main`**。`git init --bare` 默认指向 `master`，而本仓推的是 `main`——不设的话 clone 下来会得到 "remote HEAD refers to nonexistent ref, unable to checkout"，看起来像空仓库。设一次即可：`git symbolic-ref HEAD refs/heads/main`。
 - 哑协议靠 `info/refs` 与 `objects/info/packs` 两个文件，必须由 `post-receive` 钩子刷新（`git update-server-info`），否则推了新提交而 clone 拿到旧的。
-- 发版顺序：`git tag -a` → `git push publish main --tags` → 重新 `git archive` 出包并刷新 `.sha256`。**tag 与包必须同源**，包过期等于邀请函指向旧代码。
+- **出包与刷新 latest 已由钩子接管**，不再靠人记得做。钩子源件是本目录的 `git-hooks/post-receive`，装法：
+
+  ```bash
+  sudo install -o deploy -g deploy -m 755 \
+      /opt/drawcommons/git/drawcommons.git/hooks/post-receive
+  # 源件在仓库 repo/deploy/git-hooks/post-receive，改动后重装即可
+  ```
+
+  它做三件事：刷 `update-server-info`；为每个新推的 `v*` tag 出包并重算 `.sha256`；把该包复制成 `latest` 别名（校验值独立重算，不复制版本化那份，否则 `sha256sum -c` 会因文件名不符报错）。有 `github` remote 时顺带 `push --mirror`，失败只记 syslog，不影响本地推送。
+- 发版顺序：`git tag -a` → `git push publish main --tags` → 钩子自动出包。**tag 与包必须同源**，包过期等于邀请函指向旧代码——现在这件事有机器兜底了。
+- 钩子日志：`journalctl -t drawcommons-hook -n 20` 或 `grep drawcommons-hook /var/log/syslog`。
 - 用哑协议而非 `git-http-backend`：Caddy 无 CGI。代价是不支持 push/PR，本仓本来也只接受邮件反馈，够用。
+- **密钥位置**：若配置 GitHub 镜像需要部署密钥，放 `/opt/drawcommons/keys/`（`deploy` 属主、`700`），**不要放 `git/` 下**——`git/` 整个只读挂进了 caddy 的 `/srv/git`，私钥落在网站目录的父级里。
 
 ## 6. 许可
 

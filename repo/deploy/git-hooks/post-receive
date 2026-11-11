@@ -1,0 +1,44 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 众汲之井 2.1 贡献者
+#
+# 装到裸仓 hooks/post-receive（/opt/drawcommons/git/drawcommons.git/hooks/）。
+# 三件事，每件都是为了防一类已经踩过的错：
+#   1. update-server-info —— 哑协议只认 info/refs 与 objects/info/packs 两个静态
+#      文件，不刷它，clone 拿到的是上一次推送的状态（静默的旧代码）。
+#   2. 为每个新 tag 出复现包 —— 「tag 指向 A、包还是 B」时，邀请函指向旧代码。
+#      出包这步不能靠人手记得做。
+#   3. 同步 latest 别名 —— 页面链的是 /download/latest.tar.gz，写死版本号会导致
+#      每打一个 tag 就要改页面，漏改一次就指向旧包。
+# 有 github remote 时顺带镜像；失败只记日志，不让镜像问题回滚本地推送。
+
+set -e
+
+DL=${DRAWCOMMONS_DOWNLOAD_DIR:-/opt/drawcommons/git/download}
+mkdir -p "$DL"
+
+git update-server-info
+
+while read -r old new ref; do
+    case "$ref" in
+        refs/tags/v*)
+            tag=${ref#refs/tags/}
+            pkg="drawcommons-$tag.tar.gz"
+            git archive --format=tar --prefix="drawcommons-$tag/" "$tag" | gzip -9 > "$DL/$pkg"
+            (
+                cd "$DL"
+                sha256sum "$pkg" > "$pkg.sha256"
+                # latest 用独立重算的校验值：直接复制版本化的 .sha256 会让
+                # `sha256sum -c` 报「找不到 drawcommons-vX.tar.gz」而失败。
+                cp -f "$pkg" drawcommons-latest.tar.gz
+                sha256sum drawcommons-latest.tar.gz > drawcommons-latest.tar.gz.sha256
+            )
+            logger -t drawcommons-hook "packaged $tag"
+            ;;
+    esac
+done
+
+if git remote | grep -qx github; then
+    git push --mirror github > /dev/null 2>&1 \
+        || logger -t drawcommons-hook "github mirror push failed (本地推送已完成)"
+fi

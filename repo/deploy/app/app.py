@@ -376,6 +376,8 @@ MINIMAL_PAGE = r"""<!doctype html>
   .links a { font-family: var(--mono); font-size: .92rem; text-decoration: none; }
   .links span { display: block; color: var(--muted); font-size: .82rem; margin-top: .15rem; }
   .plain { color: var(--muted); font-size: .86rem; }
+  .plain code { font-family: var(--mono); font-size: .8rem; background: var(--bg);
+                border: 1px solid var(--line); border-radius: 5px; padding: .05rem .35rem; }
 </style>
 </head>
 <body>
@@ -405,9 +407,17 @@ MINIMAL_PAGE = r"""<!doctype html>
     <li><a href="/api/ledger/export">/api/ledger/export</a><span>导出件原文，它的 sha256 就是锚值</span></li>
   </ul>
 
+  <h2>自己验一遍</h2>
+  <p class="plain">页面上的锚值可以自己复算，不必信我们：仓库公开，两条命令，不需要账号、密钥或联网取数。
+     步骤写在仓库根的 <code>REPRODUCE.md</code> 里，也写明了这套东西<b>没证明什么</b>。</p>
+  <ul class="links">
+    <li><a href="/repo.git">/repo.git</a><span>只读仓库，git clone 后按 REPRODUCE.md 跑两条判据</span></li>
+    <li><a href="/download/latest.tar.gz">/download/latest.tar.gz</a><span>免装 git 的复现包，同目录有 .sha256</span></li>
+  </ul>
+
   <h2>说明</h2>
   <p class="plain">测试期：名称、口径、界面都还可能改。名称在商标检索中，所以标着「暂行名」。
-     规范文档见仓库：白皮书 v2.1 · 协议 r5 · DDL v1.3。</p>
+     规范文档在仓库 <code>repo/</code> 下：白皮书 v2.1 · 协议 r5 · DDL v1.3。</p>
   <p class="plain">页面由人手工维护；看着别扭、写得不对，欢迎直接找我们。</p>
 </div>
 <footer class="wrap" style="margin-top:1.5rem">
