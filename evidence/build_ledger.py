@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
 """重建基线库并执行 W4-02 DDL，输出结构级验证结果。
 
 v1.2 起把"append-only 是否真的挡住了删改"纳入自测：

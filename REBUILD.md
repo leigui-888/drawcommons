@@ -13,9 +13,11 @@ python3 evidence/build_ledger.py      # 建基线库 + 执行 DDL，六次攻击
 python3 evidence/regen_manifest.py    # 重算并校验 35 件（0-snapshot）+ 23 件（仓库根），全一致则 exit 0
 ```
 
-第三条（2026-11-11 起）：`python3 evidence/repo_lint.py repo` —— 十条许可规则，R10 专门卡
-`deploy/app/ledger_hash.py` 与 `src/ledger_hash.py` 是否逐字节相同（vendoring 的分叉不能被
-`sha256sum -c` 发现，见 CHANGELOG 的 C3 条目）。
+第三条（2026-11-11 起）：`python3 evidence/repo_lint.py repo` —— 十一条许可规则。其中两条卡的是
+"同一事实写在两处、只改一处"这类分叉：R10 比 `deploy/app/ledger_hash.py` 与 `src/ledger_hash.py`
+是否逐字节相同（vendoring 的分叉不能被 `sha256sum -c` 发现，见 CHANGELOG 的 C3 条目）；R11 比
+根 `spec/` 与 `evidence/` 的文件头 SPDX 值是否与目录约定一致（这两处不在 `repo/` 授权树内，
+R4 的遍历到不了）。当前 9/11，未过的 R2、R9 为既有缺口，故本条属"附带体检"而非判据。
 
 ### 目录口径
 

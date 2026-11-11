@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
 """判据卡 v2.4 盲测一致性计算器（L-11 的验收工具）。
 
 验收规则来自 `W2-P1` §4（v2.3 定稿时的强制盲测规程），本脚本不改规则，只执行：

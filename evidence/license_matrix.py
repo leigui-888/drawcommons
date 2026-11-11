@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
 """许可矩阵：六类对象 × 九种候选许可，按四条硬约束打分。
 
 为什么需要脚本：白皮书 §8.1 已经"定选型"，但定选型不等于定得住。

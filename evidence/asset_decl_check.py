@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
 """资产权属声明体检（L-14 的验收工具）。
 
 三类资产的声明（数据库权利 / 名称 / 域名），每份必须回答 6 个字段。

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
 """regen_manifest.py —— 重算并校验 MANIFEST（0-snapshot 5 份 35 件 + 仓库根 1 份 16 件）。
 
 判据（开工清单 §7 C0）：干净目录 clone 后两条命令即可复现：

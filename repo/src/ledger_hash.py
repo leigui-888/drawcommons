@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 众汲之井 2.0 贡献者
+# Copyright 2026 老夫 <2379731846@qq.com>
 """账本条目的规范化序列化与哈希链。
 
 存在的理由只有一个：让"某条记录没有被改写"成为一件任何人可自行验证的事，

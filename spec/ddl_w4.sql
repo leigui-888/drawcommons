@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: CC0-1.0
+-- Copyright 2026 老夫 <2379731846@qq.com>
 -- W4-02 账本口径增补：DDL（SQLite）
 -- 版本 w4-ddl v1.3 / 2026-11-11
 -- v1.3 变更（C2）：

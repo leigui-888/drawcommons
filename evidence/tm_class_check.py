@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
 """商标检索任务书与备名预检：能在电脑上算的先算完，剩下的才交给人。
 
 为什么先自算：检索委托要花钱、要等回执。委托之前能排掉的候选，就不该花钱去检索。

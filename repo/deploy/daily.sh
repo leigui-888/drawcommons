@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 众汲之井 2.1 贡献者
+# Copyright 2026 老夫 <2379731846@qq.com>
 # 每日备份：账本库（唯一不可重建的资产）+ 全部配置。
 #
 # 2026-11-11 修复：原版只 tar 了 /etc/caddy、Caddyfile、compose.yml，

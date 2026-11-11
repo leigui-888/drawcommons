@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 众汲之井 2.1 贡献者
+# Copyright 2026 老夫 <2379731846@qq.com>
 # 纯标准库应用：无 pip 依赖，构建秒级，内存占用 ~20MB
 FROM python:3.12-slim
 WORKDIR /srv

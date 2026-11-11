@@ -2,7 +2,13 @@
 # 口径（2026-11-08 重排，按审查 P2-06）：代码/数据取节点原始字节，全量入表，强制校验；
 #   文档单列于末尾注释区，不参与 sha256 校验——导出件字节随编辑变化，纳入校验只会制造假失败。
 # 文档侧的完整性另有两条：① 每份文档自带「判据 + 证据」段；② 目录统计与件数以资料库为准。
-# 重算时点：2026-11-11（C3 页面加入口 + 钩子入库）。此前为同日早些时候（C3 部署源入库）。
+# 重算时点：2026-11-11（署名统一：版权行改为可识别权利人）。此前为同日（C3 页面加入口）。
+# 署名变更（2026-11-11 晚）：版权行「众汲之井 2.0/2.1 贡献者」→「老夫 <2379731846@qq.com>」，
+#   并去掉版权行里的产品版本号（版权年份与产品版本是两个维度，带版本号会让每次发版都改
+#   版权行→每次都要重算指纹）。本条改写 15 条：repo 下 8 个代码/配置文件（含 post-receive）
+#   + repo/NOTICE + evidence 下 6 个受管脚本（另 2 个脚本 build_ledger/regen_manifest 本就不在表内）。
+#   条数仍 23，0-snapshot/ 一字节未动，35/35 不受影响。
+#   根 spec/ddl_w4.sql 与 evidence/*.py 的 SPDX 头不改变本表条数——它们不在表内。
 # C3 二轮变更（2026-11-11 晚）：新增 deploy/git-hooks/post-receive，22 条 → 23 条；
 #   deploy/app/app.py 因页面加「自己验一遍」一节重算 1 条。
 # C3 变更（2026-11-11）：新增 deploy/ 六个代码/配置件（Dockerfile、app.py、ledger_hash.py、
@@ -13,27 +19,27 @@
 #   本次重算 7 条：evidence/tm_class_check.py、repo/NOTICE、repo/spec/*.json（2 条 title）、
 #   repo/spec/*.license（2 条 SPDX）、repo/src/ledger_hash.py。其余 9 条字节未变。
 #   0-snapshot/ 为 2.0-final 冻结基线，本次未动，故 5 份周 MANIFEST 与 35 件校验不受改名影响。
-cd6e245a808604c08d20010383460c9438ff75dca6ded64e826e649ff5680dda *evidence/asset_decl_check.py
+259d17f3657ee5217edc99e9b0b07fe1ef7b602f74057ae25deee9e95975bad2 *evidence/asset_decl_check.py
 99664da24d65ea9bd96c8a4a1e8c25793d3637b5f7693a13a541ed71cbac3a64 *evidence/blind/key.json
 bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind/results.json
-1f8ca46cfa206dc803ab5dd410d56fcf90e954bcc7d131c5034bf6fa0a2cf030 *evidence/blind_agreement.py
-790159ee742b12f5d263b4552740b801ddc5a6af30e62508d5cf835263a8ee1b *evidence/cert_terms.py
-4fb4e1b322c1967ccd48ae0b367e5e3d64966954bc83928f56fe8853ab528ff0 *evidence/license_matrix.py
-70c47795fcc8697954083f0fd17b474db11c933670cbb0c5d7435ff9b6e37bd4 *evidence/repo_lint.py
-c02eea4c91a7e50db838d1a40f8925b8f6fbe2dfb25b56cc8207ad000b99d549 *evidence/tm_class_check.py
-f49746ce8db8f5b10734d5cbf4d2aa1478dae231750dfc08f6a0f364ed626fdf *repo/deploy/app/Dockerfile
-86fedcb52c1e2de7f19e66128dac06bea5ff88c392419299012c5cab0e03ee85 *repo/deploy/app/app.py
-2c29eb8dac35e1b060447235e8047ecc74aa0ae84418f523e7662931e4734f05 *repo/deploy/app/ledger_hash.py
-acae4ef9be1624890998cc0f1dc511f4502c7efcb8c6f5b8f3673e341125f3f9 *repo/deploy/Caddyfile
-8461995b9ae5f7eed73d1f56115f73a41383fbe73a6bf0e8696c1861b2e10dc2 *repo/deploy/compose.yml
-8e5a21d8461fdb007a54d5b6889456f8b12362a64e0608b9cc4e5b3381b78995 *repo/deploy/daily.sh
-6dff8b0fd698f6cb141d7c4b0bdd8815b327398981499f8d3981a844ca1d6044 *repo/deploy/git-hooks/post-receive
+488f77a8410fae408d81b4f5c55da62015509c74ab66f1569ee74e948ab7035c *evidence/blind_agreement.py
+d76346c1e9ba387804d25a2758f31865833172cd0705f222d509de646c66e150 *evidence/cert_terms.py
+fe309ce02f944ead706d2020019cf539e6df90981059faeac4dafabdba1259d1 *evidence/license_matrix.py
+fc39252c7af6291887cc65e909444940051f8fecf76237d4c676dfed71514d25 *evidence/repo_lint.py
+a2246c40ab0e4a4907a50c4650350e53f0c98e649e77cb4b5c533357ebd14586 *evidence/tm_class_check.py
+95d3be29621edd7b90c923ae74a4e77347758cf1d42b5e3057d7330422032551 *repo/deploy/app/Dockerfile
+60cc9453f6121c1e884ac8f974eb45bbc7d7a31040684ad55dc2b04f6f6e73e5 *repo/deploy/app/app.py
+5ef229abf11bcffb76082d866c3ddd750b8123b8fc82b5bb7c6ef942451e568d *repo/deploy/app/ledger_hash.py
+5848546fbf6220ed1d03decd6aa5c1c8741494ed75b65f5362e07f268cda80ab *repo/deploy/Caddyfile
+a155562a5a460527ce1cc204f4829e0ba1cfa06e67deccaa25c4f2244a5a2d09 *repo/deploy/compose.yml
+05a21bd99aeaf1cfcc8daf45c8849f1fe14b95241771f8c76f92cbde327c0067 *repo/deploy/daily.sh
+7a021adbdcb9a9baacb0b39547a28dbd67b1d78a01c55c4e32923adc7ef39ac3 *repo/deploy/git-hooks/post-receive
 2dfeb237994596e5bc973a8341729d5507520b81f19acc297559046dab71f834 *repo/DCO
 c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 *repo/LICENSE
-d48423268c2e364bf6e1de91c32962019889e5924808e1826deacc1b75f19fd4 *repo/NOTICE
+503b780b09603984e6f57ff4475e3e07fe2f2168d7bb91ee85ac7a92fbb6b21a *repo/NOTICE
 8df19f55a95fcff9466adf1fe051d96d3397d4ad3be18ec582d743076b0c198a *repo/spec/ledger-entry.schema.json
 ce8e57969dafdae0735b79ae5245f2144f6a490b3486b929c1dc50ab5901e218 *repo/spec/ledger-entry.schema.json.license
-2c29eb8dac35e1b060447235e8047ecc74aa0ae84418f523e7662931e4734f05 *repo/src/ledger_hash.py
+5ef229abf11bcffb76082d866c3ddd750b8123b8fc82b5bb7c6ef942451e568d *repo/src/ledger_hash.py
 eb5db5b26f5effa8541414bd68c52e39aafdf3a978f797b45bc69b92fb162c52 *repo/spec/contribution-entry.schema.json
 946c143d154c74177440d3fc423c98d8cca3c0bd43d5c47c88b12176fbe4411f *repo/spec/contribution-entry.schema.json.license
 # 说明（2026-11-08，P1-04 的可行部分）：资料库不支持删除或改名节点，repo/spec/ 下另存两个无扩展名副本，

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 众汲之井 2.1 贡献者
+# Copyright 2026 老夫 <2379731846@qq.com>
 """账本公开页 · 只读服务（C3，v1.0-min 最简版）。
 
 **v1.0-min（2026-11-11 21:30）：展示层下线，只留说明页与接口。**
@@ -423,7 +423,7 @@ MINIMAL_PAGE = r"""<!doctype html>
   <p class="plain">页面由人手工维护；看着别扭、写得不对，欢迎直接找我们。</p>
 </div>
 <footer class="wrap" style="margin-top:1.5rem">
-  <span class="plain">drawcommons.org ｜ 最简版（展示层暂时下线）</span>
+  <span class="plain">© 2026 老夫 ｜ 众汲之井 ｜ drawcommons.org ｜ 最简版（展示层暂时下线）</span>
 </footer>
 </body>
 </html>"""

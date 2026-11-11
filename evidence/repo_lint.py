@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
 """仓库许可体检：G5′ 许可门的机器可验部分。
 
-十条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
+十一条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
 **一个陌生人 clone 下来，能不能仅凭仓库里的文件判断"这个文件我能不能用"。**
+
+R1–R10 的视野是 `repo/`（授权树）。R11 补的是 `repo/` 之外那一层：根 `spec/`
+与 `evidence/`。它们同样被 git 跟踪、同样随 clone 公开，却不在任何规则视野内——
+R4 只遍历 `repo/`，所以这两个目录的文件此前从未被检查过是否可被判断许可。
 
 用法：
     python repo_lint.py ../repo
@@ -25,6 +31,13 @@ REQUIRED = ["LICENSE", "NOTICE", "CONTRIBUTING.md", "DCO"]
 
 # 需要逐文件声明许可的扩展名（代码与规范）
 NEED_HEADER = (".py", ".sh", ".yaml", ".yml", ".json")
+
+# R11：仓库根下、repo/ 之外的受管目录 → 该目录应声明的 SPDX 标识。
+# 这些目录不在 repo/README.md 的归属表内（那张表只管授权树），所以只能在此硬编码，
+# 改这里等于改许可决定，须同步 repo/README.md 与 NOTICE。
+TOP_DIRS = {"spec/": "CC0-1.0", "evidence/": "Apache-2.0"}
+TOP_EXT = (".py", ".sql")
+TOP_SKIP = ("0-snapshot/",)        # 2.0 冻结基线，字节不可动，其许可已由冻结件自身记录
 BANNED = ["CC-BY-NC", "CC-BY-ND", "GPL", "AGPL"]      # 子串匹配，注意 Apache 不含 GPL
 
 
@@ -304,6 +317,53 @@ def rule10(root):
     return same
 
 
+def rule11(root):
+    """R11：repo/ 之外的受管文件也要能判断许可（根 spec/ 与 evidence/）。
+
+    root 参数是 repo/，本条需上跳一层取仓库根。找不到 .git 时返回 None 表示
+    "不适用"（例如把 repo/ 单独拷出去做基线对照），不计入分母也不判失败。
+    """
+    sec("R11 仓库根受管文件（repo/ 之外）的许可声明")
+    top = os.path.dirname(root)
+    if not os.path.isdir(os.path.join(top, ".git")):
+        print("  · 不适用：repo/ 的上级不是 git 仓库根，跳过（不计入分母）")
+        return None
+    try:
+        out = subprocess.run(["git", "-C", top, "ls-files"],
+                             capture_output=True, text=True, check=True).stdout
+    except Exception:
+        print("  · 不适用：仓库根无法执行 git ls-files，跳过（不计入分母）")
+        return None
+
+    targets = []
+    for f in (l.strip() for l in out.splitlines()):
+        if not f or f.startswith("repo/") or f.startswith(TOP_SKIP):
+            continue
+        for d, lic in TOP_DIRS.items():
+            if f.startswith(d) and f.endswith(TOP_EXT):
+                targets.append((f, lic))
+                break
+
+    ok = 0
+    for f, lic in targets:
+        head = ""
+        try:
+            with open(os.path.join(top, f), encoding="utf-8", errors="ignore") as fh:
+                head = "".join(fh.readline() for _ in range(5))
+        except OSError:
+            pass
+        m = re.search(r"SPDX-License-Identifier:\s*(\S+)", head)
+        got = m.group(1) if m else "无声明"
+        good = got == lic
+        print(f"  {'✅' if good else '❌'} {f:36} {got}" + ("" if good else f"  ← 应为 {lic}"))
+        ok += 1 if good else 0
+    print(f"  结果：{ok}/{len(targets)}" + ("" if targets else "  ← 无可检查对象，不计为通过"))
+    if targets and ok < len(targets):
+        print("  说明：这些文件不在 repo/README.md 的归属表内（那张表只管 repo/），")
+        print("        所以许可只能靠文件头声明。缺头即等于『保留所有权利』。")
+    return bool(targets) and ok == len(targets)
+
+
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else "."
     root = os.path.abspath(root)
@@ -325,16 +385,20 @@ def main():
         ("R8 清单可复验", rule8(files, source)),
         ("R9 MANIFEST 路径一致", rule9(root, files)),
         ("R10 deploy 副本一致", rule10(root)),
+        ("R11 根受管文件声明", rule11(root)),
     ]
 
     print()
     print("=" * 78)
-    ok = sum(1 for _, v in results if v)
+    scored = [(n, v) for n, v in results if v is not None]
+    ok = sum(1 for _, v in scored if v)
     for name, v in results:
-        print(f"  {'✅' if v else '❌'} {name}")
-    print(f"  合计：{ok}/{len(results)} 条通过")
+        mark = "—" if v is None else ("✅" if v else "❌")
+        print(f"  {mark} {name}")
+    skipped = len(results) - len(scored)
+    print(f"  合计：{ok}/{len(scored)} 条通过" + (f"（{skipped} 条不适用，未计入）" if skipped else ""))
     print("=" * 78)
-    sys.exit(0 if ok == len(results) else 1)
+    sys.exit(0 if ok == len(scored) else 1)
 
 
 if __name__ == "__main__":

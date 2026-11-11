@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 众汲之井 2.1 贡献者
+# Copyright 2026 老夫 <2379731846@qq.com>
 #
 # 装到裸仓 hooks/post-receive（/opt/drawcommons/git/drawcommons.git/hooks/）。
 # 三件事，每件都是为了防一类已经踩过的错：

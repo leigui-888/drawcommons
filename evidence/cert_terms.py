@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
 """认证规则体检：把 TRADEMARK.md 里"说过的"变成"能数的"。
 
 两件事：
