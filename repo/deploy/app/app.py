@@ -414,6 +414,8 @@ MINIMAL_PAGE = r"""<!doctype html>
   <ul class="links">
     <li><code>git clone https://drawcommons.org/repo.git</code><span>只读仓库，clone 后按 REPRODUCE.md 跑两条判据</span></li>
     <li><a href="/download/drawcommons-latest.tar.gz">/download/drawcommons-latest.tar.gz</a><span>免装 git 的复现包，同目录有 .sha256</span></li>
+    <li><code>git -c gpg.ssh.allowedSignersFile=repo/allowed_signers verify-tag &lt;tag&gt;</code><span>验发布签名，把 &lt;tag&gt; 换成要验的版本；从 v2.1-rc5 起带 SSH 签名，输出里有 Good 与公钥指纹</span></li>
+    <li><a href="/download/allowed_signers">/download/allowed_signers</a><span>签名公钥（不装 git 也能取）；指纹与验法见名录 §10</span></li>
   </ul>
 
   <h2>名录与署名</h2>

@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: CC0-1.0
+# Copyright 2026 老夫 <2379731846@qq.com>
+#
+# 发布签名公钥（OpenSSH allowed_signers 格式）。
+#
+# 用途：让任何拿到本仓库的人，都能验「这个 tag 是不是权利人发的」，而不是只能信
+#       「下载页面没被改动过」。验法见 CREDITS.md §10：
+#
+#           git -c gpg.ssh.allowedSignersFile=repo/allowed_signers \
+#               verify-tag v2.1-rc5
+#
+# 格式：<principal> [选项] <keytype> <base64> [注释]
+#       principal 是**身份**，不是注释。签名里带了 principal（git 用 tagger 邮箱），
+#       与这里的 principal 对不上，验签即失败——「密钥对但人不符」也算失败。
+#
+# 边界必须写明：**本文件在仓库里，因此不是信任根。** 能改仓库的人同样能改这里，
+# 自证没有意义。信任根是 CREDITS.md §10 记载的指纹，与仓库外的分发渠道。
+# 本文件的作用是「方便」，以及让 repo_lint R14 能比对两处记载有没有分叉。
+#
+# 本钥只用于签名，与部署钥（drawcommons-deploy）严格分离：
+# 部署钥能往服务器推任何东西，签名钥只能证明「这份发布是我发的」。泄露一个，
+# 不连坐另一个。反过来，拿部署钥签名会让「能推送」=「能代表发布」，一次泄露毁两样。
+
+2379731846@qq.com namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM20bu9SuAFDEif216+pvzKMDpl/4V0pTVWcdlqRgpAz drawcommons signing key (ed25519, 2026-11-11)

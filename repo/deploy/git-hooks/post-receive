@@ -3,23 +3,55 @@
 # Copyright 2026 老夫 <2379731846@qq.com>
 #
 # 装到裸仓 hooks/post-receive（/opt/drawcommons/git/drawcommons.git/hooks/）。
-# 四件事，每件都是为了防一类已经踩过的错：
+# 五件事，每件都是为了防一类已经踩过的错：
 #   1. update-server-info —— 哑协议只认 info/refs 与 objects/info/packs 两个静态
 #      文件，不刷它，clone 拿到的是上一次推送的状态（静默的旧代码）。
-#   2. 为每个新 tag 出复现包 —— 「tag 指向 A、包还是 B」时，邀请函指向旧代码。
+#   2. 验签闸门 —— 签名若只在"事后被人查"，就等于没有：查的人少，改的人多。
+#      故把验签放在出包之前：签名验不过的 tag，不出包、不进 latest。
+#   3. 为每个新 tag 出复现包 —— 「tag 指向 A、包还是 B」时，邀请函指向旧代码。
 #      出包这步不能靠人手记得做。
-#   3. 同步 latest 别名 —— 页面链的是 /download/drawcommons-latest.tar.gz，写死版本号会导致
+#   4. 同步 latest 别名 —— 页面链的是 /download/drawcommons-latest.tar.gz，写死版本号会导致
 #      每打一个 tag 就要改页面，漏改一次就指向旧包。
-#   4. 同步名录 —— 署名承诺必须能被不装 git 的人读到；名录只活在裸仓对象库里，
-#      对浏览器就是不存在。这里把它摊到 /download/，与复现包同一个出口。
+#   5. 同步名录与公钥 —— 署名承诺与验签公钥都必须能被不装 git 的人读到；
+#      它们只活在裸仓对象库里，对浏览器就是不存在。这里摊到 /download/。
 # 有 github remote 时顺带镜像；失败只记日志，不让镜像问题回滚本地推送。
 
 set -e
+
+# 日志不能成为单点故障：`logger` 在某些环境（容器、Git Bash）里不存在，而
+# 挂钩里好几处日志写在「本来就该继续」的路径上。少了 `2>/dev/null || :`，
+# 缺一条日志就会因 set -e 中断整个钩子——比不记日志糟得多，因为它连包都不出了。
+log() {
+    /usr/bin/logger -t drawcommons-hook "$*" 2>/dev/null || :
+}
 
 DL=${DRAWCOMMONS_DOWNLOAD_DIR:-/opt/drawcommons/git/download}
 mkdir -p "$DL"
 
 git update-server-info
+
+# 裸仓的 HEAD 未必指向 main（`git init --bare` 默认 master）。只认 HEAD 会在
+# "仓库建好了但 HEAD 没改"时静默取不到文件，故 HEAD 取不到就退回 main。
+head_file() {
+    git show "HEAD:$1" 2>/dev/null || git show "refs/heads/main:$1" 2>/dev/null
+}
+
+# 公钥从树里取：裸仓没有工作树，allowed_signers 只在对象库里。
+AS=$(mktemp "${TMPDIR:-/tmp}/dc-allowed.XXXXXX")
+trap 'rm -f "$AS"' EXIT
+if head_file repo/allowed_signers > "$AS" && [ -s "$AS" ]; then
+    HAVE_AS=1
+else
+    HAVE_AS=0
+    log "allowed_signers missing in HEAD — 所有 tag 将被拒"
+fi
+
+# 验签失败即拒。注意三种失败都要落到 exit 非 0：
+#   密码学不符、principal 不在名单（No principal matched）、根本没有签名。
+verify_tag() {
+    [ "$HAVE_AS" = 1 ] || return 1
+    git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$AS" verify-tag "$1" > /dev/null 2>&1
+}
 
 while read -r old new ref; do
     case "$ref" in
@@ -32,6 +64,14 @@ while read -r old new ref; do
                 *) continue ;;
             esac
             tag=${ref#refs/tags/}
+
+            if ! verify_tag "$tag"; then
+                log "REFUSED $tag: 签名验不过，未出包"
+                echo "drawcommons: 拒绝 $tag —— 签名验不过（未签名 / 密钥不符 / principal 不在 allowed_signers）" >&2
+                echo "drawcommons: 本地 tag 已推送，但不提供下载包。修法：git tag -s 重签后重推（需先删远端同名 tag）。" >&2
+                continue
+            fi
+
             pkg="drawcommons-$tag.tar.gz"
             git archive --format=tar --prefix="drawcommons-$tag/" "$tag" | gzip -9 > "$DL/$pkg"
             (
@@ -42,26 +82,26 @@ while read -r old new ref; do
                 cp -f "$pkg" drawcommons-latest.tar.gz
                 sha256sum drawcommons-latest.tar.gz > drawcommons-latest.tar.gz.sha256
             )
-            logger -t drawcommons-hook "packaged $tag"
+            log "packaged $tag (signature ok)"
             ;;
     esac
 done
 
-# 4. 名录摊到下载目录：署名承诺要能被不装 git 的人读到。
+# 5. 名录与公钥摊到下载目录：这两样要能被不装 git 的人读到。
 #    从 HEAD 取而不是从某个 tag 取——名录是"当下有效"的记录，历史快照留在各自 tag 里，
 #    那正是 CREDITS.md §8 用来防抹除的东西（旧 tag 里的旧哈希改不掉）。
-for f in repo/CREDITS.md repo/credits.json; do
+#    公钥同理：验签要用"现在有效"的名单，旧名单在旧 tag 里仍可复现。
+for f in repo/CREDITS.md repo/credits.json repo/allowed_signers; do
     out=${f##*/}
-    if git show "HEAD:$f" > "$DL/$out.tmp" 2>/dev/null; then
+    if head_file "$f" > "$DL/$out.tmp" && [ -s "$DL/$out.tmp" ]; then
         mv -f "$DL/$out.tmp" "$DL/$out"
     else
         rm -f "$DL/$out.tmp"
-        logger -t drawcommons-hook "credits sync skipped: $f not in HEAD"
+        log "credits sync skipped: $f not in HEAD"
     fi
 done
 
 if git remote | grep -qx github; then
     git push --mirror github > /dev/null 2>&1 \
-        || logger -t drawcommons-hook "github mirror push failed (本地推送已完成)"
+        || log "github mirror push failed (本地推送已完成)"
 fi
-

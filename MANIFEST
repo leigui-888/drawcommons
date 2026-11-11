@@ -26,21 +26,24 @@
 #   本次重算 7 条：evidence/tm_class_check.py、repo/NOTICE、repo/spec/*.json（2 条 title）、
 #   repo/spec/*.license（2 条 SPDX）、repo/src/ledger_hash.py。其余 9 条字节未变。
 #   0-snapshot/ 为 2.0-final 冻结基线，本次未动，故 5 份周 MANIFEST 与 35 件校验不受改名影响。
+# 签名（2026-11-11 深夜）：新增 repo/allowed_signers（25 → 26 条）；credits.json 为 revision 2。
+#   0-snapshot/ 仍未动。
 259d17f3657ee5217edc99e9b0b07fe1ef7b602f74057ae25deee9e95975bad2 *evidence/asset_decl_check.py
 99664da24d65ea9bd96c8a4a1e8c25793d3637b5f7693a13a541ed71cbac3a64 *evidence/blind/key.json
 bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind/results.json
 488f77a8410fae408d81b4f5c55da62015509c74ab66f1569ee74e948ab7035c *evidence/blind_agreement.py
 d76346c1e9ba387804d25a2758f31865833172cd0705f222d509de646c66e150 *evidence/cert_terms.py
 fe309ce02f944ead706d2020019cf539e6df90981059faeac4dafabdba1259d1 *evidence/license_matrix.py
-01b78b573e3f17f2134403308470ef5839f12470b7dc92756b72fe21102a811c *evidence/repo_lint.py
+e1180e28439a93e29ad7533edbfa02ecf3515705bf50f8cc92eaced2b1215a8f *evidence/repo_lint.py
 a2246c40ab0e4a4907a50c4650350e53f0c98e649e77cb4b5c533357ebd14586 *evidence/tm_class_check.py
+f9ad51b3b30e49ec6efb8ffe8c33a17d1fbeced697c0eb61ce9aac38732fa40f *repo/allowed_signers
 95d3be29621edd7b90c923ae74a4e77347758cf1d42b5e3057d7330422032551 *repo/deploy/app/Dockerfile
-e7e12d011bf5096439149a374774bf0475368e8e8a9aae2c4fd599061e7a2a94 *repo/deploy/app/app.py
+2779f1b9b420bbd996879c0e429fa71b47535d3ce7ec8ad328c27a1ed363189d *repo/deploy/app/app.py
 5ef229abf11bcffb76082d866c3ddd750b8123b8fc82b5bb7c6ef942451e568d *repo/deploy/app/ledger_hash.py
 7bdb2590fc15dff885478840b2fc908521d4ef04595346b807cc74f0c355d73c *repo/deploy/Caddyfile
 a155562a5a460527ce1cc204f4829e0ba1cfa06e67deccaa25c4f2244a5a2d09 *repo/deploy/compose.yml
 05a21bd99aeaf1cfcc8daf45c8849f1fe14b95241771f8c76f92cbde327c0067 *repo/deploy/daily.sh
-ee978848c4e6761124906cbcbfa5b52d518a713b6899117045689a8bf1b54b7c *repo/deploy/git-hooks/post-receive
+c4200c3e0fcd89d0b16d6c2c196744a16cdf10e63b65d79e8718386a413675a9 *repo/deploy/git-hooks/post-receive
 2dfeb237994596e5bc973a8341729d5507520b81f19acc297559046dab71f834 *repo/DCO
 c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 *repo/LICENSE
 5898ffc05cb44fdeb2b51c3a5f32fe6fdb24341f7c70b32aea44a01036132728 *repo/NOTICE

@@ -21,7 +21,7 @@ clone 下来会看到两个层次，别混淆：
 
 | 路径 | 是什么 | 校验口径 |
 | --- | --- | --- |
-| `MANIFEST`、`evidence/`、`0-snapshot/`、`spec/` | 整包：证据脚本、35 件 2.0-final 冻结文档、DDL | `MANIFEST` 25 条强制校验 + `0-snapshot/*/MANIFEST` 35 条冻结校验 |
+| `MANIFEST`、`evidence/`、`0-snapshot/`、`spec/` | 整包：证据脚本、35 件 2.0-final 冻结文档、DDL | `MANIFEST` 26 条强制校验 + `0-snapshot/*/MANIFEST` 35 条冻结校验 |
 | `repo/` | **对外授权的那一棵树**（代码、接口 schema、部署源、许可文本）。它自己的 `repo/README.md` 里有一张机器可读的逐文件许可表，表里的路径相对 `repo/` | `evidence/repo_lint.py repo` 逐件检查 |
 
 运行服务的那份代码在 `repo/deploy/`，与 <https://drawcommons.org> 线上逐字节相同。
@@ -74,15 +74,15 @@ scope CHECK OK: PUBLIC -> CHECK constraint failed: scope IN ('public','mutua…
     W5: 4/4
     W6: 16/16
     W7: 5/5
-  repo/MANIFEST: 25/25
+  repo/MANIFEST: 26/26
 
 0-snapshot MANIFEST 校验：35/35 通过
-仓库根 MANIFEST 校验：25/25 通过
+仓库根 MANIFEST 校验：26/26 通过
 
-复现判据：35/35（0-snapshot）+ 25/25（仓库根） —— 与 MANIFEST 记录完全一致。
+复现判据：35/35（0-snapshot）+ 26/26（仓库根） —— 与 MANIFEST 记录完全一致。
 ```
 
-它按 `MANIFEST` 里记录的 sha256 逐件重算本地字节。注意 `35/35` 是**冻结基线**（2.0-final，改一个字节即断），`25/25` 是**可改的工作副本**（含 `deploy/` 与名录）。两者口径不同，别混着看。
+它按 `MANIFEST` 里记录的 sha256 逐件重算本地字节。注意 `35/35` 是**冻结基线**（2.0-final，改一个字节即断），`26/26` 是**可改的工作副本**（含 `deploy/`、名录与签名公钥）。两者口径不同，别混着看。
 
 ## 4. 附带的体检（**exit 1 是预期的**）
 
@@ -105,11 +105,12 @@ python3 evidence/repo_lint.py repo
   ✅ R11 根受管文件声明
   ✅ R12 署名落地
   ✅ R13 名录两源一致
-  合计：11/13 条通过
+  ✅ R14 签名公钥
+  合计：12/14 条通过
 ==============================================================================
 ```
 
-**11/13，exit code 1。这不是你跑错了。** 两条缺口已知且未修：
+**12/14，exit code 1。这不是你跑错了。** 两条缺口已知且未修：
 
 - **R2**：许可文本 4 份里只有 `LICENSE`（Apache-2.0，11,357 字节）是全文，`LICENSE-CC-BY-4.0.md`（814 B）、`LICENSE-CC-BY-SA-4.0.md`（832 B）、`LICENSE-CC0-1.0.md`（1,079 B）都是**指针件**——正文只有指向 creativecommons.org 的链接。离线环境下使用者拿不到 CC 条款原文。登记为 D-06，G7′ 前补齐。
 - **R9**：本仓库的校验清单叫 `MANIFEST`（供 `sha256sum -c MANIFEST` 用），而 R9 找的是 `MANIFEST.sha256`。历史命名口径问题，规则与文件没对齐。
@@ -135,7 +136,42 @@ R12 报「无法追溯的作者 1」+「依据可核验 2/3」，R13 报「已�
 这样做是为了让署名承诺**可被第三方核验**，而不是靠维护者自觉：名录里每个名字都指得到
 具体提交，谁删了一条，旧版本里的快照哈希对不上（见 `CREDITS.md` §8）。
 
+**R14 补的是第三层：签名。** 名录证明「谁做了什么」，签名证明「这个版本是不是权利人发的」。
+R14 比对 `repo/allowed_signers` 里的公钥指纹与 `CREDITS.md` §10 记载的指纹，并检查每个
+principal 都在名录内、每把钥都限定了 `namespaces="git"`。它防的是**换钥却忘改文档**——
+此时验签命令照着文档敲会报 `Good signature`，签的其实是旧钥，比没有签名更误导。
+
+R14 有个天然的局限，规则输出里直接印出来了：公钥与指纹在同一个仓库里，能改仓库的人可以
+两份一起改。它只防自己改漏，防不了合谋篡改。后者只能靠仓库外的指纹渠道（`CREDITS.md` §10.3：
+DNS TXT 与 GitHub 公钥，**均尚未设置**）。
+
 我们选择让 R2、R9 留在红色，而不是改规则让它变绿——一个会把不合格项藏起来的检查器，比没有检查器更坏。**如果你用 `set -e` 跑脚本，请把这一条放在判据之外。**
+
+## 4.1 可选：验一个签名（不影响任何判据）
+
+从 `v2.1-rc5` 起，发布 tag 带 SSH 签名。验它只要一条命令，不用装 GPG：
+
+```bash
+git -c gpg.ssh.allowedSignersFile=repo/allowed_signers verify-tag v2.1-rc5
+```
+
+期望输出：
+
+```
+Good "git" signature for 2379731846@qq.com with ED25519 key SHA256:3vOTR4UHVjuwcOywJRalSKEA+G+Ckln6SVF4Zep9MZE
+```
+
+四条边界，免得把它当成立足点：
+
+- **只覆盖 tag 对象**，不覆盖你下载到的 `.tar.gz`（那是 `.sha256` 与 §5 锚值的事）；
+- **不证明 commit 的 author 是谁**（那是名录与 git 历史的事，见 `repo/CREDITS.md` §2）；
+- **公钥与指纹同在仓库内**，能改仓库的人可以两份一起改——它不是独立的信任根，
+  独立渠道（DNS TXT、GitHub 公钥）**尚未设置**，见 `repo/CREDITS.md` §10.3；
+- **`v2.0-final` 与 `rc1`–`rc4` 未签名**，机制建立前发布，且不补签（补签要移动 tag，
+  已下载的包会与 tag 脱钩）。
+
+验不过时 `git verify-tag` 的退出码非 0，三种情形都会失败：签名不符、principal 不在
+`allowed_signers`（报 `No principal matched`）、根本没有签名（报 `no signature found`）。
 
 ## 5. 锚值
 
@@ -175,7 +211,7 @@ cdec34e5bb85018a9a0d905307ee2103fa1ee7a9f046290987cc1a801efe30a9
 
 - 账本的哈希链自洽：每条记录的 `prev_hash` 与它前一条咬合，改任何一个字节都会在 `verify` 处断开；
 - 数据库层面十一类非法写入（改历史、删条目、跳同意书做实名绑定、撤回后再撤回等）被 DDL 与触发器拒绝；
-- 仓库里每份代码、数据、文档的字节与 `MANIFEST` 声称的一致（35 条冻结 + 25 条工作副本）；
+- 仓库里每份代码、数据、文档的字节与 `MANIFEST` 声称的一致（35 条冻结 + 26 条工作副本）；
 - 线上服务与仓库 `deploy/` 逐字节相同——算出锚值的那段代码，你看得到。
 
 **没有证明**（请务必按这个口径理解）：

@@ -4,7 +4,7 @@
 # Copyright 2026 老夫 <2379731846@qq.com>
 """仓库许可体检：G5′ 许可门的机器可验部分。
 
-十三条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
+十四条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
 **一个陌生人 clone 下来，能不能仅凭仓库里的文件判断"这个文件我能不能用"，以及
 "谁做的、能不能找到他"。**
 
@@ -16,6 +16,10 @@ R12/R13 换了个问题：许可说得清「能不能用」，说不清「这是
 CONTRIBUTING 里，就是一句没有对象的话——没有名录可查、没有依据可验、被删了也无人知道。
 R12 把名录接回 git 记录（不漏记、不虚构、依据可查），R13 卡住名录的两份表示不许分叉。
 
+R14 再进一步：名录说「谁做了它」，签名说「这个版本是谁发的」。二者都靠「同一事实写在
+两处」来防单点改动——R14 比对公钥指纹与 CREDITS.md §10 的记载。它防不了「两份一起改」，
+那条只能靠仓库外的指纹分发渠道，故规则输出里把这一点直接印出来，不假装覆盖了。
+
 用法：
     python repo_lint.py ../repo
     python repo_lint.py <任意目录>      # 基线对照，例如空目录或未经治理的目录
@@ -25,6 +29,7 @@ R12 把名录接回 git 记录（不漏记、不虚构、依据可查），R13 �
 
 from __future__ import annotations
 
+import base64
 import fnmatch
 import hashlib
 import json
@@ -549,6 +554,90 @@ def rule13(root):
     return md == js
 
 
+def _ssh_fp(b64):
+    """按 `ssh-keygen -l` 的算法算指纹：对 base64 解码后的公钥 blob 做 sha256。"""
+    blob = base64.b64decode(b64)
+    return "SHA256:" + base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip("=")
+
+
+def rule14(root):
+    """R14：签名公钥与它的两处记载不能分叉。
+
+    换了密钥却忘了改文档，是这类机制最常见的失效方式：验签命令照着文档敲，
+    报「Good signature」——签的是旧钥，而读者以为验的是当前发布。所以三样必须对上：
+
+      ① `allowed_signers` 里的 principal 必须是名录里的人（否则把签发权给了名录外的人）；
+      ② 每行钥匙必须限定 `namespaces="git"`（不限定，同一把钥还能签 SSH 证书，
+         签名语义从「这是发布」扩散成「这是我签的一切」）；
+      ③ 公钥指纹必须与 `CREDITS.md` §10 写的指纹完全相同（两处记载，一处改一处没改即红）。
+
+    第 ③ 条有个天然局限，必须说清：`allowed_signers` 在仓库里，能改仓库的人也能改它。
+    本规则只能防「自己人改漏」，防不了「有人把两份一起改掉」。后者只能靠仓库外的
+    指纹分发渠道（见 CREDITS.md §10.3）。
+    """
+    sec("R14 签名公钥")
+    path = os.path.join(root, "allowed_signers")
+    if not os.path.exists(path):
+        print("  ❌ 无 allowed_signers：签名无从验证，等于没有签名")
+        return False
+
+    data = _load_credits(root)
+    known = set()
+    if data:
+        for x in (data.get("people") or []) + (data.get("pending") or []):
+            if x.get("email"):
+                known.add(x["email"].lower())
+            for e in x.get("emails") or []:
+                known.add(e.lower())
+    known.discard("")
+
+    principals, fps, no_ns = [], [], []
+    for ln, line in enumerate(open(path, encoding="utf-8"), 1):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) < 3:
+            print(f"    ❌ 第 {ln} 行格式不认识：{line[:60]}")
+            continue
+        principal = parts[0].lower()
+        principals.append(principal)
+        if not any(p.startswith("namespaces=") and "git" in p for p in parts[1:-2]):
+            no_ns.append(f"第 {ln} 行 {principal}")
+        for i, tok in enumerate(parts):
+            if tok.startswith(("ssh-ed25519", "ssh-rsa", "ecdsa-sha2-", "sk-ssh-", "sk-ecdsa-")):
+                fps.append(_ssh_fp(parts[i + 1]))
+                break
+
+    # ① principal 必须在名录内
+    outsider = [p for p in principals if p not in known]
+    for p in outsider:
+        print(f"    ❌ principal 不在名录内：{p}（签发权给了名录外的人）")
+    print(f"  {'✅' if not outsider else '❌'} principal 可追溯：{len(principals) - len(outsider)}/{len(principals)}")
+
+    # ② 必须限定 namespaces="git"
+    for x in no_ns:
+        print(f"    ❌ 未限定 namespaces=\"git\"：{x}")
+    print(f"  {'✅' if not no_ns else '❌'} namespace 限定：{len(principals) - len(no_ns)}/{len(principals)}")
+
+    # ③ 指纹与 CREDITS.md 一致
+    md = os.path.join(root, "CREDITS.md")
+    text = open(md, encoding="utf-8").read() if os.path.exists(md) else ""
+    declared = {m.group(0) for m in re.finditer(r"SHA256:[A-Za-z0-9+/]{40,44}={0,2}", text)}
+    only_key = sorted(set(fps) - declared)
+    only_doc = sorted(declared - set(fps))
+    for f in only_key:
+        print(f"    ❌ 公钥在 allowed_signers 里，CREDITS.md 未记：{f}")
+    for f in only_doc:
+        print(f"    ❌ CREDITS.md 记了，allowed_signers 里没有这把钥：{f}")
+    print(f"  指纹：allowed_signers {len(set(fps))} 把 / CREDITS.md 记 {len(declared)} 把")
+    print(f"  {'✅ 一致' if set(fps) == declared and fps else '❌ 已分叉'}")
+    if set(fps) != declared:
+        print("  说明：验签命令照着文档敲，会验到旧钥——「Good signature」反而成了误导。")
+
+    return not outsider and not no_ns and bool(fps) and set(fps) == declared
+
+
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else "."
     root = os.path.abspath(root)
@@ -573,6 +662,7 @@ def main():
         ("R11 根受管文件声明", rule11(root)),
         ("R12 署名落地", rule12(root)),
         ("R13 名录两源一致", rule13(root)),
+        ("R14 签名公钥", rule14(root)),
     ]
 
     print()
