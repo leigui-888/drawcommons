@@ -4,7 +4,7 @@
 # Copyright 2026 老夫 <2379731846@qq.com>
 """仓库许可体检：G5′ 许可门的机器可验部分。
 
-十四条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
+十五条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
 **一个陌生人 clone 下来，能不能仅凭仓库里的文件判断"这个文件我能不能用"，以及
 "谁做的、能不能找到他"。**
 
@@ -17,8 +17,13 @@ CONTRIBUTING 里，就是一句没有对象的话——没有名录可查、没�
 R12 把名录接回 git 记录（不漏记、不虚构、依据可查），R13 卡住名录的两份表示不许分叉。
 
 R14 再进一步：名录说「谁做了它」，签名说「这个版本是谁发的」。二者都靠「同一事实写在
-两处」来防单点改动——R14 比对公钥指纹与 CREDITS.md §10 的记载。它防不了「两份一起改」，
-那条只能靠仓库外的指纹分发渠道，故规则输出里把这一点直接印出来，不假装覆盖了。
+两处」来防单点改动——R14 比对公钥指纹与 CREDITS.md §10 的记载，并核对签发权（谁能签
+v* tag）与名录双向对齐、一人一钥。它防不了「两份一起改」，那条只能靠仓库外的指纹分发
+渠道，故规则输出里把这一点直接印出来，不假装覆盖了。
+
+R15 是 R14 的下半截：tag 签名只覆盖「发布」这一个动作，覆盖不到里面每个提交。commit 的
+author 字段是自由填写的，谁都能写别人的名字；一旦有人开始签名，就得查签名者是不是作者
+本人——否则「Good signature」会替一次冒名作证。未签名的提交只统计不判红（补签要改写历史）。
 
 用法：
     python repo_lint.py ../repo
@@ -529,6 +534,7 @@ def rule13(root):
         return False
 
     md = set()
+    md_rel = {}
     for line in m.group(1).splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
@@ -536,9 +542,11 @@ def rule13(root):
         cells = [c.strip() for c in line.split("|")]
         if len(cells) >= 3:
             md.add((cells[0], cells[1], cells[2].lower()))
+            md_rel[cells[0]] = len(cells) >= 4 and cells[3].lower() == "release"
 
     js = {(x.get("id", ""), x.get("name", ""), x.get("email", "").lower())
           for x in (data.get("people") or [])}
+    js_rel = {x.get("id", ""): bool(x.get("can_release")) for x in (data.get("people") or [])}
 
     only_md = sorted(md - js)
     only_js = sorted(js - md)
@@ -551,7 +559,15 @@ def rule13(root):
     if md != js:
         print("  说明：名录对外是承诺，两份不一致时主张者会被指向另一份，承诺即落空。")
         print("        修法：以 CREDITS.md 表格为准补齐 credits.json（或反之），再跑体检。")
-    return md == js
+
+    # 发布权（第 4 格写 release）也要两边一致：R14 拿 json 的 can_release 判签发权，
+    # 若 md 写着「仅某人可发布」而 json 另授了人，对外承诺与机器判定就分叉了。
+    rel_diff = sorted({k for k in set(md_rel) | set(js_rel) if md_rel.get(k) != js_rel.get(k)})
+    for k in rel_diff:
+        print(f"    ❌ 发布权两处不一致：{k}（md {'有' if md_rel.get(k) else '无'} / json {'有' if js_rel.get(k) else '无'}）")
+    print(f"  {'✅' if not rel_diff else '❌'} 发布权记载一致：{len(js_rel) - len(rel_diff)}/{len(js_rel)}")
+
+    return md == js and not rel_diff
 
 
 def _ssh_fp(b64):
@@ -561,21 +577,30 @@ def _ssh_fp(b64):
 
 
 def rule14(root):
-    """R14：签名公钥与它的两处记载不能分叉。
+    """R14：签名公钥、签发权与它们的记载，三处不能分叉。
 
     换了密钥却忘了改文档，是这类机制最常见的失效方式：验签命令照着文档敲，
-    报「Good signature」——签的是旧钥，而读者以为验的是当前发布。所以三样必须对上：
+    报「Good signature」——签的是旧钥，而读者以为验的是当前发布。所以
 
       ① `allowed_signers` 里的 principal 必须是名录里的人（否则把签发权给了名录外的人）；
       ② 每行钥匙必须限定 `namespaces="git"`（不限定，同一把钥还能签 SSH 证书，
          签名语义从「这是发布」扩散成「这是我签的一切」）；
-      ③ 公钥指纹必须与 `CREDITS.md` §10 写的指纹完全相同（两处记载，一处改一处没改即红）。
+      ③ 公钥指纹必须与 `CREDITS.md` §10 写的指纹完全相同（两处记载，一处改一处没改即红）；
+      ④ 签发权与名录双向对齐：`can_release` 为真的人必须有钥，有钥的人必须 `can_release`。
+         只查 ① 的话，加一行钥就等于给了发布权，而名录里看不出来——签发权被悄悄扩大
+         是这类机制最安静的失效；
+      ⑤ 同一把公钥不得出现两次。两人共用一把钥，验签只能证明「钥的持有人之一」，
+         分不出是谁签的，署名权在那一刻就落不到具体的人头上。
+
+    第 ③ 条有个天然局限，必须说清：`allowed_signers` 在仓库里，能改仓库的人也能改它。
+    本规则只能防「自己人改漏」，防不了「有人把两份一起改掉」。后者只能靠仓库外的
+    指纹分发渠道（见 CREDITS.md §10.3）。
 
     第 ③ 条有个天然局限，必须说清：`allowed_signers` 在仓库里，能改仓库的人也能改它。
     本规则只能防「自己人改漏」，防不了「有人把两份一起改掉」。后者只能靠仓库外的
     指纹分发渠道（见 CREDITS.md §10.3）。
     """
-    sec("R14 签名公钥")
+    sec("R14 签名公钥与签发权")
     path = os.path.join(root, "allowed_signers")
     if not os.path.exists(path):
         print("  ❌ 无 allowed_signers：签名无从验证，等于没有签名")
@@ -591,7 +616,7 @@ def rule14(root):
                 known.add(e.lower())
     known.discard("")
 
-    principals, fps, no_ns = [], [], []
+    principals, fps, no_ns, pairs = [], [], [], []
     for ln, line in enumerate(open(path, encoding="utf-8"), 1):
         line = line.strip()
         if not line or line.startswith("#"):
@@ -604,10 +629,13 @@ def rule14(root):
         principals.append(principal)
         if not any(p.startswith("namespaces=") and "git" in p for p in parts[1:-2]):
             no_ns.append(f"第 {ln} 行 {principal}")
+        fp = None
         for i, tok in enumerate(parts):
             if tok.startswith(("ssh-ed25519", "ssh-rsa", "ecdsa-sha2-", "sk-ssh-", "sk-ecdsa-")):
-                fps.append(_ssh_fp(parts[i + 1]))
+                fp = _ssh_fp(parts[i + 1])
+                fps.append(fp)
                 break
+        pairs.append((principal, fp, ln))
 
     # ① principal 必须在名录内
     outsider = [p for p in principals if p not in known]
@@ -635,7 +663,133 @@ def rule14(root):
     if set(fps) != declared:
         print("  说明：验签命令照着文档敲，会验到旧钥——「Good signature」反而成了误导。")
 
-    return not outsider and not no_ns and bool(fps) and set(fps) == declared
+    # ④ 签发权 ↔ 名录，双向对齐
+    ok4 = True
+    if data is None:
+        print("  · 跳过签发权核对：名录无法解析（不计入分母）")
+    else:
+        by_email = {}
+        releasers = []
+        for p in data.get("people") or []:
+            pid = p.get("id") or p.get("name", "?")
+            if p.get("can_release"):
+                releasers.append(pid)
+            for e in _person_emails(p):
+                by_email[e] = pid
+        have_key = {by_email[p] for p, _, _ in pairs if p in by_email}
+        no_key = [r for r in releasers if r not in have_key]
+        for r in no_key:
+            print(f"    ❌ 名录给了发布权、却没有签名钥：{r}（「能发布」成了一句空话）")
+        print(f"  {'✅' if not no_key else '❌'} 有发布权的人都有钥：{len(releasers) - len(no_key)}/{len(releasers)}")
+
+        overreach = sorted({p for p, _, _ in pairs if p in by_email and by_email[p] not in releasers})
+        for p in overreach:
+            print(f"    ❌ 有钥、名录未授予发布权：{p}（加一行钥就等于给了发布权，名录里看不出来）")
+        print(f"  {'✅' if not overreach else '❌'} 有钥的人都列在发布权内：{len(pairs) - len(overreach)}/{len(pairs)}")
+        ok4 = not no_key and not overreach
+
+    # ⑤ 一把钥只能对应一个人
+    seen = {}
+    for p, fp, ln in pairs:
+        if fp:
+            seen.setdefault(fp, []).append(f"{p}(第{ln}行)")
+    shared = {fp: who for fp, who in seen.items() if len(who) > 1}
+    for fp, who in shared.items():
+        print(f"    ❌ 同一把公钥出现 {len(who)} 次：{fp[:28]}… → {'、'.join(who)}")
+        print("       共用钥无法区分谁签的；署名权在那一刻落不到具体的人头上。")
+    print(f"  {'✅' if not shared else '❌'} 一钥一人：{len(seen) - len(shared)}/{len(seen)}")
+
+    return (not outsider and not no_ns and bool(fps)
+            and set(fps) == declared and ok4 and not shared)
+
+
+def rule15(root):
+    """R15：签了名的提交，签名者必须就是作者本人。
+
+    签名 tag 只回答「这次发布是谁发的」，回答不了「每个提交是谁写的」——commit 的
+    author 字段是自由填写的，谁都能写成别人的名字。所以一旦有人开始签名，就得查两件事：
+
+      ① 签名本身验得过。坏签名比没签名糟得多，因为它看起来「有保障」；
+      ② 签名者 principal 属于该作者登记过的邮箱。拿自己的钥去签别人的提交，验签会报
+         「Good signature for 自己」——这正是要抓的冒名，也是这条规则存在的唯一理由。
+
+    未签名的提交只统计、不判红：历史既成事实，补签要改写历史，代价大于收益（见
+    CREDITS.md §10.4）。所以这条规则在新人加入后才真正开始起作用：他签一个，就锁一个。
+    """
+    sec("R15 提交签名与作者身份")
+    top = os.path.dirname(root)
+    if not os.path.isdir(os.path.join(top, ".git")):
+        print("  · 不适用：repo/ 的上级不是 git 仓库（不计入分母）")
+        return None
+
+    data = _load_credits(root) or {}
+    asf = os.path.join(root, "allowed_signers")
+    if not os.path.exists(asf):
+        print("  ❌ 无 allowed_signers：提交签名无从核对")
+        return False
+
+    # 邮箱 → 人。机器账号（accounts 段）按 attribution 里写的权利人折算。
+    people = {p.get("id") or p.get("name", "?"): p for p in data.get("people") or []}
+    by_email = {}
+    for pid, p in people.items():
+        for e in _person_emails(p):
+            by_email[e] = pid
+    for a in data.get("accounts") or []:
+        e = (a.get("email") or "").lower()
+        m = re.search(r"[\w.+-]+@[\w.-]+", a.get("attribution") or "")
+        if e and m and m.group(0).lower() in by_email:
+            by_email[e] = by_email[m.group(0).lower()]
+
+    try:
+        out = subprocess.run(
+            ["git", "-C", top,
+             "-c", "gpg.format=ssh",
+             "-c", f"gpg.ssh.allowedSignersFile={asf}",
+             "log", "--format=%H%x1f%ae%x1f%G?%x1f%GS"],
+            capture_output=True, text=True, check=True).stdout
+    except Exception:  # noqa: BLE001
+        print("  ❌ git log 失败：无法核对提交签名")
+        return False
+
+    total = signed = 0
+    bad, impostor = [], []
+    for line in out.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\x1f")
+        if len(parts) < 4:
+            continue
+        sha, ae, st, signer = parts[0], parts[1].strip().lower(), parts[2].strip(), parts[3].strip().lower()
+        total += 1
+        if st == "N":
+            continue
+        signed += 1
+        if st != "G":
+            bad.append((sha[:7], st))
+            continue
+        pid = by_email.get(ae)
+        if pid is None:
+            continue  # 未登记作者由 R12 判，此处不重复计红
+        if signer not in _person_emails(people.get(pid, {})):
+            impostor.append((sha[:7], ae, pid, signer))
+
+    for sha, st in bad[:10]:
+        why = {"U": "签名完好但钥未登记（%G?=U）",
+               "B": "签名损坏（%G?=B）",
+               "E": "无法校验（%G?=E）",
+               "X": "钥已过期（%G?=X）",
+               "Y": "钥已过期（%G?=Y）",
+               "R": "钥已吊销（%G?=R）"}.get(st, f"%G?={st}")
+        print(f"    ❌ {why}：{sha}")
+    print(f"  {'✅' if not bad else '❌'} 已签名提交验得过：{signed - len(bad)}/{signed}")
+
+    for sha, ae, pid, signer in impostor[:10]:
+        print(f"    ❌ 冒名：{sha} 作者 {ae}（名录 {pid}），却由 {signer} 的钥签发")
+    print(f"  {'✅' if not impostor else '❌'} 签名者=作者：{signed - len(bad) - len(impostor)}/{max(signed - len(bad), 0)}")
+
+    print(f"  · 提交总数 {total}，其中已签名 {signed}、未签名 {total - signed}")
+    print("    未签名不判红：历史补签要改写提交，毁掉的是原有的可核验性。")
+    return not bad and not impostor
 
 
 def main():
@@ -662,7 +816,8 @@ def main():
         ("R11 根受管文件声明", rule11(root)),
         ("R12 署名落地", rule12(root)),
         ("R13 名录两源一致", rule13(root)),
-        ("R14 签名公钥", rule14(root)),
+        ("R14 签名公钥与签发权", rule14(root)),
+        ("R15 提交签名与作者身份", rule15(root)),
     ]
 
     print()

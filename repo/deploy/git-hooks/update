@@ -1,0 +1,41 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
+#
+# 装到裸仓 hooks/update（/opt/drawcommons/git/drawcommons.git/hooks/update）。
+#
+# 为什么需要这个钩子，而不是只靠 `receive.denyNonFastForwards`：
+#   实测过——那个配置拦得住分支强推，**拦不住 tag 更新**。`git push -f` 把一个已存在的
+#   tag 指到另一个提交，服务端会输出 `+ 02a229b...b7dc962 (forced update)` 并接受。
+#   理由是 git 认为 tag 本就不存在快进关系，于是「非快进」这条判断对 tag 不成立。
+#
+# 而移动 tag 是最隐蔽的一种改写历史：
+#   - `git log` 看不出任何异常；
+#   - 已下载的包与 tag 指向悄悄脱钩，`sha256sum -c` 仍然通过（包本身没变）；
+#   - 只有那些「下载时记下了 tag 对应提交」的人会发现对不上——而人不会记。
+#
+# 本钩子只做一件事：已存在的 tag 不许改指向。新建可以，删除可以。
+# 删除之所以放行：作废一个 tag 应该留下可见痕迹（tag 消失 + CHANGELOG 记一条），
+# 而不是悄悄换个目标。可见的错误优于不可见的正确。
+
+ref="$1"
+old="$2"
+new="$3"
+zero=0000000000000000000000000000000000000000
+
+case "$ref" in
+    refs/tags/*)
+        if [ "$old" != "$zero" ] && [ "$new" != "$zero" ]; then
+            echo "REFUSED: 拒绝移动已存在的 tag：${ref}" >&2
+            echo "  原指向 ${old}" >&2
+            echo "  新指向 ${new}" >&2
+            echo "" >&2
+            echo "已发布的 tag 一旦移动，下载过的包就与 tag 指向脱钩，而包本身的校验值仍然通过——" >&2
+            echo "没有人会察觉。要作废一个 tag，请删除它并在 CHANGELOG 写明原因；" >&2
+            echo "要修正内容，请打一个新 tag。历史可以追加，不可以替换。" >&2
+            exit 1
+        fi
+        ;;
+esac
+
+exit 0

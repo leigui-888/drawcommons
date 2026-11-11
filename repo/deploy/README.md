@@ -76,15 +76,18 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum
 - 裸仓由 `compose.yml` 的 `- ./git:/srv/git:ro` 只读挂进 caddy 容器；路由见 `Caddyfile` 的 `/repo.git/*`、`/download/*` 两个 `handle_path`。
 - **裸仓 HEAD 必须是 `refs/heads/main`**。`git init --bare` 默认指向 `master`，而本仓推的是 `main`——不设的话 clone 下来会得到 "remote HEAD refers to nonexistent ref, unable to checkout"，看起来像空仓库。设一次即可：`git symbolic-ref HEAD refs/heads/main`。
 - 哑协议靠 `info/refs` 与 `objects/info/packs` 两个文件，必须由 `post-receive` 钩子刷新（`git update-server-info`），否则推了新提交而 clone 拿到旧的。
-- **出包与刷新 latest 已由钩子接管**，不再靠人记得做。钩子源件是本目录的 `git-hooks/post-receive`，装法：
+- **出包、刷新 latest、验签闸门已由钩子接管**，不再靠人记得做。钩子源件是本目录的 `git-hooks/`，两个都要装：
 
   ```bash
-  sudo install -o deploy -g deploy -m 755 \
-      /opt/drawcommons/git/drawcommons.git/hooks/post-receive
-  # 源件在仓库 repo/deploy/git-hooks/post-receive，改动后重装即可
+  D=/opt/drawcommons/git/drawcommons.git
+  for h in post-receive update; do
+      install -o deploy -g deploy -m 755 "repo/deploy/git-hooks/$h" "$D/hooks/$h"
+  done
   ```
 
-  它做五件事：刷 `update-server-info`；**验签闸门**——为新推的 `v*` tag 验 SSH 签名，验不过就不出包（把 `REFUSED` 打到推送方终端）；为通过的 tag 出包并重算 `.sha256`；把该包复制成 `latest` 别名（校验值独立重算，不复制版本化那份，否则 `sha256sum -c` 会因文件名不符报错）；把 `repo/CREDITS.md`、`repo/credits.json`、`repo/allowed_signers` 摊到 `/download/`——**这些东西只活在裸仓对象库里时，对浏览器等于不存在**，而署名承诺与验签公钥恰恰是给不看 git 的人看的。
+  `post-receive` 做五件事：刷 `update-server-info`；**验签闸门**——为新推的 `v*` tag 验 SSH 签名，验不过就不出包（把 `REFUSED` 打到推送方终端）；为通过的 tag 出包并重算 `.sha256`；把该包复制成 `latest` 别名（校验值独立重算，不复制版本化那份，否则 `sha256sum -c` 会因文件名不符报错）；把 `repo/CREDITS.md`、`repo/credits.json`、`repo/allowed_signers` 摊到 `/download/`——**这些东西只活在裸仓对象库里时，对浏览器等于不存在**，而署名承诺与验签公钥恰恰是给不看 git 的人看的。
+
+  `update` 只做一件事：**拒绝移动已存在的 tag**。新建放行、删除放行、改指向一律拒绝。之所以不能只靠 `receive.denyNonFastForwards`：实测那个配置拦得住分支强推，**拦不住 tag 更新**——`git push -f` 把已有 tag 指到别的提交，服务端会输出 `+ 02a229b...b7dc962 (forced update)` 并接受，因为 git 认为 tag 本就不存在快进关系。而移动 tag 是最隐蔽的改写：`git log` 看不出异常，下载过的包与 tag 脱钩，包本身的 `sha256` 却仍然通过。裸仓另需 `git config receive.denyNonFastForwards true`（拦分支），两条配合才完整。
 
   验签闸门为什么在钩子里而不是靠人事后查：查的人少、改的人多。它拦的是**手滑**——拿轻量 tag 就推了、换了钥忘了改签名、tag 建在别人的钥上。它拦不住拿到部署钥的人（那人本来就能改任何东西），也不打算拦：那条边界靠密钥管理，不靠钩子。
 

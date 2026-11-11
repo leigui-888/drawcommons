@@ -2,7 +2,7 @@
   "schema": "drawcommons-credits/1",
   "revision": 2,
   "updated": "2026-11-11",
-  "about": "CREDITS.md 的机器可读副本。两份文件由 repo_lint R12/R13 强制一致：R12 核人名与 git 记录双向对得上（不漏记、不虚构），R13 核本文件与 CREDITS.md 记录集相同。改一处必须改两处。",
+  "about": "CREDITS.md 的机器可读副本。两份文件由 repo_lint 强制一致：R12 核人名与 git 记录双向对得上（不漏记、不虚构），R13 核本文件与 CREDITS.md 记录集相同、发布权记载相同，R14 核 allowed_signers 里的钥都对应 can_release 的人且一人一钥，R15 核已签名的提交由作者本人的钥签发。改一处必须改两处。",
   "people": [
     {
       "id": "laofu",
@@ -11,6 +11,8 @@
       "email": "2379731846@qq.com",
       "emails": ["2379731846@qq.com", "noreply@drawcommons.org"],
       "roles": ["code", "docs", "data", "deploy", "maintainer"],
+      "can_release": true,
+      "release_note": "发布权（能签 v* tag 并让钩子出包）与著作权贡献者身份分开记。有贡献不等于有发布权；反之，给一个人发布权必须同时给他在这里的一行记录与 allowed_signers 里的一把钥——三处对齐由 R14 强制。",
       "attribution": "Copyright 2026 老夫 <2379731846@qq.com>",
       "since": "2026-11-08",
       "basis": "著作权人；DCO 1.1 签署人；维护者",

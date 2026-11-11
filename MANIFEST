@@ -28,13 +28,15 @@
 #   0-snapshot/ 为 2.0-final 冻结基线，本次未动，故 5 份周 MANIFEST 与 35 件校验不受改名影响。
 # 签名（2026-11-11 深夜）：新增 repo/allowed_signers（25 → 26 条）；credits.json 为 revision 2。
 #   0-snapshot/ 仍未动。
+# 多人署名（2026-11-11 深夜）：新增 repo/deploy/git-hooks/update（26 → 27 条）。
+#   缘由：实测 receive.denyNonFastForwards 拦得住分支强推、拦不住 tag 移动。
 259d17f3657ee5217edc99e9b0b07fe1ef7b602f74057ae25deee9e95975bad2 *evidence/asset_decl_check.py
 99664da24d65ea9bd96c8a4a1e8c25793d3637b5f7693a13a541ed71cbac3a64 *evidence/blind/key.json
 bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind/results.json
 488f77a8410fae408d81b4f5c55da62015509c74ab66f1569ee74e948ab7035c *evidence/blind_agreement.py
 d76346c1e9ba387804d25a2758f31865833172cd0705f222d509de646c66e150 *evidence/cert_terms.py
 fe309ce02f944ead706d2020019cf539e6df90981059faeac4dafabdba1259d1 *evidence/license_matrix.py
-e1180e28439a93e29ad7533edbfa02ecf3515705bf50f8cc92eaced2b1215a8f *evidence/repo_lint.py
+24570543e0ff4c385ecd3e4a59b8d12ebc4150321d96d2c05ae121ecad987e86 *evidence/repo_lint.py
 a2246c40ab0e4a4907a50c4650350e53f0c98e649e77cb4b5c533357ebd14586 *evidence/tm_class_check.py
 f9ad51b3b30e49ec6efb8ffe8c33a17d1fbeced697c0eb61ce9aac38732fa40f *repo/allowed_signers
 95d3be29621edd7b90c923ae74a4e77347758cf1d42b5e3057d7330422032551 *repo/deploy/app/Dockerfile
@@ -44,10 +46,11 @@ f9ad51b3b30e49ec6efb8ffe8c33a17d1fbeced697c0eb61ce9aac38732fa40f *repo/allowed_s
 a155562a5a460527ce1cc204f4829e0ba1cfa06e67deccaa25c4f2244a5a2d09 *repo/deploy/compose.yml
 05a21bd99aeaf1cfcc8daf45c8849f1fe14b95241771f8c76f92cbde327c0067 *repo/deploy/daily.sh
 c4200c3e0fcd89d0b16d6c2c196744a16cdf10e63b65d79e8718386a413675a9 *repo/deploy/git-hooks/post-receive
+45d8111ffbd09b665cbdd2abcda1a009398d7f4e0b6532af86b9ab0f924fb378 *repo/deploy/git-hooks/update
 2dfeb237994596e5bc973a8341729d5507520b81f19acc297559046dab71f834 *repo/DCO
 c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 *repo/LICENSE
 5898ffc05cb44fdeb2b51c3a5f32fe6fdb24341f7c70b32aea44a01036132728 *repo/NOTICE
-a3810376d8ace5956c1ec323229d09e4f27e14ae962156085c035a98f1c21006 *repo/credits.json
+f466e6e8a16bae1dbabc6a7f2dd155d1b015720deb9586ca6e0f95004010ad7d *repo/credits.json
 b18ae5c06cebb4359a963e717d59973d857c4af9affaa9eb61d57cd11cc61431 *repo/credits.json.license
 8df19f55a95fcff9466adf1fe051d96d3397d4ad3be18ec582d743076b0c198a *repo/spec/ledger-entry.schema.json
 621bd370e2a9ddc0213b91d2fb7aa76afc8eb9cdcb3b61c4ed278af22d2d1213 *repo/spec/ledger-entry.schema.json.license
