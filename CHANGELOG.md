@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-11-12 凌晨（四）· 公开镜像上线；tag 保护实证；root README
+
+- GitHub 公开镜像建成：`leigui-888/drawcommons`（`main` + 11 tag，与本地逐引用一致）。
+  全新 clone 内 `verify-tag v2.1-rc10` = Good、`regen` 35/35 + 30/30、`build_ledger` exit 0，
+  镜像与发布口可复现结果一致。
+- **tag 保护实测出过一次漏洞并已补上**：只勾 `Restrict deletions` + `Block force pushes` 时
+  **强移被放行**，`v2.1-rc1` 在镜像上被移约 3 分钟，经关规则→恢复→补勾
+  `Restrict updates`→复测 3/3 拒。结论已写进 §11.3：拦 tag 移动的是 `Restrict updates`；
+  规则改动后必须实测，只看配置页不算数。事故期间发布口与线上发布物未受影响。
+- 新增仓库根 `README.md`：标明「公开可读副本，发布口在 drawcommons.org，此处打 tag 不等于
+  发版」，给验签命令（含 `allowedSignersFile` 报错的解释）、目录导读与不可改写声明。
+- 名录快照与本版：见 §8 `v2.1-rc11` 行。
+
 ## 2026-11-12 凌晨（三）· 决定公开历史；两项待办关闭
 
 **决定（本人，2026-11-12）：接受本名出现在公开 git 历史。** 于是「隐藏 `.git`」不再是选项，

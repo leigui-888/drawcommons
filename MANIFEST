@@ -68,6 +68,7 @@ eb5db5b26f5effa8541414bd68c52e39aafdf3a978f797b45bc69b92fb162c52 *repo/spec/cont
 #   ledger-entry.schema         2702 B  sha256 73939083ed1a319c…
 #   contribution-entry.schema   4956 B  sha256 0f2429c890de7114…
 # —— 以下为文档清单，不参与校验 ——
+#   README.md（仓库根，2026-11-12 新增：公开镜像首屏说明）
 #   evidence/blind/samples.md
 #   repo/CONTRIBUTING.md
 #   repo/CREDITS.md
