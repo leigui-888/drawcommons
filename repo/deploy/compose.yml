@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 众汲之井 2.1 贡献者
+services:
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data:/data
+      - ./backup:/config
+    depends_on:
+      - app
+
+  app:
+    build: ./app
+    container_name: ledger-app
+    restart: unless-stopped
+    expose:
+      - "8000"
+    # 2026-11-11 修 P0-A：账本库原先只由 Dockerfile COPY 进镜像，宿主
+    # /opt/drawcommons/app/data/ 只是备份源、不是服务源。后果有三：
+    #   ① 备份脚本备的是宿主那份，线上读的是镜像那份，两者可静默分叉；
+    #   ② 改宿主库对线上零影响，反之重建镜像会把宿主的新数据冲回旧值；
+    #   ③ 一旦开写入口，写进容器的数据在 rebuild 时整份丢失。
+    # 现在把宿主目录只读挂进来，镜像内副本被遮蔽，服务源 = 备份源。
+    # 路径相对本文件（/opt/drawcommons/），即 /opt/drawcommons/app/data。
+    volumes:
+      - ./app/data:/srv/data:ro
+    # 注意：Docker 不会因为 unhealthy 自动重启容器，这条的作用是让状态
+    # 可读（docker ps 显示 healthy/unhealthy），供外部监控或人工判断。
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """仓库许可体检：G5′ 许可门的机器可验部分。
 
-八条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
+十条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
 **一个陌生人 clone 下来，能不能仅凭仓库里的文件判断"这个文件我能不能用"。**
 
 用法：
@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import os
 import re
 import subprocess
@@ -267,6 +268,42 @@ def rule9(root, files):
     return not missing
 
 
+def rule10(root):
+    """R10：deploy/ 里的算法副本必须与 src/ 逐字节相同。
+
+    为什么单独一条：`deploy/app/ledger_hash.py` 是为了让部署目录自含（build context
+    里必须有它），属于 vendoring。vendoring 的经典失败方式不是"写了错代码"，而是
+    "两份都对，但不一样"——哈希算法一变，线上算出的锚值与仓库里声称的就不是一回事，
+    而各自的 MANIFEST 行都能自证清白。sha256sum -c 抓不到跨文件分叉，所以在这里抓。
+    """
+    sec("R10 deploy/ 的 ledger_hash.py 与 src/ 逐字节相同")
+    a = os.path.join(root, "src", "ledger_hash.py")
+    b = os.path.join(root, "deploy", "app", "ledger_hash.py")
+    if not os.path.exists(b):
+        print("  · 不适用：无 deploy/app/ledger_hash.py（未含部署目录）")
+        return True
+    if not os.path.exists(a):
+        print("  ❌ 存在部署副本，但缺 src/ledger_hash.py（唯一源不见了）")
+        return False
+
+    def sh(p):
+        h = hashlib.sha256()
+        with open(p, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 16), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+    ha, hb = sh(a), sh(b)
+    print(f"  src/      {ha[:16]}…  {os.path.getsize(a):>6} 字节")
+    print(f"  deploy/   {hb[:16]}…  {os.path.getsize(b):>6} 字节")
+    same = ha == hb
+    print(f"  {'✅ 一致' if same else '❌ 已分叉'}")
+    if not same:
+        print("  说明：两份 hash 各自都能通过自己那条 MANIFEST 校验，分叉不会被 sha256sum -c 发现。")
+        print("        修法：以 src/ 为准覆盖 deploy/，再跑 regen_manifest.py 重算。")
+    return same
+
+
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else "."
     root = os.path.abspath(root)
@@ -287,6 +324,7 @@ def main():
         ("R7 NOTICE 无矛盾", rule7(root)),
         ("R8 清单可复验", rule8(files, source)),
         ("R9 MANIFEST 路径一致", rule9(root, files)),
+        ("R10 deploy 副本一致", rule10(root)),
     ]
 
     print()

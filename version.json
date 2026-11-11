@@ -24,7 +24,7 @@
   },
   "release_gate": {
     "build_ledger": "exit 0",
-    "regen_manifest": "35/35 + 16/16",
+    "regen_manifest": "35/35 + 22/22",
     "protocol_ready": false,
     "note": "protocol_ready=false 的原因：免责声明与隐私政策尚未合并到 v2.1-r5。三件套不全，不得发布。"
   },

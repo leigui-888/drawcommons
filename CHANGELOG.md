@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## 2026-11-11 · C3 · 部署源入库 `deploy/` + 根 MANIFEST 16 → 22
+
+线上那套只读账本服务（`drawcommons.org`）此前**不在任何版本控制里**：只有本机一个目录、服务器一份文件，回滚靠手工归档 `.py`。一个对外提供账本验证的公开品，服务端代码不进仓库，等于"锚值可验、但算出锚值的那段代码不可验"。本次收进 `repo/deploy/`，随 `repo/` 一起对外发布。
+
+**路径选型**：`repo/deploy/`（而不是仓库根另开目录），理由是它要跟 `src/`、`spec/` 一样受 `repo/README.md` 的机器可读许可表治理——放进 `repo/` 就自动被 `repo_lint.py` 的 R3/R4 逐文件检查；放在仓库根则游离在许可门之外。
+
+| 本仓库 | 服务器 `/opt/drawcommons/` | 入 MANIFEST |
+| --- | --- | --- |
+| `deploy/app/{Dockerfile,app.py,ledger_hash.py}` | `app/` | 是（3 条） |
+| `deploy/{compose.yml,Caddyfile,daily.sh}` | 根目录 / `backup/` | 是（3 条） |
+| `deploy/README.md`、`deploy/app/data/README.md` | — | 否（文档，进注释区） |
+
+**没有把 `ledger.db` 复制进来。** 样例库在仓库里只有一份 `evidence/ledger_w4.db`（sha256 `31445fa5…`）。再复制一份到 `deploy/app/data/` 会得到两个都"看起来权威"的库——线上锚值该信哪个将失去唯一答案，这正是同日修掉的 P0（库由镜像 COPY、与宿主备份源静默分叉）的同一类错误。镜像要自含数据时 `cp evidence/ledger_w4.db deploy/app/data/ledger.db` 再 build，`deploy/README.md` 第 2 节写明了。
+
+**`deploy/app/ledger_hash.py` 是 vendoring，加了 R10 兜底。** build context 里必须有这个文件，所以只能有副本。但 vendoring 的失败方式不是"写错代码"，而是"两份都对、却不一样"：哈希算法一变，线上锚值与仓库声称的就不是一回事，而两条 MANIFEST 行各自都能自证清白——`sha256sum -c` 抓不到跨文件分叉。故 `repo_lint.py` 增至十条规则，R10 直接比字节。实测两处均为 `2c29eb8d…`；本轮 `repo_lint` 8/10，未过的两条是既有项（R2 有 5 份许可为指针件，D-06；R9 无 `MANIFEST.sha256`，历史口径），非本次引入。
+
+**许可表增两行**（顺序即优先级）：`deploy/app/data/** CC-BY-4.0` 在 `deploy/** Apache-2.0` 之前，这样将来若把样例库放进部署目录，它是数据不是代码。
+
+**线上同步**：四个文件补 SPDX 头（`Dockerfile`、`Caddyfile`、`compose.yml`、`daily.sh`）后重推，服务器侧六个指纹与仓库逐字节相同；`docker compose build`（Dockerfile 仅注释变更，层全命中，容器未重建）、`caddy reload` 热重载（未重启，Up 保持 20 小时）。复核：六端点全 200、`verify ok=true/4`、导出件 sha256 仍为 `cdec34e5…`、挂载 `RW=false`、横幅 `(bind mount ✓)`。
+
+**判据从两条变三条**：
+
+```bash
+python3 evidence/build_ledger.py      # exit 0
+python3 evidence/regen_manifest.py    # 35/35 + 22/22，exit 0
+python3 evidence/repo_lint.py repo    # R10 必须 ✅（其余两条既有缺口不因本次变化）
+```
+
 ## 2026-11-11 · F 尾 · 错误码前缀定稿 + W2/W7-02 回写
 
 三件事同批做完，都不动代码：

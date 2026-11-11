@@ -9,6 +9,7 @@
 | 你想做什么 | 看哪个目录 | 许可 | 你需要做什么 |
 | --- | --- | --- | --- |
 | 用代码起一套服务 | `src/` | Apache-2.0 | 保留版权与许可声明、NOTICE |
+| 照原样部署线上那套账本服务 | `deploy/` | Apache-2.0 | 保留版权与许可声明、NOTICE |
 | 实现本项目的接口/schema | `spec/` | **CC0-1.0** | **什么都不用做** |
 | 拿资源清单做自己的应用 | `data/` | CC-BY-4.0 | 署名 |
 | 转载或改写文档 | `docs/` | CC-BY-SA-4.0 | 署名 + 改编同样开放 |
@@ -27,6 +28,8 @@ README.md                       CC-BY-SA-4.0
 TRADEMARK.md                    CC-BY-SA-4.0
 src/**                          Apache-2.0
 scripts/**                      Apache-2.0
+deploy/app/data/**              CC-BY-4.0
+deploy/**                       Apache-2.0
 spec/**                         CC0-1.0
 data/**                         CC-BY-4.0
 docs/**                         CC-BY-SA-4.0

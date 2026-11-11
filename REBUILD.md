@@ -10,8 +10,12 @@ clone 后两条命令复现 W3–W7 的 35 件校验：
 
 ```bash
 python3 evidence/build_ledger.py      # 建基线库 + 执行 DDL，六次攻击全被拒则 exit 0
-python3 evidence/regen_manifest.py    # 重算并校验 35 件，全一致则 exit 0
+python3 evidence/regen_manifest.py    # 重算并校验 35 件（0-snapshot）+ 22 件（仓库根），全一致则 exit 0
 ```
+
+第三条（2026-11-11 起）：`python3 evidence/repo_lint.py repo` —— 十条许可规则，R10 专门卡
+`deploy/app/ledger_hash.py` 与 `src/ledger_hash.py` 是否逐字节相同（vendoring 的分叉不能被
+`sha256sum -c` 发现，见 CHANGELOG 的 C3 条目）。
 
 ### 目录口径
 
@@ -21,6 +25,7 @@ python3 evidence/regen_manifest.py    # 重算并校验 35 件，全一致则 ex
 | `spec/ddl_w4.sql` | DDL 唯一源（现为 v1.2；v1.3 由 C2 产出） | 可改，改后须重算 W4 相关指纹并记变更 |
 | `evidence/*.py` | 工作副本，可改 | 可改；`0-snapshot/` 内同名件始终保留冻结字节 |
 | `evidence/nodes.tsv` | `0-snapshot` 路径 → 资料库节点 ID 映射 | 基准件增减时同步 |
+| `repo/deploy/` | 线上账本服务的部署源（C3 起），与服务器 `/opt/drawcommons/` 一比一 | 可改；改后须重算根 MANIFEST 并推服务器，两者须逐字节相同 |
 
 ### `regen_manifest.py` 两条通道
 
