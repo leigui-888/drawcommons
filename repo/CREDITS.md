@@ -230,6 +230,17 @@ Good "git" signature for 2379731846@qq.com with ED25519 key SHA256:3vOTR4UHVjuwc
 不想装 git 也可以，公钥直接取：`https://drawcommons.org/download/allowed_signers`。
 用 `ssh-keygen -Y verify` 手工验也可以，但没必要——`git verify-tag` 做的就是这件事。
 
+**查单条提交有没有签名，必须带上同一条配置**：
+
+```sh
+git -c gpg.ssh.allowedSignersFile=repo/allowed_signers log --show-signature -1
+```
+
+不带的话，`%G?` 会显示 `N`（当作「没有签名」），并额外报
+`error: gpg.ssh.allowedSignersFile needs to be configured`。那个 `N` 说的是
+「没配验证器」，不是「没签名」——两者显示出来一模一样，很容易看错。
+`repo_lint` 的 R15 内部就是显式传了这条配置，所以它在全新 clone 里也能正确数出签名数。
+
 ### 10.2 签名证明什么、不证明什么
 
 | | 内容 |
