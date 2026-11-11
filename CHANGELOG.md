@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 2026-11-11 · G3 二轮 · 页面给入口 + 出包交给钩子
+
+上一轮把地址做出来了，但**没人知道它在哪**——地址只写在邀请函里。本轮补上发现路径，并把"人记得去出包"这件事换成机器做。
+
+**页面新增「自己验一遍」一节**：给出 `git clone` 命令文本与 `/download/drawcommons-latest.tar.gz` 下载链接，指向 `REPRODUCE.md`（含"这套东西没证明什么"那段，避免被当成数据真实性背书）。
+
+**`post-receive` 钩子从一件事扩到三件事**：刷 `update-server-info`（哑协议索引）、为每个新推的 `v*` tag 出包并重算 `.sha256`、同步 `drawcommons-latest.tar.gz` 别名。钩子源件入库为 `repo/deploy/git-hooks/post-receive`，根 MANIFEST **22 → 23 条**。
+
+三处都是上线后点链接才发现的错，记在这里因为它们会重复发生：
+
+1. **页面写 `/download/latest.tar.gz`，钩子产出的是 `drawcommons-latest.tar.gz`** —— 404。写文档时把"我以为的文件名"当成了"钩子实际产出的文件名"。
+2. **`<a href="/repo.git">` 打开是 404** —— 哑协议下 `/repo.git` 本身没有可服务内容，只有 `/repo.git/info/refs` 可用。改成不可点的 `git clone …` 文本，点了不会撞墙。
+3. **"规范文档在 `repo/` 下：白皮书 v2.1 · 协议 r5 · DDL v1.3"三样里两样不在仓库** —— 白皮书与协议只在资料库，DDL 在根 `spec/ddl_w4.sql`（不是 `repo/`）。改为指向实际存在的文件，并写明"测试期的白皮书与协议尚未进仓库"。
+
+**钩子自身的 bug**：删除 tag 时 `new` 是 40 个 0，此时 `git archive` 报 `not a valid object name` 并被 `set -e` 中断。移动 tag（先删后建）的第一跳必走这条。已加守卫（`case "$new" in *[!0]*)`）。
+
+**`latest` 的校验值独立重算**：直接复制版本化那份 `.sha256`，`sha256sum -c` 会因文件名不符（`drawcommons-vX.tar.gz` vs `drawcommons-latest.tar.gz`）报"找不到文件"而失败。
+
+**验收**：HEAD `6f37692` / tag `v2.1-rc1`；页面 11,923 B，四个 `href` 逐个请求全 200；全新 clone ① exit 0 + 19 行 + 17 含 OK，② exit 0 + **35/35 + 23/23**，③ exit 1 + 8/10；锚值 `cdec34e5…` 与线上一致；`sha256sum -c drawcommons-latest.tar.gz.sha256` → OK。
+
 ## 2026-11-11 · G3 · 仓库公开地址上线 + 复现说明
 
 复现邀请缺的从来不是仓库，而是一个**别人能 clone 的地址**。此前仓库只存在于本机与服务器两块磁盘上，"请你自己复现"这句话无法兑现。本次补上：
@@ -24,7 +44,7 @@
 
 **验收（在全新 clone 里逐条断言，非目测）**：HEAD `4e5af53`、tag `v2.1-rc1`、① exit 0 + 19 行 + 17 行含 OK + 2 计数行、② exit 0 + 35/35 + 22/22、③ exit 1 + 8/10、本地复算锚值 `cdec34e5…` == 线上锚值、包 sha256 `fc49956f…` 与随包 `.sha256` 一致。
 
-**已知未做**：仓库首页（`/`）尚未加指向 `repo.git` 的链接，发现路径目前只靠邀请函本身；裸仓已有 `v2.0-final` 与 `v2.1-rc1` 两个 tag，`v2.0-final` 指向 2.0 冻结提交 `84cf110`。
+**已知未做**：GitHub 镜像待账号与推送凭据（服务器到 `github.com:22`、`ssh.github.com:443` 均可达，只缺密钥授权）；裸仓已有 `v2.0-final` 与 `v2.1-rc1` 两个 tag，`v2.0-final` 指向 2.0 冻结提交 `84cf110`。
 
 ## 2026-11-11 · C3 · 部署源入库 `deploy/` + 根 MANIFEST 16 → 22
 

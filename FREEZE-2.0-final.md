@@ -33,7 +33,7 @@
 
 > **F3 补充变更（2026-11-11 晚）**：错误码前缀定稿为 `LEDGER_E_*`（用户确认，回退通道关闭），`W7-02` §4 六行码名同步改齐、正文加一段前缀说明，文档导出指纹 18,702 B → 19,093 B，据此更新 `W7` MANIFEST **注释区**一行并加注说明。强制校验行零改动，五份 MANIFEST 复验 **35/35 全 OK**。`W7` 自指纹变为 `6a8aeb90c394…9270c67`（W3/W4/W5/W6 不变）。
 
-> **C3 变更（2026-11-11 晚）**：部署源入库 `repo/deploy/`（线上账本服务的 6 个代码/配置件），仓库根 `MANIFEST` 由 **16 条增至 22 条**（新增 6 条 + `evidence/repo_lint.py` 因加 R10 重算 1 条），`evidence/repo_lint.py` 规则数 9 → 10。**`0-snapshot/` 一个字节未动**，五份周 MANIFEST 与 35/35 不受影响，故上表五个自指纹全部不变。根 MANIFEST 不在本表的指纹层内（它覆盖的是可改的工作副本，按第 3 节"可改，但须重算"处理）。
+> **C3 变更（2026-11-11 晚）**：部署源入库 `repo/deploy/`（线上账本服务的 6 个代码/配置件），仓库根 `MANIFEST` 由 **16 条增至 22 条**（新增 6 条 + `evidence/repo_lint.py` 因加 R10 重算 1 条），`evidence/repo_lint.py` 规则数 9 → 10。**`0-snapshot/` 一个字节未动**，五份周 MANIFEST 与 35/35 不受影响，故上表五个自指纹全部不变。根 MANIFEST 不在本表的指纹层内（它覆盖的是可改的工作副本，按第 3 节"可改，但须重算"处理）。**C3 二轮再增至 23 条**（新增 `repo/deploy/git-hooks/post-receive`，页面改动使 `deploy/app/app.py` 重算），`0-snapshot/` 仍一字节未动。
 
 ---
 
@@ -45,7 +45,7 @@
 ```bash
 git clone <仓库> && cd drawcommons
 python3 evidence/build_ledger.py        # exit 0，六次攻击全被拒
-python3 evidence/regen_manifest.py      # 0-snapshot 35/35，仓库根 22/22
+python3 evidence/regen_manifest.py      # 0-snapshot 35/35，仓库根 23/23
 ```
 
 `regen_manifest.py` 不带参数时**只读本地**重算并比对，不访问资料库；带 `--fetch` 才回源重新导出。**默认离线**是刻意的：独立复现者拿不到平台凭据，判据也必须成立。
@@ -63,7 +63,7 @@ python3 evidence/regen_manifest.py      # 0-snapshot 35/35，仓库根 22/22
 | `evidence/build_ledger.py` | 可改 | 相对基线件只改了一处：DDL 优先读 `spec/`，找不到回退同目录 |
 | `evidence/regen_manifest.py`、`nodes.tsv` | 可改 | 复算入口，新增件 |
 | `repo/` | 可改 | 2.1 工作副本，已改名为 drawcommons |
-| `MANIFEST`（仓库根） | 可改，但须重算 | 覆盖 `repo/`、`evidence/`、`spec/`、`repo/deploy/` 等 22 件工作副本（C3 起） |
+| `MANIFEST`（仓库根） | 可改，但须重算 | 覆盖 `repo/`、`evidence/`、`spec/`、`repo/deploy/` 等 23 件工作副本（C3 二轮起） |
 
 本文件、`CHANGELOG.md`、`REBUILD.md`、`NOTICE`、`TRADEMARK.md` 等治理文本由 git 历史追踪，**不进指纹集**——它们是"对基线的说明"，不是基线本身。说明可以改，基线不行。
 

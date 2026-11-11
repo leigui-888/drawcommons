@@ -21,7 +21,7 @@ clone 下来会看到两个层次，别混淆：
 
 | 路径 | 是什么 | 校验口径 |
 | --- | --- | --- |
-| `MANIFEST`、`evidence/`、`0-snapshot/`、`spec/` | 整包：证据脚本、35 件 2.0-final 冻结文档、DDL | `MANIFEST` 22 条强制校验 + `0-snapshot/*/MANIFEST` 35 条冻结校验 |
+| `MANIFEST`、`evidence/`、`0-snapshot/`、`spec/` | 整包：证据脚本、35 件 2.0-final 冻结文档、DDL | `MANIFEST` 23 条强制校验 + `0-snapshot/*/MANIFEST` 35 条冻结校验 |
 | `repo/` | **对外授权的那一棵树**（代码、接口 schema、部署源、许可文本）。它自己的 `repo/README.md` 里有一张机器可读的逐文件许可表，表里的路径相对 `repo/` | `evidence/repo_lint.py repo` 逐件检查 |
 
 运行服务的那份代码在 `repo/deploy/`，与 <https://drawcommons.org> 线上逐字节相同。
@@ -33,7 +33,7 @@ git clone https://drawcommons.org/repo.git drawcommons
 cd drawcommons
 
 python3 evidence/build_ledger.py      # ① 建基线库 + 执行 DDL + 十一次应当被拒的操作
-python3 evidence/regen_manifest.py    # ② 重算并校验 35 件（0-snapshot）+ 22 件（仓库根）
+python3 evidence/regen_manifest.py    # ② 重算并校验 35 件（0-snapshot）+ 23 件（仓库根）
 ```
 
 这两条是邀请的全部内容。**任一条非 0，就是我们错了**，按第 5 节告诉我们。
@@ -74,15 +74,15 @@ scope CHECK OK: PUBLIC -> CHECK constraint failed: scope IN ('public','mutua…
     W5: 4/4
     W6: 16/16
     W7: 5/5
-  repo/MANIFEST: 22/22
+  repo/MANIFEST: 23/23
 
 0-snapshot MANIFEST 校验：35/35 通过
-仓库根 MANIFEST 校验：22/22 通过
+仓库根 MANIFEST 校验：23/23 通过
 
-复现判据：35/35（0-snapshot）+ 22/22（仓库根） —— 与 MANIFEST 记录完全一致。
+复现判据：35/35（0-snapshot）+ 23/23（仓库根） —— 与 MANIFEST 记录完全一致。
 ```
 
-它按 `MANIFEST` 里记录的 sha256 逐件重算本地字节。注意 `35/35` 是**冻结基线**（2.0-final，改一个字节即断），`22/22` 是**可改的工作副本**（含 `deploy/`）。两者口径不同，别混着看。
+它按 `MANIFEST` 里记录的 sha256 逐件重算本地字节。注意 `35/35` 是**冻结基线**（2.0-final，改一个字节即断），`23/23` 是**可改的工作副本**（含 `deploy/`）。两者口径不同，别混着看。
 
 ## 4. 附带的体检（**exit 1 是预期的**）
 
@@ -146,7 +146,7 @@ cdec34e5bb85018a9a0d905307ee2103fa1ee7a9f046290987cc1a801efe30a9
 
 - 账本的哈希链自洽：每条记录的 `prev_hash` 与它前一条咬合，改任何一个字节都会在 `verify` 处断开；
 - 数据库层面十一类非法写入（改历史、删条目、跳同意书做实名绑定、撤回后再撤回等）被 DDL 与触发器拒绝；
-- 仓库里每份代码、数据、文档的字节与 `MANIFEST` 声称的一致（35 条冻结 + 22 条工作副本）；
+- 仓库里每份代码、数据、文档的字节与 `MANIFEST` 声称的一致（35 条冻结 + 23 条工作副本）；
 - 线上服务与仓库 `deploy/` 逐字节相同——算出锚值的那段代码，你看得到。
 
 **没有证明**（请务必按这个口径理解）：
