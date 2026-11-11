@@ -427,7 +427,13 @@ MINIMAL_PAGE = r"""<!doctype html>
   <ul class="links">
     <li><a href="/download/CREDITS.md">/download/CREDITS.md</a><span>名录全文：三类人、登记依据、认领与退出、逐版快照</span></li>
     <li><a href="/download/credits.json">/download/credits.json</a><span>机器可读的同一条记录，可与仓库里的那份逐字比对</span></li>
+    <li><a href="/download/REVIEWS.md">/download/REVIEWS.md</a><span>审查记录：一条提交凭什么算贡献、凭什么进名录</span></li>
+    <li><a href="/download/reviews.json">/download/reviews.json</a><span>审查记录的机器可读副本，字段与约束见上一份</span></li>
   </ul>
+  <p class="plain">进名录不是「提交了就算」。一条提交先被审——改动能不能指认、作者能不能解释、
+     换个干净环境还跑不跑得通、许可与来源守不守得住；四条都过才进名录依据。审查记录同样公开，
+     当前是空的，因为没有第三方提交。另外一句要说清：<b>发布签名只能由作者本人出</b>，
+     维护者代签会把作者身份改写成他自己，那不是背书，是冒名。</p>
 
   <h2>说明</h2>
   <p class="plain">测试期：名称、口径、界面都还可能改。名称在商标检索中，所以标着「暂行名」。

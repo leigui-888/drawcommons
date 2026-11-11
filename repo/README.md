@@ -27,6 +27,8 @@ NOTICE                          CC-BY-SA-4.0
 CONTRIBUTING.md                 CC-BY-SA-4.0
 CREDITS.md                      CC-BY-SA-4.0
 credits.json*                   CC-BY-SA-4.0
+REVIEWS.md                      CC-BY-SA-4.0
+reviews.json*                   CC-BY-SA-4.0
 allowed_signers*                CC0-1.0
 README.md                       CC-BY-SA-4.0
 TRADEMARK.md                    CC-BY-SA-4.0
@@ -79,7 +81,7 @@ JSON 不能写注释，这不是可以通融的技术细节：**没有伴生文�
 
 | 项 | 状态 |
 | --- | --- |
-| 归属表 | ✅ 15 条规则（R1–R15），覆盖全部已跟踪文件；`credits.json` 与伴生文件由 `credits.json*` 一条覆盖，`allowed_signers` 由 `allowed_signers*` 覆盖 |
+| 归属表 | ✅ 16 条规则（R1–R16），覆盖全部已跟踪文件；`credits.json`、`reviews.json` 与各自的伴生文件由 `credits.json*`、`reviews.json*` 覆盖，`allowed_signers` 由 `allowed_signers*` 覆盖 |
 | 四份许可文件 | ✅ 4/4 存在；其中全文仅 1 份（Apache-2.0），3 份为指针（见 D-06） |
 | 文件头/伴生文件 | ✅ 代码 1/1、JSON 3/3（两份 schema + `credits.json` 各带同名 `.license`） |
 | 名录 | ✅ `CREDITS.md` + `credits.json`，由 R12/R13 双向校验（见下） |

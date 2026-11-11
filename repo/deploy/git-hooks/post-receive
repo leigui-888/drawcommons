@@ -91,7 +91,7 @@ done
 #    从 HEAD 取而不是从某个 tag 取——名录是"当下有效"的记录，历史快照留在各自 tag 里，
 #    那正是 CREDITS.md §8 用来防抹除的东西（旧 tag 里的旧哈希改不掉）。
 #    公钥同理：验签要用"现在有效"的名单，旧名单在旧 tag 里仍可复现。
-for f in repo/CREDITS.md repo/credits.json repo/allowed_signers; do
+for f in repo/CREDITS.md repo/credits.json repo/REVIEWS.md repo/reviews.json repo/allowed_signers; do
     out=${f##*/}
     if head_file "$f" > "$DL/$out.tmp" && [ -s "$DL/$out.tmp" ]; then
         mv -f "$DL/$out.tmp" "$DL/$out"

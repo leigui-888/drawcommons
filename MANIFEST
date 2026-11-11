@@ -28,6 +28,8 @@
 #   0-snapshot/ 为 2.0-final 冻结基线，本次未动，故 5 份周 MANIFEST 与 35 件校验不受改名影响。
 # 签名（2026-11-11 深夜）：新增 repo/allowed_signers（25 → 26 条）；credits.json 为 revision 2。
 #   0-snapshot/ 仍未动。
+# 审查记录（2026-11-11 深夜）：新增 repo/REVIEWS.md、repo/reviews.json 与其伴生文件（27 → 30 条）。
+#   缘由：不逐条签 commit，改为「审过才进名录、作者本人签」；R16 把这条焊死。
 # 多人署名（2026-11-11 深夜）：新增 repo/deploy/git-hooks/update（26 → 27 条）。
 #   缘由：实测 receive.denyNonFastForwards 拦得住分支强推、拦不住 tag 移动。
 259d17f3657ee5217edc99e9b0b07fe1ef7b602f74057ae25deee9e95975bad2 *evidence/asset_decl_check.py
@@ -36,22 +38,25 @@ bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind
 488f77a8410fae408d81b4f5c55da62015509c74ab66f1569ee74e948ab7035c *evidence/blind_agreement.py
 d76346c1e9ba387804d25a2758f31865833172cd0705f222d509de646c66e150 *evidence/cert_terms.py
 fe309ce02f944ead706d2020019cf539e6df90981059faeac4dafabdba1259d1 *evidence/license_matrix.py
-24570543e0ff4c385ecd3e4a59b8d12ebc4150321d96d2c05ae121ecad987e86 *evidence/repo_lint.py
+573dca2f4f2268e626279995d5045f050367278381c793f1232a312d143a654a *evidence/repo_lint.py
 a2246c40ab0e4a4907a50c4650350e53f0c98e649e77cb4b5c533357ebd14586 *evidence/tm_class_check.py
 f9ad51b3b30e49ec6efb8ffe8c33a17d1fbeced697c0eb61ce9aac38732fa40f *repo/allowed_signers
 95d3be29621edd7b90c923ae74a4e77347758cf1d42b5e3057d7330422032551 *repo/deploy/app/Dockerfile
-2779f1b9b420bbd996879c0e429fa71b47535d3ce7ec8ad328c27a1ed363189d *repo/deploy/app/app.py
+0ff91e429e6a8325288cb610e3a95e0409d02b650e5c8d794707bb004fa44ecc *repo/deploy/app/app.py
 5ef229abf11bcffb76082d866c3ddd750b8123b8fc82b5bb7c6ef942451e568d *repo/deploy/app/ledger_hash.py
 7bdb2590fc15dff885478840b2fc908521d4ef04595346b807cc74f0c355d73c *repo/deploy/Caddyfile
 a155562a5a460527ce1cc204f4829e0ba1cfa06e67deccaa25c4f2244a5a2d09 *repo/deploy/compose.yml
 05a21bd99aeaf1cfcc8daf45c8849f1fe14b95241771f8c76f92cbde327c0067 *repo/deploy/daily.sh
-c4200c3e0fcd89d0b16d6c2c196744a16cdf10e63b65d79e8718386a413675a9 *repo/deploy/git-hooks/post-receive
+a09339823c356a023267795d99902b5adbcc98907a1d5982f23eb4bdeffc1b55 *repo/deploy/git-hooks/post-receive
 45d8111ffbd09b665cbdd2abcda1a009398d7f4e0b6532af86b9ab0f924fb378 *repo/deploy/git-hooks/update
 2dfeb237994596e5bc973a8341729d5507520b81f19acc297559046dab71f834 *repo/DCO
 c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 *repo/LICENSE
 5898ffc05cb44fdeb2b51c3a5f32fe6fdb24341f7c70b32aea44a01036132728 *repo/NOTICE
 f466e6e8a16bae1dbabc6a7f2dd155d1b015720deb9586ca6e0f95004010ad7d *repo/credits.json
 b18ae5c06cebb4359a963e717d59973d857c4af9affaa9eb61d57cd11cc61431 *repo/credits.json.license
+3d67f6da980a230d75b68792203c1b5aad904e46d08fd7f810195ca31669262a *repo/REVIEWS.md
+8f8a57a3fdfaff6fc4333557c3afd4f3b0c583dfe0b214e9e4600eab09e6a8d7 *repo/reviews.json
+68d8c513d91ddd2c2a2bb0fba2d1a610a28ad425786fce963e6e370496a3f5d5 *repo/reviews.json.license
 8df19f55a95fcff9466adf1fe051d96d3397d4ad3be18ec582d743076b0c198a *repo/spec/ledger-entry.schema.json
 621bd370e2a9ddc0213b91d2fb7aa76afc8eb9cdcb3b61c4ed278af22d2d1213 *repo/spec/ledger-entry.schema.json.license
 5ef229abf11bcffb76082d866c3ddd750b8123b8fc82b5bb7c6ef942451e568d *repo/src/ledger_hash.py

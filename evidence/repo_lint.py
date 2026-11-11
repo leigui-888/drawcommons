@@ -4,7 +4,7 @@
 # Copyright 2026 老夫 <2379731846@qq.com>
 """仓库许可体检：G5′ 许可门的机器可验部分。
 
-十五条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
+十六条规则，每条给一个数。规则不是为了"看起来严谨"，是为了回答一个具体问题：
 **一个陌生人 clone 下来，能不能仅凭仓库里的文件判断"这个文件我能不能用"，以及
 "谁做的、能不能找到他"。**
 
@@ -24,6 +24,11 @@ v* tag）与名录双向对齐、一人一钥。它防不了「两份一起改�
 R15 是 R14 的下半截：tag 签名只覆盖「发布」这一个动作，覆盖不到里面每个提交。commit 的
 author 字段是自由填写的，谁都能写别人的名字；一旦有人开始签名，就得查签名者是不是作者
 本人——否则「Good signature」会替一次冒名作证。未签名的提交只统计不判红（补签要改写历史）。
+
+R16 补的是中间那一层：不逐条签，但也不能「提交了就算贡献」。一条提交要先被审（REVIEWS.md
++ reviews.json），审出确实有贡献才进名录依据；作者不是有发布权的人，那条提交就必须有审查
+记录。它查五件事：审阅人有没有发布权、依据的提交存不存在、有没有把基线之后再审一遍、
+审过的人有没有真的进名录、记录的两份表示有没有分叉。**审查与署名之间那道焊缝由它焊死。**
 
 用法：
     python repo_lint.py ../repo
@@ -792,6 +797,196 @@ def rule15(root):
     return not bad and not impostor
 
 
+def _email_pid(data):
+    """邮箱 → 人名录 id。机器账号按 attribution 里写的权利人折算（与 R15 同口径）。"""
+    by = {}
+    for p in data.get("people") or []:
+        pid = p.get("id") or p.get("name", "?")
+        for e in _person_emails(p):
+            by[e] = pid
+    for a in data.get("accounts") or []:
+        e = (a.get("email") or "").lower()
+        m = re.search(r"[\w.+-]+@[\w.-]+", a.get("attribution") or "")
+        if e and m and m.group(0).lower() in by:
+            by[e] = by[m.group(0).lower()]
+    return by
+
+
+def rule16(root):
+    """R16：审查记录 —— 谁凭什么被记进名录。
+
+    不给每条提交签名，就要有另一层回答「凭什么算他的贡献」。这一层是审查记录，它防的是
+    两种相反的错误，两种都真实发生过：
+
+      ① **不审就记**：把提交一律算成贡献，名录变成提交列表。垃圾提交也能主张署名权，
+         将来真要删掉一个，反而说不清「当初凭什么收的」。
+      ② **审了不记**：口头说「这条算他的」，名录里没有，一年后查无此事。承诺没落纸就不是承诺。
+
+    查六件事：审阅人有没有发布权（没发布权的人给别人的贡献作保，自己也还没被认过）；
+    记录指向的提交存不存在、前缀唯不唯一；有没有把基线已覆盖的提交再审一遍（让基线形同虚设）；
+    `accept` 的人有没有真的进名录依据（审查与署名之间的焊缝）；基线之后作者不是发布权人的
+    提交有没有审查记录；`REVIEWS.md` 与 `reviews.json` 两份表示有没有分叉。
+    """
+    sec("R16 审查记录：谁凭什么被记进名录")
+    top = os.path.dirname(root)
+    if not os.path.isdir(os.path.join(top, ".git")):
+        print("  · 不适用：repo/ 的上级不是 git 仓库（不计入分母）")
+        return None
+
+    jp = os.path.join(root, "reviews.json")
+    mp = os.path.join(root, "REVIEWS.md")
+    if not (os.path.exists(jp) and os.path.exists(mp)):
+        print("  ❌ 缺 reviews.json 或 REVIEWS.md：审查记录无从核对")
+        return False
+    try:
+        data = json.load(open(jp, encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        print(f"  ❌ reviews.json 解析失败：{e}")
+        return False
+
+    credits = _load_credits(root) or {}
+    people = {p.get("id") or p.get("name", "?"): p for p in credits.get("people") or []}
+    releasers = {k for k, v in people.items() if v.get("can_release")}
+    by_email = _email_pid(credits)
+
+    try:
+        allc = subprocess.run(["git", "-C", top, "rev-list", "--all"],
+                              capture_output=True, text=True, check=True).stdout.split()
+    except Exception:  # noqa: BLE001
+        print("  ❌ git rev-list 失败：无法核对审查记录指向的提交")
+        return False
+
+    def resolve(prefix):
+        p = (prefix or "").strip().lower()
+        if len(p) < 7:
+            return None, "前缀短于 7 位"
+        hits = [c for c in allc if c.startswith(p)]
+        if not hits:
+            return None, "git 里没有这个提交"
+        if len(hits) > 1:
+            return None, f"前缀不唯一（{len(hits)} 个候选）"
+        return hits[0], ""
+
+    bad = []
+
+    def fail(msg):
+        """记一条失败并立刻打印。只汇总不指名，等于让人自己猜是哪条错了。
+
+        函数名不能叫 err：下面 `sha, err = resolve(...)` 会把它覆盖成字符串，
+        再调用就是 TypeError，而异常被 subprocess 的 stderr 吞掉，表现为
+        「体检静默通过」。这个名字是踩过一次才改的。
+        """
+        bad.append(msg)
+        print(f"    ❌ {msg}")
+
+    # ① 基线：指向的提交存在、审阅人有发布权、声称的条数与 git 实际一致
+    base = data.get("baseline") or {}
+    bsha, berr = resolve(base.get("commits_up_to") or "")
+    if berr:
+        fail(f"基线 commits_up_to 无效（{base.get('commits_up_to')}）：{berr}")
+    if (base.get("reviewer") or "") not in releasers:
+        fail(f"基线审阅人「{base.get('reviewer')}」没有发布权（can_release）")
+    if bsha:
+        real = int(subprocess.run(["git", "-C", top, "rev-list", "--count", bsha],
+                                  capture_output=True, text=True).stdout.strip() or 0)
+        if base.get("count") != real:
+            fail(f"基线声称 {base.get('count')} 条，git 实为 {real} 条")
+    print(f"  {'✅' if not [b for b in bad if b.startswith('基线')] else '❌'} "
+          f"基线 {(bsha or '?')[:7]}："
+          f"{base.get('count')} 条提交，审阅人 {base.get('reviewer')}")
+
+    # ② 逐条记录
+    revs = data.get("reviews") or []
+    seen, accepted = {}, []
+    for i, r in enumerate(revs, 1):
+        sha, err = resolve(r.get("sha") or "")
+        who = r.get("author") or ""
+        rv = r.get("reviewer") or ""
+        vd = r.get("verdict") or ""
+        tag = f"第 {i} 条（{(r.get('sha') or '?')[:7]}）"
+        if err:
+            fail(f"{tag} 提交无效：{err}")
+            continue
+        if vd not in ("accept", "reject"):
+            fail(f"{tag} verdict 只能是 accept/reject，实为「{vd}」")
+        if rv not in releasers:
+            fail(f"{tag} 审阅人「{rv}」没有发布权")
+        if who not in people:
+            fail(f"{tag} 作者「{who}」不在名录里")
+        if sha in seen:
+            fail(f"{tag} 与第 {seen[sha]} 条指向同一提交：分不清以哪条为准")
+        seen[sha] = i
+        if bsha and subprocess.run(["git", "-C", top, "merge-base", "--is-ancestor", sha, bsha],
+                                   capture_output=True).returncode == 0:
+            fail(f"{tag} 已被基线覆盖，再审一遍会让基线失去意义")
+        if vd == "accept":
+            accepted.append(sha)
+            ev = [c.lower() for c in ((people.get(who) or {}).get("evidence") or {}).get("commits") or []]
+            if not any(sha.startswith(e) or e.startswith(sha[:7]) for e in ev):
+                fail(f"{tag} 判了 accept，但 {who} 的 evidence.commits 里没有它——审了没进名录")
+    print(f"  {'✅' if not [b for b in bad if b.startswith('第')] else '❌'} "
+          f"记录条目：{len(revs)} 条，其中 accept {len(accepted)} 条")
+
+    # ③ 基线之后：作者不是发布权人 → 必须有审查记录
+    unreviewed = []
+    if bsha:
+        out = subprocess.run(["git", "-C", top, "log", "--format=%H%x1f%ae", f"{bsha}..HEAD"],
+                             capture_output=True, text=True).stdout
+        for line in out.splitlines():
+            if not line.strip():
+                continue
+            sha, ae = (line.split("\x1f") + [""])[:2]
+            pid = by_email.get(ae.strip().lower())
+            if pid in releasers:
+                continue          # 有发布权的人自己提交，不存在「谁审谁」的问题
+            if sha not in seen:
+                unreviewed.append((sha[:7], ae.strip(), pid or "未登记"))
+    for sha, ae, pid in unreviewed:
+        fail(f"未审提交：{sha} 作者 {ae}（名录 {pid}）")
+    print(f"  {'✅' if not unreviewed else '❌'} 基线之后的外部提交均已审："
+          f"{'—' if not unreviewed else f'{len(unreviewed)} 条未审'}")
+
+    # ④ 两份表示不许分叉（与 R13 同一思路：同一事实写两处，只改一处即红）
+    md_rows = []
+    in_tbl = False
+    try:
+        lines = open(mp, encoding="utf-8").read().splitlines()
+    except OSError:
+        lines = []
+    for ln in lines:
+        if ln.startswith("## 7."):
+            in_tbl = True
+            continue
+        if in_tbl and ln.startswith("## "):
+            break
+        if not (in_tbl and ln.strip().startswith("|")):
+            continue
+        cells = [c.strip().strip("`").strip() for c in ln.strip().strip("|").split("|")]
+        if len(cells) < 5 or cells[0] == "提交" or set(cells[0]) <= set("- "):
+            continue
+        if "基线" in cells[0]:
+            continue                      # 基线用范围表达，不占条目
+        md_rows.append((cells[0], cells[1], cells[2], cells[4]))
+    js_rows = [((r.get("sha") or "").strip().lower(), r.get("author") or "",
+                r.get("reviewer") or "", r.get("verdict") or "") for r in revs]
+    print(f"  记录数：md {len(md_rows)} / json {len(js_rows)}")
+    same = sorted(md_rows) == sorted(js_rows)
+    if not same:
+        only_md = [r for r in md_rows if r not in js_rows]
+        only_js = [r for r in js_rows if r not in md_rows]
+        for r in only_md[:5]:
+            print(f"    ❌ 只在 REVIEWS.md 里：{r}")
+        for r in only_js[:5]:
+            print(f"    ❌ 只在 reviews.json 里：{r}")
+        fail("REVIEWS.md 与 reviews.json 记录集分叉")
+    print(f"  {'✅ 一致' if same else '❌ 已分叉'}")
+
+    if bad:
+        print("  说明：审查记录是「凭什么记他」的唯一答案。它一旦与 git 或与名录脱钩，")
+        print("        名录里那句署名就退回成一句客气话。")
+    return not bad
+
+
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else "."
     root = os.path.abspath(root)
@@ -818,6 +1013,7 @@ def main():
         ("R13 名录两源一致", rule13(root)),
         ("R14 签名公钥与签发权", rule14(root)),
         ("R15 提交签名与作者身份", rule15(root)),
+        ("R16 审查记录", rule16(root)),
     ]
 
     print()

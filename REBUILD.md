@@ -10,18 +10,20 @@ clone 后两条命令复现 W3–W7 的 35 件校验：
 
 ```bash
 python3 evidence/build_ledger.py      # 建基线库 + 执行 DDL，六次攻击全被拒则 exit 0
-python3 evidence/regen_manifest.py    # 重算并校验 35 件（0-snapshot）+ 27 件（仓库根），全一致则 exit 0
+python3 evidence/regen_manifest.py    # 重算并校验 35 件（0-snapshot）+ 30 件（仓库根），全一致则 exit 0
 ```
 
-第三条（2026-11-11 起）：`python3 evidence/repo_lint.py repo` —— 十五条许可、署名与签名规则。其中五条卡的是
+第三条（2026-11-11 起）：`python3 evidence/repo_lint.py repo` —— 十六条许可、署名、签名与审查规则。其中六条卡的是
 "同一事实写在两处、只改一处"这类分叉：R10 比 `deploy/app/ledger_hash.py` 与 `src/ledger_hash.py`
 是否逐字节相同（vendoring 的分叉不能被 `sha256sum -c` 发现，见 CHANGELOG 的 C3 条目）；R11 比
 根 `spec/` 与 `evidence/` 的文件头 SPDX 值是否与目录约定一致（这两处不在 `repo/` 授权树内，
 R4 的遍历到不了）；R12 比名录与 git 记录是否对得上（漏记、虚构、依据不可查都会红）；
 R13 比 `CREDITS.md` 与 `credits.json` 的记录集、发布权记载是否相同；R14 比 `repo/allowed_signers`
 的公钥指纹与 `CREDITS.md` §10 是否一致，并核对签发权（`can_release`）与名录双向对齐、一人一钥；
-R15 比已签名提交的签名者与作者是否同一人（防「拿自己的钥签别人的提交」，那时验签会报 Good）。
-当前 13/15，未过的 R2、R9 为既有缺口，故本条属"附带体检"而非判据。
+R15 比已签名提交的签名者与作者是否同一人（防「拿自己的钥签别人的提交」，那时验签会报 Good）；
+R16 比审查记录与 git、与名录是否对得上（审阅人要有发布权、accept 的提交必须进名录依据、
+基线之后的外部提交必须有记录、两份表示不许分叉）。当前 14/16，未过的 R2、R9 为既有缺口，
+故本条属"附带体检"而非判据。
 
 R12/R13 存在的理由很简单：**署名承诺如果不能被第三方核验，就不是承诺，是客气话。**
 R14/R15 存在的原因是同一句话的下一半：**如果谁都能签、或者签了也看不出是谁，那签名只是装饰。**

@@ -48,7 +48,7 @@
 ```bash
 git clone <仓库> && cd drawcommons
 python3 evidence/build_ledger.py        # exit 0，六次攻击全被拒
-python3 evidence/regen_manifest.py      # 0-snapshot 35/35，仓库根 27/27
+python3 evidence/regen_manifest.py      # 0-snapshot 35/35，仓库根 30/30
 ```
 
 `regen_manifest.py` 不带参数时**只读本地**重算并比对，不访问资料库；带 `--fetch` 才回源重新导出。**默认离线**是刻意的：独立复现者拿不到平台凭据，判据也必须成立。
