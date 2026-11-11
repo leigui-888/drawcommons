@@ -1,13 +1,13 @@
 {
   "schema": "drawcommons-credits/1",
-  "revision": 2,
-  "updated": "2026-11-11",
+  "revision": 3,
+  "updated": "2026-11-12",
   "about": "CREDITS.md 的机器可读副本。两份文件由 repo_lint 强制一致：R12 核人名与 git 记录双向对得上（不漏记、不虚构），R13 核本文件与 CREDITS.md 记录集相同、发布权记载相同，R14 核 allowed_signers 里的钥都对应 can_release 的人且一人一钥，R15 核已签名的提交由作者本人的钥签发。改一处必须改两处。",
   "people": [
     {
       "id": "laofu",
       "name": "老夫",
-      "aka": ["桂蕾"],
+      "aka": [],
       "email": "2379731846@qq.com",
       "emails": ["2379731846@qq.com", "noreply@drawcommons.org"],
       "roles": ["code", "docs", "data", "deploy", "maintainer"],
@@ -16,10 +16,10 @@
       "attribution": "Copyright 2026 老夫 <2379731846@qq.com>",
       "since": "2026-11-08",
       "basis": "著作权人；DCO 1.1 签署人；维护者",
-      "aka_note": "桂蕾为实名，2026-11-11 本人确认与笔名『老夫』为同一人，故历史提交中的『桂蕾 <noreply@drawcommons.org>』并入本条。对外署名一律用笔名；实名仅用于标识历史提交，不写成文件头版权行——笔名署名本身即《著作权法》认可的署名方式，无需以实名公示换取效力。",
+      "aka_note": "本名已核验（2026-11-11 本人确认与笔名『老夫』为同一人），本人要求不公开，故此处不记姓名；核验记录不入库。`aka` 只记公开用过的名字——把本名写进来，等于在一份随发布包散出去的公开文件里把笔名与身份证姓名对上号，撤不回来。注意：那 6 条提交的 author 字段里仍写着本名，`git log` 可见，改写历史等于撕证据（CREDITS.md §11.3）；所以这里不写姓名是『不重复』，不是『查不到』。",
       "evidence": {
         "commits": ["84cf110", "4fb2ae5", "e62d659", "22e4b73", "0894d9d", "a72b296", "e34788c", "ba27972", "d135c2b"],
-        "note": "两组标识指向同一人：『桂蕾 <noreply@drawcommons.org>』7 次（2026-11-09 至 11-11，含 DDL v1.3 与 2.0 冻结说明）、『老夫 <2379731846@qq.com>』2 次；更早的 13 次挂在维护者账号 admin@drawcommons.org 下，见 accounts 段。原始提交不可改写，历史记录以 git 为准。"
+        "note": "两组标识指向同一人：`<noreply@drawcommons.org>` 那组 6 次（2026-11-10 至 11-11，含 DDL v1.3 与 2.0 冻结说明，author 姓名为本名，本人要求不公开）、`老夫 <2379731846@qq.com>` 9 次；更早的 13 次挂在维护者账号 admin@drawcommons.org 下，见 accounts 段。原始提交不可改写，历史记录以 git 为准。"
       }
     }
   ],
