@@ -392,6 +392,17 @@ def _git(top, *args):
         return None
 
 
+def _person_emails(p):
+    """一个人可以有多个提交邮箱（换过机器、换过邮箱、用实名提交过）。
+    只认 `email` 会把这些提交判成「未登记」，逼着维护者去编一个假条目——
+    规则写错，比没有规则更坏，所以这里收全部已知邮箱。"""
+    es = {p.get("email", "").lower()}
+    for e in (p.get("emails") or []):
+        es.add(str(e).lower())
+    es.discard("")
+    return es
+
+
 def rule12(root):
     """R12：署名承诺有没有真的落地。
 
@@ -427,8 +438,9 @@ def rule12(root):
         print("  · 不适用：repo/ 的上级不是 git 仓库，跳过 ①②③（不计入分母）")
         return None
 
-    known = {p.get("email", "").lower() for p in people}
-    known |= {p.get("email", "").lower() for p in pending}
+    known = set()
+    for p in list(people) + list(pending):
+        known |= _person_emails(p)
     known |= {a.get("email", "").lower() for a in accounts}
     known.discard("")
 
@@ -439,9 +451,9 @@ def rule12(root):
     print(f"  {'✅' if not missing else '❌'} 未登记作者：{len(missing)}")
     checks.append(not missing)
 
-    # ② 虚构
-    ghost = sorted({p.get("email", "").lower() for p in people} - authors)
-    ghost = [g for g in ghost if g]
+    # ② 虚构（一个人任一邮箱在 git 里出现过即可，不要求主邮箱）
+    ghost = sorted({p.get("id") or p.get("name", "?") for p in people
+                    if not (_person_emails(p) & authors)})
     for g in ghost:
         print(f"    ❌ 名录里有、git 里没有任何提交：{g}")
     print(f"  {'✅' if not ghost else '❌'} 无法追溯的作者：{len(ghost)}")

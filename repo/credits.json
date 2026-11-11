@@ -1,34 +1,27 @@
 {
   "schema": "drawcommons-credits/1",
-  "revision": 1,
+  "revision": 2,
   "updated": "2026-11-11",
   "about": "CREDITS.md 的机器可读副本。两份文件由 repo_lint R12/R13 强制一致：R12 核人名与 git 记录双向对得上（不漏记、不虚构），R13 核本文件与 CREDITS.md 记录集相同。改一处必须改两处。",
   "people": [
     {
       "id": "laofu",
       "name": "老夫",
+      "aka": ["桂蕾"],
       "email": "2379731846@qq.com",
+      "emails": ["2379731846@qq.com", "noreply@drawcommons.org"],
       "roles": ["code", "docs", "data", "deploy", "maintainer"],
       "attribution": "Copyright 2026 老夫 <2379731846@qq.com>",
       "since": "2026-11-08",
       "basis": "著作权人；DCO 1.1 签署人；维护者",
+      "aka_note": "桂蕾为实名，2026-11-11 本人确认与笔名『老夫』为同一人，故历史提交中的『桂蕾 <noreply@drawcommons.org>』并入本条。对外署名一律用笔名；实名仅用于标识历史提交，不写成文件头版权行——笔名署名本身即《著作权法》认可的署名方式，无需以实名公示换取效力。",
       "evidence": {
-        "commits": ["ba27972", "d135c2b"],
-        "note": "2026-11-10 及之前以维护者账号 admin@drawcommons.org 提交，归属同一人，见 accounts 段。原始提交不可改写，历史记录以 git 为准。"
+        "commits": ["84cf110", "4fb2ae5", "e62d659", "22e4b73", "0894d9d", "a72b296", "e34788c", "ba27972", "d135c2b"],
+        "note": "两组标识指向同一人：『桂蕾 <noreply@drawcommons.org>』7 次（2026-11-09 至 11-11，含 DDL v1.3 与 2.0 冻结说明）、『老夫 <2379731846@qq.com>』2 次；更早的 13 次挂在维护者账号 admin@drawcommons.org 下，见 accounts 段。原始提交不可改写，历史记录以 git 为准。"
       }
     }
   ],
-  "pending": [
-    {
-      "id": "guilei",
-      "name": "桂蕾",
-      "email": "noreply@drawcommons.org",
-      "commits": ["84cf110", "4fb2ae5", "e62d659", "22e4b73", "0894d9d", "a72b296", "e34788c"],
-      "since": "2026-11-09",
-      "status": "待本人认领",
-      "why": "该标识有 7 次提交（含 DDL v1.3、2.0 冻结说明），但邮箱为 noreply 域、无法回信确认身份，且未签署 Signed-off-by。在本人认领前不登记为著作权贡献者，也不并入他人名下——并入等于替别人主张或放弃署名权，任何一方都无权代做。"
-    }
-  ],
+  "pending": [],
   "accounts": [
     {
       "email": "admin@drawcommons.org",
