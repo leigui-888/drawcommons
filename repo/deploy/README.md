@@ -82,7 +82,7 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum
   # 源件在仓库 repo/deploy/git-hooks/post-receive，改动后重装即可
   ```
 
-  它做三件事：刷 `update-server-info`；为每个新推的 `v*` tag 出包并重算 `.sha256`；把该包复制成 `latest` 别名（校验值独立重算，不复制版本化那份，否则 `sha256sum -c` 会因文件名不符报错）。有 `github` remote 时顺带 `push --mirror`，失败只记 syslog，不影响本地推送。
+  它做四件事：刷 `update-server-info`；为每个新推的 `v*` tag 出包并重算 `.sha256`；把该包复制成 `latest` 别名（校验值独立重算，不复制版本化那份，否则 `sha256sum -c` 会因文件名不符报错）；把 `repo/CREDITS.md` 与 `repo/credits.json` 摊到 `/download/`——**名录只活在裸仓对象库里时，对浏览器等于不存在**，而署名承诺恰恰是给不看 git 的人看的。名录从 `HEAD` 取而不从 tag 取：它是"当下有效"的记录，历史快照留在各自 tag 里，那才是防删改的依据。有 `github` remote 时顺带 `push --mirror`，失败只记 syslog，不影响本地推送。
 - 发版顺序：`git tag -a` → `git push publish main --tags` → 钩子自动出包。**tag 与包必须同源**，包过期等于邀请函指向旧代码——现在这件事有机器兜底了。
 - 钩子日志：`journalctl -t drawcommons-hook -n 20` 或 `grep drawcommons-hook /var/log/syslog`。
 - 用哑协议而非 `git-http-backend`：Caddy 无 CGI。代价是不支持 push/PR，本仓本来也只接受邮件反馈，够用。
