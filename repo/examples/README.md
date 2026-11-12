@@ -78,7 +78,23 @@ cd 03-monitor-shell && ./check.sh
 
 ---
 
-## 9–10 分钟 · 然后呢
+## 9–10 分钟 · 接进 AI 客户端（示例 4，MCP，零依赖）
+
+```bash
+cd 04-mcp-server && python3 selftest.py       # 先自检，再往客户端里装
+```
+
+三个接口被包成三个 MCP tool：`ledger_items` / `ledger_verify` / `ledger_export`。
+装到 Claude Code 里是一条命令，Claude Desktop 与 Cursor 是一段 JSON，写法在
+[`04-mcp-server/README.md`](04-mcp-server/README.md)。
+
+它跟"把接口包一层"的区别只有一处，但那一处是关键：`ledger_verify` **不采信服务端的
+`ok`**，它自己拉数据、在本机重算哈希链与锚值，再把两边摆在一起。服务端说通、本机算出
+断链时，它报断链。
+
+---
+
+## 然后呢
 
 你现在能做但还没做的三件事，按价值排序：
 

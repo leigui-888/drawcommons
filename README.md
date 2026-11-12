@@ -17,7 +17,7 @@
 
 | 想了解 | 看 |
 | --- | --- |
-| **动手接入（十分钟，三个能跑的示例）** | [`repo/examples/README.md`](repo/examples/README.md) |
+| **动手接入（十分钟，四个能跑的示例）** | [`repo/examples/README.md`](repo/examples/README.md) |
 | 项目当前版本与状态 | [`VERSION.md`](VERSION.md)、[`version.json`](version.json) |
 | 谁做了这个站（名录，逐版快照） | [`repo/CREDITS.md`](repo/CREDITS.md)、[`repo/credits.json`](repo/credits.json) |
 | 自己动手验证，不用信任何人 | [`REPRODUCE.md`](REPRODUCE.md)——三条判据，无需联网与凭据 |

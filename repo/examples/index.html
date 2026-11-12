@@ -36,7 +36,8 @@
   th,td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}
   th{font-size:.76rem;color:var(--muted);font-weight:600;letter-spacing:.03em}
   .cards{display:grid;gap:.9rem;grid-template-columns:1fr}
-  @media (min-width:40rem){ .cards{grid-template-columns:1fr 1fr 1fr} }
+  @media (min-width:40rem){ .cards{grid-template-columns:1fr 1fr} }
+  @media (min-width:58rem){ .cards{grid-template-columns:1fr 1fr 1fr 1fr} }
   .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem}
   .card h3{margin:0 0 .25rem;font-size:.92rem}
   .card p{margin:0 0 .5rem;font-size:.82rem;color:var(--muted);line-height:1.55}
@@ -78,7 +79,7 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum</code></pre>
   <p class="note">这里故意<b>不印锚值</b>。写死一个校验值，它迟早与文本漂移，而「印出来的校验值
     对不上自己吐出的字节」正是这类站点最不该犯的错。上面这条命令，任何时候跑都算得出当下的真值。</p>
 
-  <h2>三个示例</h2>
+  <h2>四个示例</h2>
   <div class="cards">
     <div class="card">
       <h3><a href="01-verify-chain/README.md">01 · 验链</a></h3>
@@ -95,7 +96,17 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum</code></pre>
       <p>POSIX sh + curl。每天一行记录，退出码区分「正常／链坏／取不到」。</p>
       <pre><code>./check.sh</code></pre>
     </div>
+    <div class="card">
+      <h3><a href="04-mcp-server/README.md">04 · MCP</a></h3>
+      <p>Python 3.8+，零依赖。三个只读接口包成 MCP tool，装进 Claude／Cursor；
+        <code>ledger_verify</code> 在本机重算，不采信服务端的 ok。</p>
+      <pre><code>python3 selftest.py</code></pre>
+    </div>
   </div>
+
+  <p class="note">示例 4 是本轮新增的：账本天然适合做成 MCP——只读、无鉴权、三张表一条链，
+    模型自己取数比人把数字粘进对话更可靠。<b>但别把它的 <code>verdict: agree</code> 读成
+    「内容可信」</b>：它验的是字节未变，不是事情发生过。</p>
 
   <h2>三条边界</h2>
   <p><b>一、验哈希用 Python，别用 JS 重写。</b>Python 的 <code>json.dumps(2.0)</code> 是
