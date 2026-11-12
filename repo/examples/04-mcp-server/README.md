@@ -180,6 +180,22 @@ python3 -m pip install --no-deps --target /tmp/x dist/*.whl   # 试装
 **打包的代价写在明处**：wheel 里装的是顶层模块 `server`，不是 `drawcommons_ledger/` 包——
 这是"不复制源码"换来的。真要当库用，得先重构成包目录。
 
+### 想重建出一模一样的 wheel
+
+默认构建**不可复现**：zip 条目里带构建时刻，同一份源码两次构建字节不同（实测过，
+只差时间戳，大小一样）。那样记下来的 sha256 只是某一次构建的随机结果，没法用来核对。
+
+固定时点即可复现：
+
+```bash
+cd repo/examples/04-mcp-server
+SOURCE_DATE_EPOCH=1794499200 PYTHONHASHSEED=0 python3 -m pip wheel --no-deps -w dist .
+sha256sum dist/*.whl
+```
+
+`1794499200` = 2026-11-13T00:00:00+08:00，是本版发布日的零点，不是随手取的值。
+用这个值在同一份源码上重建，得到的字节与 PyPI 上那个文件逐字节相同；换任何时点都不会。
+
 发布本身需要 PyPI 账号与 API token（只有持有者能做），步骤见 `_ops/R1-投放清单.md`。
 
 ---
