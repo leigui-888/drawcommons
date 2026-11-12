@@ -1,6 +1,13 @@
 # 构建产物（0-snapshot/ 内的同名文件是冻结基线，必须入库，故只锚定根级 evidence/）
 /evidence/ledger_w4.db
 
+# 访问计数库：本机跑 app.py 会在 CWD 生成，线上在容器卷里。
+# 它是「运行期数据」，同一台机器每次跑都不一样，不能入库，也不是判据的一部分。
+visits.db
+visits.db-journal
+visits.db-wal
+visits.db-shm
+
 __pycache__/
 *.pyc
 .DS_Store

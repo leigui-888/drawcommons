@@ -12,8 +12,10 @@
 | `compose.yml` | `compose.yml` | 两个服务：`caddy`（对外 80/443）+ `app`（内网 8000） |
 | `Caddyfile` | `Caddyfile` | TLS 自动签发、反代、响应头加固、访问日志 |
 | `daily.sh` | `backup/daily.sh` | 每日备份（root 属主，`cron` 调用） |
+| —（不入库） | `app/visits/` | 访问计数库所在目录。**唯一可写的卷**，须 `chown 999:999`，见 §2.1 |
 
 **不要**在本目录直接 `docker compose up`：`compose.yml` 里的 `./app/data` 按服务器路径书写，在本地解包后不成立。部署按第 3 节。
+
 
 ## 2. 为什么 `data/` 里没有 `ledger.db`
 
@@ -26,6 +28,22 @@
 - **本机直接跑**（只装 Python）：同样把上面那条 `cp` 做完，再 `cd app && python3 app.py`。
 
 缺库时服务不会假装正常：页面仍返回 200，`/api/*` 返回 `503 data_layer_unavailable`，启动横幅打印 `⚠ 未挂载数据卷` 或 `数据层不可用`。
+
+## 2.1 `app/visits/`：唯一可写的卷（2026-11-12 新增）
+
+首页底部那一行访问计数需要一个可写位置，而账本目录是只读挂载（那是刻意设计的：服务进程在物理上没有写账本的能力）。所以单开一个目录：
+
+```bash
+ssh deploy@<IP> 'sudo mkdir -p /opt/drawcommons/app/visits \
+  && sudo chown 999:999 /opt/drawcommons/app/visits \
+  && sudo chmod 750 /opt/drawcommons/app/visits'
+```
+
+- **uid 必须是 999**：容器内 `appuser` 固定为 `999:999`（`Dockerfile` 里写死，不靠 `useradd -r` 碰运气）。目录属主不对的话，写入静默失败——现象是「首页没有计数」，容器却 healthy。
+- **与账本分开**：计数落 `visits.db`，不参与建链，也不在任何哈希里。它坏了、丢了、被人清了，账本字节与锚值一个字符都不受影响。
+- **只数首页**：表是 `home_visits(day, n)`，只有 `GET /` 落行，子页与接口都不记；页面上只有一行「已有 N 名访问者」。没有 IP、UA、来源页、会话标识，因此无法去重——这个 N 是首页被打开的累计次数，不是独立访客数。
+- 备份脚本要带上这个目录，否则重建机器后计数从零开始（不影响账本）。
+
 
 ## 3. 部署（改一个文件也要走完）
 
@@ -86,7 +104,7 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum
   done
   ```
 
-  `post-receive` 做六件事：刷 `update-server-info`；**验签闸门**——为新推的 `v*` tag 验 SSH 签名，验不过就不出包（把 `REFUSED` 打到推送方终端）；为通过的 tag 出包并重算 `.sha256`；把该包复制成 `latest` 别名（校验值独立重算，不复制版本化那份，否则 `sha256sum -c` 会因文件名不符报错）；把 `repo/CREDITS.md`、`repo/credits.json`、`repo/REVIEWS.md`、`repo/reviews.json`、`repo/allowed_signers` 摊到 `/download/`——**这些东西只活在裸仓对象库里时，对浏览器等于不存在**，而署名承诺、审查记录与验签公钥恰恰是给不看 git 的人看的；把 `repo/deploy/app/` 下的 `app.py` 与 `ledger_hash.py` 同步进服务器应用目录，**字节真变了**才重建容器（2026-11-12 补这一步：镜像构建时才 `COPY app.py`，钩子原先不碰应用层，于是「仓库里改了页面、线上还是旧代码」可以静默很久——当天首页改完四小时未上线，靠比对字节数才发现）。
+  `post-receive` 做六件事：刷 `update-server-info`；**验签闸门**——为新推的 `v*` tag 验 SSH 签名，验不过就不出包（把 `REFUSED` 打到推送方终端）；为通过的 tag 出包并重算 `.sha256`；把该包复制成 `latest` 别名（校验值独立重算，不复制版本化那份，否则 `sha256sum -c` 会因文件名不符报错）；把 `repo/CREDITS.md`、`repo/credits.json`、`repo/REVIEWS.md`、`repo/reviews.json`、`repo/allowed_signers` 摊到 `/download/`——**这些东西只活在裸仓对象库里时，对浏览器等于不存在**，而署名承诺、审查记录与验签公钥恰恰是给不看 git 的人看的；把 `repo/deploy/app/` 下的 `app.py`、`ledger_hash.py` 与 `Dockerfile` 同步进服务器应用目录、`repo/deploy/compose.yml` 同步到部署根目录，**字节真变了**才重建容器（2026-11-12 补这一步：镜像构建时才 `COPY app.py`，钩子原先不碰应用层，于是「仓库里改了页面、线上还是旧代码」可以静默很久——当天首页改完四小时未上线，靠比对字节数才发现；当晚再补 `Dockerfile` 与 `compose.yml`：只推两个 `.py` 的话，改了卷或非 root 的 uid 在线上永远不生效，而日志一切正常）。
 
   `update` 只做一件事：**拒绝移动已存在的 tag**。新建放行、删除放行、改指向一律拒绝。之所以不能只靠 `receive.denyNonFastForwards`：实测那个配置拦得住分支强推，**拦不住 tag 更新**——`git push -f` 把已有 tag 指到别的提交，服务端会输出 `+ 02a229b...b7dc962 (forced update)` 并接受，因为 git 认为 tag 本就不存在快进关系。而移动 tag 是最隐蔽的改写：`git log` 看不出异常，下载过的包与 tag 脱钩，包本身的 `sha256` 却仍然通过。裸仓另需 `git config receive.denyNonFastForwards true`（拦分支），两条配合才完整。
 

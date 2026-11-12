@@ -4,7 +4,7 @@
 # Copyright 2026 老夫 <2379731846@qq.com>
 """regen_manifest.py —— 重算并校验 MANIFEST（0-snapshot 5 份 35 件 + 仓库根 1 份 29 件）。
 
-判据（开工清单 §7 C0）：干净目录 clone 后两条命令即可复现：
+判据（开工清单 §7 C0）：干净目录 clone 后三条判据即可复现：
   1) python3 evidence/build_ledger.py     -> exit 0（十一处非法写入全被拒）
   2) python3 evidence/regen_manifest.py   -> 0-snapshot 35/35、仓库根 29/29，exit 0
 

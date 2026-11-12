@@ -6,7 +6,7 @@
 
 ## C0 · 复算入口（2026-11-10）
 
-clone 后两条命令复现 W3–W7 的 35 件校验：
+clone 后三条判据复现 W3–W7 的 35 件校验：
 
 ```bash
 python3 evidence/build_ledger.py      # 建基线库 + 执行 DDL，六次攻击全被拒则 exit 0

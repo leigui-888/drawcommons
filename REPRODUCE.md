@@ -229,7 +229,7 @@ curl -s http://127.0.0.1:8000/api/ledger/export | sha256sum
 cdec34e5bb85018a9a0d905307ee2103fa1ee7a9f046290987cc1a801efe30a9
 ```
 
-这个值与 <https://drawcommons.org/> 页面上的锚值、以及线上 `/api/ledger/export` 的字节完全一致。线上首页另有 `verify` 端点，它每次都现场重跑整条哈希链，不读缓存。
+这个值与 <https://drawcommons.org/ledger> 页面上的锚值、以及线上 `/api/ledger/export` 的字节完全一致。站点的账本页另有 `verify` 端点，它每次都现场重跑整条哈希链，不读缓存。
 
 ## 6. 如果你跑不通
 

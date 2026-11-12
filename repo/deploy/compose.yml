@@ -33,6 +33,12 @@ services:
     # 路径相对本文件（/opt/drawcommons/），即 /opt/drawcommons/app/data。
     volumes:
       - ./app/data:/srv/data:ro
+      # 访问计数：唯一可写的卷。与账本分开放、分开存，计数库坏了或被人清空，
+      # 账本字节与锚值一个字符都不受影响（见 app.py 的 Visits 类）。
+      # 宿主目录须 chown 999:999（容器内 appuser 的 uid），否则静默写不进去。
+      - ./app/visits:/srv/visits
+    environment:
+      - VISITS_DB=/srv/visits/visits.db
     # 注意：Docker 不会因为 unhealthy 自动重启容器，这条的作用是让状态
     # 可读（docker ps 显示 healthy/unhealthy），供外部监控或人工判断。
     healthcheck:
