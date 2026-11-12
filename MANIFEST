@@ -37,17 +37,26 @@
 #   REPRODUCE 的「23 件→30 件」与仓库体积、deploy/README 与 post-receive 的「五件事→六件」、
 #   NOTICE 与 CONTRIBUTING/README 的 docs/、data/ 路径（两个目录实际不存在）。
 #   重算 3 条：deploy/app/app.py、deploy/git-hooks/post-receive、NOTICE。条数仍 30，0-snapshot 未动。
+# 规范合并（2026-11-12 深夜）：repo/spec 下两份 schema 合成 entry.schema.json，
+#   删 4 条（ledger-entry.schema.json 及其 .license、contribution-entry.schema.json 及其 .license）、
+#   增 2 条（entry.schema.json 及其 .license），30 → 28；同批新增 evidence/check_spec.py（→ 29 条）。
+#   缘由：两份「最小 schema」并存（一份记资金、一份明令禁金额），读者得先猜该用哪份，
+#   而线上只有一套结构。资金面整体退出规范（not + additionalProperties 封死），
+#   原设计件留在 0-snapshot/W6 与 git 历史，启用属协议换版。
+#   重算 2 条：deploy/app/app.py（首页标题与实物支持口径）、evidence/repo_lint.py
+#   （清单加未跟踪文件，修 R3/R4/R5 的假绿）。0-snapshot/ 一字节未动，35/35 不受影响。
 259d17f3657ee5217edc99e9b0b07fe1ef7b602f74057ae25deee9e95975bad2 *evidence/asset_decl_check.py
 99664da24d65ea9bd96c8a4a1e8c25793d3637b5f7693a13a541ed71cbac3a64 *evidence/blind/key.json
 bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind/results.json
 488f77a8410fae408d81b4f5c55da62015509c74ab66f1569ee74e948ab7035c *evidence/blind_agreement.py
 d76346c1e9ba387804d25a2758f31865833172cd0705f222d509de646c66e150 *evidence/cert_terms.py
+298e47dad8d58dea3a280bbe735163d9d10608c8870d115e9dbb08beca9b1e0b *evidence/check_spec.py
 fe309ce02f944ead706d2020019cf539e6df90981059faeac4dafabdba1259d1 *evidence/license_matrix.py
-573dca2f4f2268e626279995d5045f050367278381c793f1232a312d143a654a *evidence/repo_lint.py
+0d2edba9b85424147ae47d5c9d90ab451e1dd215d01b4807cbb7a93209a8fa1c *evidence/repo_lint.py
 a2246c40ab0e4a4907a50c4650350e53f0c98e649e77cb4b5c533357ebd14586 *evidence/tm_class_check.py
 f9ad51b3b30e49ec6efb8ffe8c33a17d1fbeced697c0eb61ce9aac38732fa40f *repo/allowed_signers
 95d3be29621edd7b90c923ae74a4e77347758cf1d42b5e3057d7330422032551 *repo/deploy/app/Dockerfile
-b97e22a012938159cf79d17703675e0a36e8541db4e8f792d06a09579b379d02 *repo/deploy/app/app.py
+1be66a6035e2d545958a34a2d5444a03a0c3509462c1c93f90c4d220ee5280f7 *repo/deploy/app/app.py
 5ef229abf11bcffb76082d866c3ddd750b8123b8fc82b5bb7c6ef942451e568d *repo/deploy/app/ledger_hash.py
 7bdb2590fc15dff885478840b2fc908521d4ef04595346b807cc74f0c355d73c *repo/deploy/Caddyfile
 a155562a5a460527ce1cc204f4829e0ba1cfa06e67deccaa25c4f2244a5a2d09 *repo/deploy/compose.yml
@@ -62,16 +71,16 @@ b18ae5c06cebb4359a963e717d59973d857c4af9affaa9eb61d57cd11cc61431 *repo/credits.j
 b93108bc1a1c920d3a1a5be8999619af9be11d35ee97055eb0073b0465e15494 *repo/REVIEWS.md
 8f8a57a3fdfaff6fc4333557c3afd4f3b0c583dfe0b214e9e4600eab09e6a8d7 *repo/reviews.json
 68d8c513d91ddd2c2a2bb0fba2d1a610a28ad425786fce963e6e370496a3f5d5 *repo/reviews.json.license
-32ab52a5bf8904294fa36909c120124a6b8d910d37b3970734d9c9fbde3fe800 *repo/spec/ledger-entry.schema.json
-621bd370e2a9ddc0213b91d2fb7aa76afc8eb9cdcb3b61c4ed278af22d2d1213 *repo/spec/ledger-entry.schema.json.license
+4488419e204b67bbc7fa6d31af6452ecb0b9600eacdc6bf0d94ba3d7e7e1c504 *repo/spec/entry.schema.json
+2014cc0ae8e3a469731b47325a3f6c8e76ecd03b089bc27f61fcbb8389c1c87b *repo/spec/entry.schema.json.license
 5ef229abf11bcffb76082d866c3ddd750b8123b8fc82b5bb7c6ef942451e568d *repo/src/ledger_hash.py
-6c03d31fd7ac00a0f018ff8e29f51bad4a042ea81af539f7a77c654117b07708 *repo/spec/contribution-entry.schema.json
-2d263338b2d9427c86599b2ba83ee9840b5479fb16afc395991fa204cd6e041a *repo/spec/contribution-entry.schema.json.license
 # 说明（2026-11-08，P1-04 的可行部分）：资料库不支持删除或改名节点，repo/spec/ 下另存两个无扩展名副本，
-#   与对应 .schema.json 逐字节相同；打包入库以 .schema.json 为准，副本不带入仓库，仅保留在资料库供对照。
+#   与对应的 .schema.json 逐字节相同；打包入库以 .schema.json 为准，副本不带入仓库，仅保留在资料库供对照。
 #   副本字节指纹如下（不入 sha256 清单，避免与入库文件混淆）：
 #   ledger-entry.schema         2702 B  sha256 73939083ed1a319c…
 #   contribution-entry.schema   4956 B  sha256 0f2429c890de7114…
+#   2026-11-12 合并后：仓库里只剩 entry.schema.json（两份原件已删），资料库里这两份副本
+#   因此只对「冻结基线 0-snapshot/W6」有意义，不再对应仓库现行文件。上面两行指纹保留原值不动。
 # —— 以下为文档清单，不参与校验 ——
 #   README.md（仓库根，2026-11-12 新增：公开镜像首屏说明）
 #   evidence/blind/samples.md

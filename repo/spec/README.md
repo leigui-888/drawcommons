@@ -1,35 +1,63 @@
 <!-- SPDX-License-Identifier: CC0-1.0 -->
 <!-- Copyright 2026 老夫 <2379731846@qq.com> -->
 
-# spec/ · 这里有**两本账**，不是一份规范的两个版本
+# spec/ · 一份条目规范，一份表结构
 
-先读这张表再读 schema。三份结构文件名字都带 `entry`，很容易被当成同一件事的迭代版；
-它们其实记的是三种不同的东西，混用会让实现从第一步就偏。
+| 文件 | 是什么 | 管什么 |
+| --- | --- | --- |
+| `entry.schema.json` | **条目规范**（`x-spec-version` 2.1.0，2026-11-12 合并版） | 一条账目长什么样：`give` / `receive` / `payback` 三态、同一条哈希链、**不含任何金额字段** |
+| `../ddl_w4.sql` | **表结构**（SQLite，w4-ddl v1.3） | 库里怎么落地：三张 append-only 表、`party` 主体表、`v_public_party` 公开视图、触发器与错误码 |
 
-| 文件 | 记什么 | 有没有金额 | 状态（2026-11-12） |
-| --- | --- | --- | --- |
-| `ledger-entry.schema.json` | **资金账**：捐赠、资助、采购、实物、支出、配捐 | **有**，`amount_fen` 必填 | 白皮书设计件。S0 无账户、不收款，**线上不产生此类条目** |
-| `contribution-entry.schema.json` | **交付记录**：谁把什么东西交给了谁（含交付物位置与证据） | **无**，schema 明令禁止 `amount_fen` | 协议设计件。与下面第三种的字段尚未统一 |
-| `../../spec/ddl_w4.sql` | **互助账**：给（give）/ 受（receive）/ 还（payback）三态 | **无** | **线上正在跑的那一套**。`drawcommons.org` 的只读服务读的就是它建出来的库 |
+两份文件说的是同一件事的两层：schema 管**一条记录合不合格**，DDL 管**它怎么存**。
+改一处必须同步另一处，`evidence/check_spec.py` 就是用来抓这种不同步的。
 
-三句话说完关系：
+## 一、2026-11-12 合并了什么
 
-1. **`ledger-entry` 是钱账，`contribution-entry` 与 DDL 是事账。** 钱账一旦启用就会带来金额、
-   账户、代收代付——这些正是公开页声明「不做」的东西，所以 S0 阶段它只作为设计件存在，
-   线上一条都不产生。把它的 `kind` 枚举（`donation` / `expense` …）套到线上数据上，
-   会发现一条都对不上，这不是数据坏了，是拿错了 schema。
-2. **`contribution-entry` 是「交付」，DDL 是「给—受—还」。** 前者只有一个交付方与受领方，
-   后者把「后来还没还」也记成一类条目（`payback`）。两者是同一件事的不同颗粒度，
-   **尚未合并**：合并要动字段、动锚值算法，属协议 v2.1 的修订范围，不在本目录悄悄做。
-3. **要对接线上服务，看 DDL，不看本目录这两份 JSON。** 接口在 `/api/ledger/{items,verify,export}`，
-   字段以 `load_entries()` 的实际输出为准；schema 校验目前只对「该实现自己声明的那一套」有意义。
+合并前是两份 schema：`ledger-entry.schema.json` 记资金（`amount_fen` **必填**），
+`contribution-entry.schema.json` 记交付（明令禁止 `amount_fen`）。两份都写着「最小 schema」，
+读者必须先猜自己该用哪一份——而线上只存在一套结构（三张表、三态、无金额）。
+**同一份规范里并存两种必填集，本身就是缺陷**，所以合成一份。
 
-## 为什么不在两份 schema 之间做「兼容层」
+三处取舍，写在这里，不藏在字段里：
 
-兼容层会把「两本账」变成「一本账的两个视图」，而它们的分歧不是字段名，是**要不要记钱**。
-这个分歧必须留在纸面上，让读的人自己判断；用一层转换把它糊过去，等于把最该被看见的选择藏起来。
+1. **资金面整体不进本规范。** S0 阶段不启资金账，只接受实物支持（服务器、带宽、设备、场地、人力）。
+   带金额的条目不是「暂未使用」，而是**校验必然失败**：`not: {required: ["amount_fen"]}`
+   再加 `additionalProperties: false`，任何带 `amount_fen` 的条目都不是本规范的实例。
+   这不是洁癖——如果规范允许金额，实现者就会按它做出一个带金额的账本，
+   与公开页写的「账本里连金额字段都没有」直接相反。
+2. **原资金设计件没有删掉，只是没并进来。** 它在 `0-snapshot/W6/repo/spec/ledger-entry.schema.json`
+   （2.0-final 冻结基线）与 git 历史里，连同 `donation` / `expense` / 采购 / 配捐那一套 `kind`
+   与资助集中度字段。将来要启用，那是**协议换版**：增补字段、重定锚值算法、改公开口径，
+   不是在本文件里悄悄加一列。
+3. **交付面的三个字段，两个没有落点。** 旧 `contribution-entry` 有 `quantity` /
+   `deliverable_uri` / `evidence_uri`。`quantity` 落进了 `give` 的 `quantity` + `unit`；
+   `deliverable_uri` 与 `evidence_uri` 在现行链上**没有对应列**——这是**已知缺口**，
+   计划 v2.2 补，本版不假装有。所以「通过 T2 校验」的含义只有一句：
+   **字段结构与实现一致**；它不代表证据可核验，也不代表东西真的交到了。
 
-## 许可
+## 二、三句话说完这份规范
+
+1. **一条链只装一种东西**：已经发生的给 — 受 — 还。金额一旦混进来，链就变成流水账，
+   「账能对上」这件事随之失去意义。
+2. **用 `type` 分支，不拆成三份 schema**：三态共享 10 个必填字段，拆开之后
+   「哪一份才是全量」永远说不清，而合并只需要五个 `if/then`。
+3. **结构约束优先于说明文字**：`scope_unresolved=1` 时 `scope` 必须为 `null`，
+   由 `allOf` 强制，不靠实现自觉——让「不知道」可被审计看见，而不是被默认值藏起来。
+
+## 三、自己验一遍
+
+```bash
+python3 evidence/build_ledger.py    # 先建库（库不在仓库里）
+python3 evidence/check_spec.py      # 再用本规范校验库里每一条
+```
+
+`check_spec.py` 只用标准库，逐条报出**第一条不合规**的字段与原因，全过则打印条数并 exit 0。
+它实现的是 draft 2020-12 的一个子集（`type` / `required` / `properties` /
+`patternProperties` / `additionalProperties` / `enum` / `const` / `pattern` /
+`minimum` / `allOf` / `anyOf` / `not` / `if-then`），**不校验 `format`**——
+`date-time` 只作标注。这个限度写在脚本头部，不靠使用者猜。
+
+## 四、许可
 
 本目录全部 `CC0-1.0`（见 `../README.md` 的机器可读归属表；`repo_lint` 的 R5 强制 `spec/` 只能是 CC0）。
 本文件同样 CC0，可任意复制、改写、商用，不需要署名。

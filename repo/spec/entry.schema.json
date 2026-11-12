@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://drawcommons.org/spec/entry.schema.json",
+  "title": "众汲之井 账本条目（v2.1 合并版）",
+  "description": "一本账，三种状态（give 给 / receive 受 / payback 还），一条链。字段与 spec/ddl_w4.sql v1.3 建出的库一致，也与 /api/ledger/items 的输出一致。本规范不含任何金额字段，且不接受金额：S0 阶段只接受实物支持（服务器、带宽、设备、场地、人力），账本记的是「给了什么、给了多少件或多少小时」，不是「折合多少钱」。下面 not 一项是硬约束——任何带 amount_fen 的条目都不是本规范的实例；资金面（donation / expense / 采购 / 配捐）在 S0 未启用，不在此处定义，启用属协议换版。扩展字段一律可选、以 x- 前缀命名，不得成为必需项（R10 禁私有方言）。本文件以 CC0-1.0 发布，许可见同名 .license 伴生文件。",
+  "x-license": "CC0-1.0",
+  "x-spec-version": "2.1.0",
+  "x-scope": "实物与劳动支持；不含资金。资金面设计件见 0-snapshot/W6/repo/spec/ledger-entry.schema.json（冻结基线）与 git 历史，不并入本规范。",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": {
+      "description": "可选扩展字段。必须带 x- 前缀；删掉全部 x- 字段后仍须通过本规范（T4）。"
+    }
+  },
+  "not": {
+    "required": ["amount_fen"]
+  },
+  "required": [
+    "entry_id",
+    "type",
+    "scope_unresolved",
+    "magnitude",
+    "duration_hours",
+    "verifiability",
+    "window_expires_at",
+    "rule_version",
+    "prev_hash",
+    "hash"
+  ],
+  "properties": {
+    "entry_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,64}$",
+      "description": "条目标识，同表主键。形状由实现决定（现行库用 g_1 / r_1 / p_1 这类短 ID）；一旦写入不得变更、不得复用到另一条记录上。"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["give", "receive", "payback"],
+      "description": "三态，各自一张表、同一条链。give 是发起（谁给了谁什么），receive 是受领确认，payback 是回报闭环——三者不是同一件事的三个字段，是三次写入。"
+    },
+    "mutual_id": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9_-]{1,64}$",
+      "description": "关联的互助组标识。null 表示未入组；null 不等于「公开」，也不等于「外部」——它只表示没记为某一次具体的互助。"
+    },
+    "from_agent_id": {
+      "type": "string",
+      "description": "给出一方的主体标识。仅 type=give 出现。不含身份信息；实名只在协议层的 party 表里、且须显式同意。"
+    },
+    "to_agent_id": {
+      "type": "string",
+      "description": "受领一方的主体标识。仅 type=give 出现。"
+    },
+    "category": {
+      "type": "string",
+      "description": "所给之物的类别，现行样例有 compute / docs 一类。是类别词，不是金额科目。仅 type=give 出现。"
+    },
+    "quantity": {
+      "type": "number",
+      "minimum": 0,
+      "description": "这一次给了多少，单位见 unit。计量用，禁止跨条目累加为主体的评分或排序。仅 type=give 出现。"
+    },
+    "unit": {
+      "type": "string",
+      "description": "quantity 的单位（hour / item / call 一类）。没有合适单位时不要编一个，改在 x- 字段里说明。仅 type=give 出现。"
+    },
+    "state": {
+      "type": "string",
+      "description": "受领状态，现行样例为 delivered（东西到了）。仅 type=receive 出现。"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "发生时点，UTC，ISO 8601。这是「东西交到了」的时间，不是「钱到账」的时间——S0 没有到账。注意：现行库里只有 ledger_give 有时间列，ledger_receive 与 ledger_payback 没有——这是**已知缺陷**（v2.2 补），所以本规范不把 occurred_at 列为全类型必填。规范不写实现做不到的事；补齐时间列要动表结构与锚值，属换版，不在这里悄悄加。仅 type=give 时必填（见 allOf）。"
+    },
+    "note": {
+      "type": ["string", "null"],
+      "description": "自由文本备注。可为 null，但 null 必须在公开页显示为「无备注」，不得隐藏该字段。"
+    },
+    "scope": {
+      "enum": ["public", "mutual", "external", null],
+      "description": "这条记录属于哪个域：public 面向不特定对象，mutual 是某一次互助，external 是体系之外。不可判定时为 null——不设默认值，禁止静默归类。与 scope_unresolved 必须一致（见 allOf）。"
+    },
+    "scope_unresolved": {
+      "enum": [0, 1],
+      "description": "1 表示范围未能判定（scope 必须为 null）。存在的理由是不让「不知道」被默认值藏起来：可被审计看见，才是可修的数据。"
+    },
+    "magnitude": {
+      "type": "number",
+      "minimum": 0,
+      "description": "这一次交付有多大（小时、次数、字数一类）。只描述单次交付，不描述「这个人值多少」——协议禁止跨条目累加为主体评分、据此排序、或生成可交易的信用资产。结构上保留这一列，是因为「一次帮了多少」是客观事实；被禁止的是把它变成对人的度量。"
+    },
+    "duration_hours": {
+      "type": "number",
+      "minimum": 0,
+      "description": "持续时长（小时）。与 magnitude 分开：一件东西的件数和一个小时的工时不是同一种量。"
+    },
+    "verifiability": {
+      "type": "string",
+      "enum": ["self_reported", "counterparty_confirmed", "third_party_anchored"],
+      "description": "这条记录的可核验程度：自称、对方确认、第三方锚定。它是一个公开可读的标签，不是分数——三档之间不折算、不加权。"
+    },
+    "window_expires_at": {
+      "type": "string",
+      "description": "窗口到期时点（ISO 8601），空串表示无窗口。空串必须在公开页显示为「无窗口」，不得隐藏该字段。"
+    },
+    "rule_version": {
+      "type": "string",
+      "description": "本条适用的协议版本（现行 pr_v1.1.0）。同一本账里可以并存多个版本的条目——这比批量改写历史更诚实。"
+    },
+    "prev_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "同一条链上上一条记录的 hash；链首为 64 个 0。"
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "本条记录的规范化哈希 = sha256(prev_hash + \"\\n\" + canonical(entry))，算法见 src/ledger_hash.py（键排序、UTF-8、不转义非 ASCII）。"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "scope_unresolved": { "const": 1 } },
+        "required": ["scope_unresolved"]
+      },
+      "then": {
+        "properties": { "scope": { "const": null } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "scope_unresolved": { "const": 0 } },
+        "required": ["scope_unresolved"]
+      },
+      "then": {
+        "properties": { "scope": { "enum": ["public", "mutual", "external"] } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "give" } },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["from_agent_id", "to_agent_id", "category", "quantity", "unit", "occurred_at"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "receive" } },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["state"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "enum": ["receive", "payback"] } },
+        "required": ["type"]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["from_agent_id"] },
+            { "required": ["to_agent_id"] },
+            { "required": ["category"] },
+            { "required": ["quantity"] },
+            { "required": ["unit"] }
+          ]
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "type": "give",
+      "entry_id": "g_1",
+      "mutual_id": "m1",
+      "from_agent_id": "a",
+      "to_agent_id": "b",
+      "category": "compute",
+      "quantity": 2.0,
+      "unit": "hour",
+      "occurred_at": "2026-11-20T00:00:00Z",
+      "note": null,
+      "scope": "mutual",
+      "scope_unresolved": 0,
+      "magnitude": 2.0,
+      "duration_hours": 0.0,
+      "verifiability": "self_reported",
+      "window_expires_at": "",
+      "rule_version": "pr_v1.1.0",
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "e8ed9046fe8aec12a436d54468ab7d5b194842564f5e3dcbd2c04ded369361f0"
+    }
+  ]
+}

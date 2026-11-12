@@ -26,17 +26,18 @@ clone 下来会看到两个层次，别混淆：
 
 运行服务的那份代码在 `repo/deploy/`，与 <https://drawcommons.org> 线上逐字节相同。
 
-## 2. 两条判据（都以 exit 0 结束）
+## 2. 三条判据（都以 exit 0 结束）
 
 ```bash
 git clone https://drawcommons.org/repo.git drawcommons
 cd drawcommons
 
 python3 evidence/build_ledger.py      # ① 建基线库 + 执行 DDL + 十一次应当被拒的操作
-python3 evidence/regen_manifest.py    # ② 重算并校验 35 件（0-snapshot）+ 30 件（仓库根）
+python3 evidence/regen_manifest.py    # ② 重算并校验 35 件（0-snapshot）+ 29 件（仓库根）
+python3 evidence/check_spec.py        # ③ 用 repo/spec/entry.schema.json 校验库里每一条
 ```
 
-这两条是邀请的全部内容。**任一条非 0，就是我们错了**，按第 5 节告诉我们。
+这三条是邀请的全部内容。**任一条非 0，就是我们错了**，按第 5 节告诉我们。
 
 ## 3. 期望输出
 
@@ -74,15 +75,25 @@ scope CHECK OK: PUBLIC -> CHECK constraint failed: scope IN ('public','mutua…
     W5: 4/4
     W6: 16/16
     W7: 5/5
-  repo/MANIFEST: 30/30
+  repo/MANIFEST: 29/29
 
 0-snapshot MANIFEST 校验：35/35 通过
-仓库根 MANIFEST 校验：30/30 通过
+仓库根 MANIFEST 校验：29/29 通过
 
-复现判据：35/35（0-snapshot）+ 30/30（仓库根） —— 与 MANIFEST 记录完全一致。
+复现判据：35/35（0-snapshot）+ 29/29（仓库根） —— 与 MANIFEST 记录完全一致。
 ```
 
-它按 `MANIFEST` 里记录的 sha256 逐件重算本地字节。注意 `35/35` 是**冻结基线**（2.0-final，改一个字节即断），`30/30` 是**可改的工作副本**（含 `deploy/`、名录、签名公钥、服务端钩子与审查记录）。两者口径不同，别混着看。
+它按 `MANIFEST` 里记录的 sha256 逐件重算本地字节。注意 `35/35` 是**冻结基线**（2.0-final，改一个字节即断），`29/29` 是**可改的工作副本**（含 `deploy/`、名录、签名公钥、服务端钩子与审查记录）。两者口径不同，别混着看。
+
+**③ `check_spec.py`**
+
+```
+check_spec OK: 4 条全部符合 repo/spec/entry.schema.json（x-spec-version 2.1.0）
+```
+
+它拿 `repo/spec/entry.schema.json` 逐条校验库里每一条，报告**第一条**不合规的字段路径与原因，任何一条不合规即 exit 1。这条判据管的是「规范与实现是否同一回事」——前面两条都抓不到这类错：`build_ledger` 只验结构约束与拒绝行为，`regen_manifest` 只验字节未变，两者都可能在「规范和代码各说各话」时照样通过。
+
+它不校验 `format`（`date-time` 只作标注），跨条目语义（链是否连续、有没有断点）由 `ledger_hash.verify_chain()` 负责——两者不是替代关系。限度写在脚本头部，不在文档里另说一套。
 
 ## 4. 附带的体检（**exit 1 是预期的**）
 

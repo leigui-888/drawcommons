@@ -69,15 +69,21 @@ def sec(t):
 
 
 def tracked_files(root):
-    """优先用 git 的文件清单；无 git 时退回文件系统遍历。返回 (路径列表, 来源)。"""
+    """git 的文件清单（含未跟踪、未被忽略的）；无 git 时退回文件系统遍历。
+
+    2026-11-12 加 `--others --exclude-standard`：只查 `ls-files` 时，新建但未
+    `git add` 的文件不在清单里，R3/R4/R5 会**静默漏检并报绿**——实测过：
+    新增一份 schema 后 R4 从 9/9 变成 7/7，仍然全绿。覆盖率这件事不能只数
+    「我记得要检查的那些」。
+    """
     try:
         out = subprocess.run(
-            ["git", "-C", root, "ls-files"],
+            ["git", "-C", root, "ls-files", "--cached", "--others", "--exclude-standard"],
             capture_output=True, text=True, check=True,
         ).stdout
         files = [l for l in out.splitlines() if l.strip()]
         if files:
-            return files, "git ls-files"
+            return files, "git ls-files（含未跟踪）"
     except Exception:
         pass
     files = []
@@ -249,9 +255,10 @@ def rule7(root):
 def rule8(files, source):
     sec("R8 文件清单来源（可复验性）")
     print(f"  清单来源：{source}；文件数 {len(files)}")
-    print(f"  {'✅' if source == 'git ls-files' else '⚠️'} "
-          f"{'可被第三方用同一条命令复现' if source == 'git ls-files' else '非 git 清单，外部无法逐字节复现'}")
-    return source == "git ls-files"
+    ok = source.startswith("git ls-files")
+    print(f"  {'✅' if ok else '⚠️'} "
+          f"{'可被第三方用同一条命令复现（git ls-files --cached --others --exclude-standard）' if ok else '非 git 清单，外部无法逐字节复现'}")
+    return ok
 
 
 def read_manifest(root):

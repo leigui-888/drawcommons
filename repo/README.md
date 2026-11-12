@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | 用代码起一套服务 | `src/` | Apache-2.0 | 保留版权与许可声明、NOTICE |
 | 照原样部署线上那套账本服务 | `deploy/` | Apache-2.0 | 保留版权与许可声明、NOTICE |
-| 实现本项目的接口/schema | `spec/`（**先读 `spec/README.md`**：这里有资金账与事账两套） | **CC0-1.0** | **什么都不用做** |
+| 实现本项目的接口/schema | `spec/`（**先读 `spec/README.md`**：一份条目规范，不含金额字段） | **CC0-1.0** | **什么都不用做** |
 | 拿资源清单做自己的应用 | `data/` | CC-BY-4.0 | 署名 |
 | **不信我们，自己验一遍** | `../REPRODUCE.md`（仓库根） | — | 两条命令，无需联网与凭据 |
 | 转载或改写文档 | `repo/*.md`（`docs/` 为预留路径，当前无此目录） | CC-BY-SA-4.0 | 署名 + 改编同样开放 |
@@ -62,10 +62,10 @@ docs/**                         CC-BY-SA-4.0
 | 文件类型 | 要求 | 示例 |
 | --- | --- | --- |
 | `.py` `.sh` `.yaml` | 前 3 行内 `SPDX-License-Identifier:` + 版权行 | `src/ledger_hash.py` |
-| `.json` 等无法写注释的格式 | 同名 `.license` 伴生文件 | `spec/ledger-entry.schema.json.license` |
+| `.json` 等无法写注释的格式 | 同名 `.license` 伴生文件 | `spec/entry.schema.json.license` |
 | `.md` | 以归属表为准，不强制头 | — |
 
-JSON 不能写注释，这不是可以通融的技术细节：**没有伴生文件，一个 .json 文件就没有许可归属**，而"没有归属"在法律上等于"保留所有权利"。本仓库用 2 个伴生文件解决这个问题：ledger-entry.schema.json.license 与 contribution-entry.schema.json.license，一个 schema 一个，缺一即有文件没有归属。
+JSON 不能写注释，这不是可以通融的技术细节：**没有伴生文件，一个 .json 文件就没有许可归属**，而"没有归属"在法律上等于"保留所有权利"。本仓库用 3 个伴生文件解决这个问题：`spec/entry.schema.json.license`、`credits.json.license`、`reviews.json.license`，一个 JSON 一个，缺一即有文件没有归属。
 
 ## 4. 名称与许可分离
 
@@ -86,7 +86,7 @@ JSON 不能写注释，这不是可以通融的技术细节：**没有伴生文�
 | --- | --- |
 | 归属表 | ✅ **18 条路径模式**，覆盖全部 32 个已跟踪文件；`repo_lint` 的 R3（覆盖率）、R4（逐件声明）、R5（`spec/` 必须 CC0）据此判定 |
 | 四份许可文件 | ✅ 4/4 存在；其中全文仅 1 份（Apache-2.0），3 份为指针（见 D-06） |
-| 文件头/伴生文件 | ✅ R4 9/9：5 个头声明（3 个 `.py` + `compose.yml` + `daily.sh`），4 个 `.license` 伴生（两份 schema + `credits.json` + `reviews.json`） |
+| 文件头/伴生文件 | ✅ R4 8/8：5 个头声明（3 个 `.py` + `compose.yml` + `daily.sh`），3 个 `.license` 伴生（`spec/entry.schema.json`、`credits.json`、`reviews.json`） |
 | 名录 | ✅ `CREDITS.md` + `credits.json`，由 R12/R13 双向校验（见下） |
 | 发布签名 | ✅ 从 `v2.1-rc5` 起 tag 带 SSH 签名；公钥 `allowed_signers`，指纹由 R14 与 `CREDITS.md` §10 对齐。**仓库内这一层不是独立信任根**；仓库外的 DNS TXT 与 GitHub 公钥 2026-11-12 已落地并实测一致（见 §10.3） |
 | 第三方内容 | 无（NOTICE 已声明） |
