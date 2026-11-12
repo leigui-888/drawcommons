@@ -45,6 +45,18 @@
 #   原设计件留在 0-snapshot/W6 与 git 历史，启用属协议换版。
 #   重算 2 条：deploy/app/app.py（首页标题与实物支持口径）、evidence/repo_lint.py
 #   （清单加未跟踪文件，修 R3/R4/R5 的假绿）。0-snapshot/ 一字节未动，35/35 不受影响。
+# 许可与清单补齐（2026-11-12 23 时）：许可全文 4/4、子清单 35 条、接入示例三件。
+#   R2 销项（D-06）：新增 repo/licenses/ 三份 CC 许可正文（CC-BY-4.0、CC-BY-SA-4.0、CC0-1.0）。
+#   正文逐字节取自 SPDX 许可清单数据，各带溯源头与正文 SHA-256；`--- 正文开始 ---` 之后可整段
+#   剥离后独立校验，故「头部说明」与「条款原文」不会互相污染。licenses/SOURCES.md 属文档、不入表。
+#   新增 evidence/regen_repo_manifest.py 与 repo/MANIFEST.sha256：前者按 git 跟踪面生成子清单，
+#   后者供 `sha256sum -c` 逐字节复验。子清单本身也入本表——能被单独改掉的清单等于没有清单。
+#   重算 2 条：evidence/repo_lint.py（R2 改条款特征判据、R3 认 licenses/）、deploy/app/app.py
+#   （rc16/rc17 公示页提交后未重算，指纹一直陈旧；本轮一并归结）。
+#   口径提醒：本表与 repo/MANIFEST.sha256 分工不同——本表是「发布口径」（选择性，文档不入表），
+#   子清单是「子树全量」（含文档，供下载者一次核完）。改完仓库文件要按顺序重算两遍：
+#   先 repo/MANIFEST.sha256，再本表；反过来本表会记下子清单的旧指纹。
+#   0-snapshot/ 一字节未动，35/35 不受影响。
 259d17f3657ee5217edc99e9b0b07fe1ef7b602f74057ae25deee9e95975bad2 *evidence/asset_decl_check.py
 99664da24d65ea9bd96c8a4a1e8c25793d3637b5f7693a13a541ed71cbac3a64 *evidence/blind/key.json
 bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind/results.json
@@ -52,11 +64,12 @@ bdc95072e5ee4ce607f65d081035e4cd5c7ad69386e93bc01178093c82861293 *evidence/blind
 d76346c1e9ba387804d25a2758f31865833172cd0705f222d509de646c66e150 *evidence/cert_terms.py
 298e47dad8d58dea3a280bbe735163d9d10608c8870d115e9dbb08beca9b1e0b *evidence/check_spec.py
 fe309ce02f944ead706d2020019cf539e6df90981059faeac4dafabdba1259d1 *evidence/license_matrix.py
-0d2edba9b85424147ae47d5c9d90ab451e1dd215d01b4807cbb7a93209a8fa1c *evidence/repo_lint.py
+efef7ecb620d88d6c4fe7fe411cdf5170d1a0e453842034a57d69a41833f753d *evidence/repo_lint.py
+de450ca40d37c364542e890234e8a5262b547783ec52f50abd2f6471bcd06909 *evidence/regen_repo_manifest.py
 a2246c40ab0e4a4907a50c4650350e53f0c98e649e77cb4b5c533357ebd14586 *evidence/tm_class_check.py
 f9ad51b3b30e49ec6efb8ffe8c33a17d1fbeced697c0eb61ce9aac38732fa40f *repo/allowed_signers
 d1405bcc0ffd74a98709699b4a2816f4262f1c6ab8f238fc67ea4fc7f810c604 *repo/deploy/app/Dockerfile
-0aa29f61a1445a9ee796a4448e4996945b80dcafc911f1d9b7bb92e754d65746 *repo/deploy/app/app.py
+4834e123b4b5991ce12a587e36686fed4c12f3640bdb6a55ef26b1ecd31fd553 *repo/deploy/app/app.py
 5ef229abf11bcffb76082d866c3ddd750b8123b8fc82b5bb7c6ef942451e568d *repo/deploy/app/ledger_hash.py
 37ddfebfa3da9507169a8f518f040f196100901ab230037b009070cc29d0d224 *repo/deploy/Caddyfile
 7dc61375ce1f7a5f4251b964a4f67cf9c86c847485ad0aafe7ea73ed8a08aa23 *repo/deploy/compose.yml
@@ -65,7 +78,11 @@ d1405bcc0ffd74a98709699b4a2816f4262f1c6ab8f238fc67ea4fc7f810c604 *repo/deploy/ap
 45d8111ffbd09b665cbdd2abcda1a009398d7f4e0b6532af86b9ab0f924fb378 *repo/deploy/git-hooks/update
 2dfeb237994596e5bc973a8341729d5507520b81f19acc297559046dab71f834 *repo/DCO
 c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 *repo/LICENSE
+36eadfb6ca22ed7742aeb534cd9438fb6e9ed143e119e3b7ba57b1e80c3cb59e *repo/licenses/CC0-1.0.txt
+a0d17cf26e185dc588029840133c3c342bc1f9d96f58f61c4cbcd2d874b359c1 *repo/licenses/CC-BY-SA-4.0.txt
+e534b4e9fc60180beb8b9a051be3b20b63ee0c1b0eff7a1a608b8266afc3c5a2 *repo/licenses/CC-BY-4.0.txt
 d2bf3e6904f4a48612ee3f700749235d04224953a852e6c31685c2b2a6799b57 *repo/NOTICE
+faf064b8e229cb67dfd7433ac48a9fcd52cd198cdf490f286c9abc5b7a2716b6 *repo/MANIFEST.sha256
 5710a71c146ffb7d976d875447db401c8d989fc71dbc2298405f7b6550b677b3 *repo/credits.json
 b18ae5c06cebb4359a963e717d59973d857c4af9affaa9eb61d57cd11cc61431 *repo/credits.json.license
 b93108bc1a1c920d3a1a5be8999619af9be11d35ee97055eb0073b0465e15494 *repo/REVIEWS.md

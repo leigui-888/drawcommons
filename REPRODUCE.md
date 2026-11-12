@@ -21,7 +21,7 @@ clone 下来会看到两个层次，别混淆：
 
 | 路径 | 是什么 | 校验口径 |
 | --- | --- | --- |
-| `MANIFEST`、`evidence/`、`0-snapshot/`、`spec/` | 整包：证据脚本、35 件 2.0-final 冻结文档、DDL | `MANIFEST` 29 条强制校验 + `0-snapshot/*/MANIFEST` 35 条冻结校验 |
+| `MANIFEST`、`evidence/`、`0-snapshot/`、`spec/` | 整包：证据脚本、35 件 2.0-final 冻结文档、DDL | `MANIFEST` 34 条强制校验 + `0-snapshot/*/MANIFEST` 35 条冻结校验 |
 | `repo/` | **对外授权的那一棵树**（代码、接口 schema、部署源、许可文本）。它自己的 `repo/README.md` 里有一张机器可读的逐文件许可表，表里的路径相对 `repo/` | `evidence/repo_lint.py repo` 逐件检查 |
 
 运行服务的那份代码在 `repo/deploy/`，与 <https://drawcommons.org> 线上逐字节相同。
@@ -75,15 +75,15 @@ scope CHECK OK: PUBLIC -> CHECK constraint failed: scope IN ('public','mutua…
     W5: 4/4
     W6: 16/16
     W7: 5/5
-  repo/MANIFEST: 29/29
+  repo/MANIFEST: 34/34
 
 0-snapshot MANIFEST 校验：35/35 通过
-仓库根 MANIFEST 校验：29/29 通过
+仓库根 MANIFEST 校验：34/34 通过
 
-复现判据：35/35（0-snapshot）+ 29/29（仓库根） —— 与 MANIFEST 记录完全一致。
+复现判据：35/35（0-snapshot）+ 34/34（仓库根） —— 与 MANIFEST 记录完全一致。
 ```
 
-它按 `MANIFEST` 里记录的 sha256 逐件重算本地字节。注意 `35/35` 是**冻结基线**（2.0-final，改一个字节即断），`29/29` 是**可改的工作副本**（含 `deploy/`、名录、签名公钥、服务端钩子与审查记录）。两者口径不同，别混着看。
+它按 `MANIFEST` 里记录的 sha256 逐件重算本地字节。注意 `35/35` 是**冻结基线**（2.0-final，改一个字节即断），`34/34` 是**可改的工作副本**（含 `deploy/`、名录、签名公钥、服务端钩子与审查记录）。两者口径不同，别混着看。
 
 **③ `check_spec.py`**
 
@@ -95,7 +95,7 @@ check_spec OK: 4 条全部符合 repo/spec/entry.schema.json（x-spec-version 2.
 
 它不校验 `format`（`date-time` 只作标注），跨条目语义（链是否连续、有没有断点）由 `ledger_hash.verify_chain()` 负责——两者不是替代关系。限度写在脚本头部，不在文档里另说一套。
 
-## 4. 附带的体检（**exit 1 是预期的**）
+## 4. 附带的体检（应当 16/16 全绿）
 
 ```bash
 python3 evidence/repo_lint.py repo
@@ -104,14 +104,14 @@ python3 evidence/repo_lint.py repo
 ```
 ==============================================================================
   ✅ R1 四件套
-  ❌ R2 全文完整度
+  ✅ R2 全文完整度
   ✅ R3 归属覆盖率
   ✅ R4 逐文件声明
   ✅ R5 spec 必须 CC0
   ✅ R6 无禁用许可
   ✅ R7 NOTICE 无矛盾
   ✅ R8 清单可复验
-  ❌ R9 MANIFEST 路径一致
+  ✅ R9 MANIFEST 路径一致
   ✅ R10 deploy 副本一致
   ✅ R11 根受管文件声明
   ✅ R12 署名落地
@@ -119,14 +119,34 @@ python3 evidence/repo_lint.py repo
   ✅ R14 签名公钥与签发权
   ✅ R15 提交签名与作者身份
   ✅ R16 审查记录
-  合计：14/16 条通过
+  合计：16/16 条通过
 ==============================================================================
 ```
 
-**14/16，exit code 1。这不是你跑错了。** 两条缺口已知且未修：
+**16/16，exit code 0。** 2026-11-12 之前这里是 14/16，两条缺口当时是真的没修：
 
-- **R2**：许可文本 4 份里只有 `LICENSE`（Apache-2.0，11,357 字节）是全文，`LICENSE-CC-BY-4.0.md`（814 B）、`LICENSE-CC-BY-SA-4.0.md`（832 B）、`LICENSE-CC0-1.0.md`（1,079 B）都是**指针件**——正文只有指向 creativecommons.org 的链接。离线环境下使用者拿不到 CC 条款原文。登记为 D-06，G7′ 前补齐。
-- **R9**：本仓库的校验清单叫 `MANIFEST`（供 `sha256sum -c MANIFEST` 用），而 R9 找的是 `MANIFEST.sha256`。历史命名口径问题，规则与文件没对齐。
+- **R2**：四份许可里只有 `LICENSE`（Apache-2.0）是全文，三份 CC 都只是**指针**——正文只有
+  指向 creativecommons.org 的链接。离线环境或链接失效时，使用者拿不到条款原文。
+  现已补齐：`licenses/CC-BY-4.0.txt`、`CC-BY-SA-4.0.txt`、`CC0-1.0.txt`，正文逐字节来自
+  SPDX 许可清单数据，各带溯源头部与正文 SHA-256（`--- 正文开始 ---` 之后可整段剥离后校验）。
+- **R9**：仓库里没有 `repo/MANIFEST.sha256`。现已由 `evidence/regen_repo_manifest.py`
+  生成 35 条，`sha256sum -c MANIFEST.sha256` 可直接复验。
+
+补的过程里 R3 红过一次：新增的 `licenses/` 文件没进 README 的归属表。这正说明覆盖率判据
+在工作——**它不会因为你新加了文件就自动放过**。
+
+### 只看字节，不跑 lint
+
+```bash
+cd repo && sha256sum -c MANIFEST.sha256      # 35 条，逐条 OK
+```
+
+这一条比 lint 更基础：它不判断许可对不对，只回答一个问题——**你手上的字节，是不是发布时的那份字节**。
+改了仓库里任何文件而没重算清单，`--check` 会立刻报出来：
+
+```bash
+python3 evidence/regen_repo_manifest.py --check
+```
 
 **R16 补的是中间那一层：不逐条签，但也不能「提交了就算贡献」。** 一条提交要先被审
 （`REVIEWS.md` + `reviews.json`），审出确实有贡献才进名录依据；作者不是有发布权的人，
