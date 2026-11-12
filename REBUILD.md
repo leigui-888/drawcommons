@@ -10,7 +10,7 @@ clone 后两条命令复现 W3–W7 的 35 件校验：
 
 ```bash
 python3 evidence/build_ledger.py      # 建基线库 + 执行 DDL，六次攻击全被拒则 exit 0
-python3 evidence/regen_manifest.py    # 重算并校验 35 件（0-snapshot）+ 30 件（仓库根），全一致则 exit 0
+python3 evidence/regen_manifest.py    # 重算并校验 35 件（0-snapshot）+ 29 件（仓库根），全一致则 exit 0
 ```
 
 第三条（2026-11-11 起）：`python3 evidence/repo_lint.py repo` —— 十六条许可、署名、签名与审查规则。其中六条卡的是

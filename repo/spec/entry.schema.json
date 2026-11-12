@@ -99,7 +99,7 @@
     "verifiability": {
       "type": "string",
       "enum": ["self_reported", "counterparty_confirmed", "third_party_anchored"],
-      "description": "这条记录的可核验程度：自称、对方确认、第三方锚定。它是一个公开可读的标签，不是分数——三档之间不折算、不加权。"
+      "description": "这条记录的可核验程度：自称、对方确认、第三方锚定。它是填报方声明的标签，不是分数——三档之间不折算、不加权；系统不校验是谁填的，也不要求对方点确认，没有「确认」这个动作，默认 self_reported。"
     },
     "window_expires_at": {
       "type": "string",

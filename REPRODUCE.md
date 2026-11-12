@@ -21,7 +21,7 @@ clone 下来会看到两个层次，别混淆：
 
 | 路径 | 是什么 | 校验口径 |
 | --- | --- | --- |
-| `MANIFEST`、`evidence/`、`0-snapshot/`、`spec/` | 整包：证据脚本、35 件 2.0-final 冻结文档、DDL | `MANIFEST` 30 条强制校验 + `0-snapshot/*/MANIFEST` 35 条冻结校验 |
+| `MANIFEST`、`evidence/`、`0-snapshot/`、`spec/` | 整包：证据脚本、35 件 2.0-final 冻结文档、DDL | `MANIFEST` 29 条强制校验 + `0-snapshot/*/MANIFEST` 35 条冻结校验 |
 | `repo/` | **对外授权的那一棵树**（代码、接口 schema、部署源、许可文本）。它自己的 `repo/README.md` 里有一张机器可读的逐文件许可表，表里的路径相对 `repo/` | `evidence/repo_lint.py repo` 逐件检查 |
 
 运行服务的那份代码在 `repo/deploy/`，与 <https://drawcommons.org> 线上逐字节相同。
@@ -247,7 +247,7 @@ cdec34e5bb85018a9a0d905307ee2103fa1ee7a9f046290987cc1a801efe30a9
 
 - 账本的哈希链自洽：每条记录的 `prev_hash` 与它前一条咬合，改任何一个字节都会在 `verify` 处断开；
 - 数据库层面十一类非法写入（改历史、删条目、跳同意书做实名绑定、撤回后再撤回等）被 DDL 与触发器拒绝；
-- 仓库里每份代码、数据、文档的字节与 `MANIFEST` 声称的一致（35 条冻结 + 30 条工作副本）；
+- 仓库里每份代码、数据、文档的字节与 `MANIFEST` 声称的一致（35 条冻结 + 29 条工作副本）；
 - 线上服务与仓库 `deploy/` 逐字节相同——算出锚值的那段代码，你看得到。
 
 **没有证明**（请务必按这个口径理解）：

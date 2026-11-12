@@ -3,6 +3,12 @@
 > 一页纸。回答三个问题：**冻了什么、怎么验、什么情况下允许动。**
 > 冻结时点：2026-11-08 18:21:10 +0800 ｜ 标签 `v2.0-final` ｜ 提交 `84cf110`
 
+> **读之前先知道一件事**：下文所有数字都是**冻结时点的快照**，不是今天的值。
+> `0-snapshot/` 的 35 件、五份 MANIFEST 及其自指纹，自冻结起一个字节没动；
+> 而仓库根的**工作副本一直在长**（示例：2026-11-11 为 30 件，2026-11-12 合并两份 schema 后为 29 件）。
+> 现行口径以 `REPRODUCE.md` 与仓库根 `MANIFEST` 为准；照抄第 2 节的命令若跑出 `29/29` 而非 `30/30`，
+> 那是正常，不是坏了。
+
 ---
 
 ## 1. 冻了什么
@@ -66,7 +72,7 @@ python3 evidence/regen_manifest.py      # 0-snapshot 35/35，仓库根 30/30
 | `evidence/build_ledger.py` | 可改 | 相对基线件只改了一处：DDL 优先读 `spec/`，找不到回退同目录 |
 | `evidence/regen_manifest.py`、`nodes.tsv` | 可改 | 复算入口，新增件 |
 | `repo/` | 可改 | 2.1 工作副本，已改名为 drawcommons |
-| `MANIFEST`（仓库根） | 可改，但须重算 | 覆盖 `repo/`、`evidence/`、`spec/`、`repo/deploy/` 等 23 件工作副本（C3 二轮起） |
+| `MANIFEST`（仓库根） | 可改，但须重算 | 覆盖 `repo/`、`evidence/`、`spec/`、`repo/deploy/` 等 23 件工作副本（C3 二轮起；现为 29 件，见文首注） |
 
 本文件、`CHANGELOG.md`、`REBUILD.md`、`NOTICE`、`TRADEMARK.md` 等治理文本由 git 历史追踪，**不进指纹集**——它们是"对基线的说明"，不是基线本身。说明可以改，基线不行。
 
