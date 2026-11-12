@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
+#
 # 生成文件，勿手改 —— 由 `_ops/build_legal_pages.py` 从三件套 Markdown 生成。
-# 生成时点：2026-11-12 22:17
+# 生成时点：2026-11-12 22:57
 #
 # raw  : Markdown 原文，逐字节；`/terms/<key>.txt` 原样吐出，页面上印的 sha256 由它现算
 # html : 由 raw 渲染的正文；`/terms/<key>` 用它
+# 本文件的许可声明由生成器写死：repo_lint R4 要求代码文件在头三行有 SPDX，
+# 手改一版会被下一次重建覆盖，所以源头留在生成器里。
 
 DOCS = [
     {

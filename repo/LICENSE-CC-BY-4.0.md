@@ -17,11 +17,14 @@
 
 ## 法律文本
 
-```
-https://creativecommons.org/licenses/by/4.0/legalcode
-```
+全文在本仓库：[`licenses/CC-BY-4.0.txt`](licenses/CC-BY-4.0.txt)，正文 17,023 字节，UTF-8 / LF。
 
-> 指针式许可文件，非全文。见 `LICENSE-CC0-1.0.md` 的说明与 `W6-07` §5 D-06。
+文件头部记了来源（SPDX License List Data）、取件日、官方版本 URL 与正文 SHA-256；
+`--- 正文开始 ---` 之后是许可正文，可整段剥离后逐字节校验。官方发布版：
+<https://creativecommons.org/licenses/by/4.0/legalcode>
+
+> 2026-11-12 补齐（D-06 销项）。此前这一节只有一个 URL——离线环境或链接失效时，
+> 使用者拿不到条款原文，而「仓库自带完整条款」正是 CC 许可与 G7′ 的前提假设。
 
 ## 为什么不选 ODbL
 

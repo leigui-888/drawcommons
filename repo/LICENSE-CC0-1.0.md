@@ -16,16 +16,17 @@
 
 ## 法律文本
 
-CC0 1.0 完整法律文本（legalcode）不在本仓库内重复收录，以官方发布版为准：
+全文在本仓库：[`licenses/CC0-1.0.txt`](licenses/CC0-1.0.txt)，正文 7,048 字节，UTF-8 / LF。
 
-```
-https://creativecommons.org/publicdomain/zero/1.0/legalcode
-```
+文件头部记了来源（SPDX License List Data）、取件日、官方版本 URL 与正文 SHA-256；
+`--- 正文开始 ---` 之后是许可正文，可整段剥离后逐字节校验。官方发布版：
+<https://creativecommons.org/publicdomain/zero/1.0/legalcode>
 
-> **这是一份"指针式"许可文件，不是全文。** 三份 CC 许可（CC0 / CC-BY-4.0 / CC-BY-SA-4.0）
-> 在本仓库均以指针形式存在，只有 Apache-2.0 为全文。差异已由 `evidence/repo_lint.py`
-> 计入「许可全文完整度 1/4」，并在 `W6-07` §5 登记为 D-06。补齐动作是下载全文，不是撰写——
-> 因此在 G7′ 发布门之前必须完成，在此之前不得对外声称"许可文件齐备"。
+CC0 的正文比另外两份短得多（七千余字节，四个条款），这是它本身的体量，不是节略——
+因此用「长度阈值」判断许可是否完整会把 CC0 误判为残缺。判据改为认条款特征，
+见 `evidence/repo_lint.py` 的 R2。
+
+> 2026-11-12 补齐（D-06 销项）。此前三份 CC 许可在本仓库都只是指针，只有 Apache-2.0 是全文。
 
 ## 为什么规范必须是 CC0
 

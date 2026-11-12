@@ -127,32 +127,77 @@ def rule1(root):
     return ok == len(REQUIRED)
 
 
+# 每份许可的「完整正文」判据：必须同时命中下列全部条款特征，缺一条即不算全文。
+# 取的是正文里的结构标题，只有一句 URL 的指针件不可能命中。
+#
+# 为什么不用长度阈值：CC0 的全文只有 7,048 字节，比 CC-BY 的指针说明件还短；
+# 旧的「>12000 字节且含 legalcode」判据会把最完整的那份判成残缺，把只贴了
+# 半页条款的假全文判成合格。长度是相关量，不是判据。
+LICENSE_SIGNS = {
+    "Apache-2.0": ([r"Apache License", r"TERMS AND CONDITIONS",
+                    r"END OF TERMS AND CONDITIONS"], 8000),
+    "CC-BY-4.0": ([r"Creative Commons Attribution 4\.0 International Public License",
+                   r"Section 1 .{0,3} Definitions",
+                   r"Section 8 .{0,3} Interpretation"], 12000),
+    "CC-BY-SA-4.0": ([r"Creative Commons Attribution-ShareAlike 4\.0 International Public License",
+                      r"Section 1 .{0,3} Definitions",
+                      r"Section 3 .{0,3} License Conditions"], 12000),
+    "CC0-1.0": ([r"CC0 1\.0 Universal", r"Statement of Purpose", r"2\. Waiver"], 6000),
+}
+
+
 def rule2(root):
     sec("R2 许可文本完整度（全文 vs 指针）")
-    files = [f for f in os.listdir(root) if f.startswith("LICENSE")] if os.path.isdir(root) else []
-    full, pointer, miss = [], [], []
-    for f in sorted(files):
-        p = os.path.join(root, f)
-        t = open(p, encoding="utf-8", errors="ignore").read()
-        n = len(t)
-        is_full = (
-            ("Apache License" in t and "Version 2.0" in t and n > 8000)
-            or (("legalcode" in t) and n > 12000)      # CC 全文 legalcode 远长于指针件
-        )
-        if is_full:
-            full.append(f)
-            print(f"  ✅ 全文  {f:26} {n:>7} 字节")
+    # 候选面：根目录的 LICENSE*，以及 licenses/ 下的全部文件（正文与说明分置两处）
+    cands = []
+    for d, only_prefix in ((root, "LICENSE"), (os.path.join(root, "licenses"), "")):
+        if not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            p = os.path.join(d, f)
+            if not os.path.isfile(p) or (only_prefix and not f.startswith(only_prefix)):
+                continue
+            cands.append(os.path.relpath(p, root).replace(os.sep, "/"))
+
+    texts = {}
+    for rel in cands:
+        try:
+            texts[rel] = open(os.path.join(root, rel), encoding="utf-8", errors="ignore").read()
+        except OSError:
+            pass
+
+    found = {}
+    for spdx, (signs, min_bytes) in LICENSE_SIGNS.items():
+        hit = None
+        for rel, t in texts.items():
+            if len(t.encode("utf-8")) < min_bytes:
+                continue
+            if all(re.search(s, t) for s in signs):
+                hit = rel
+                break
+        found[spdx] = hit
+        if hit:
+            n = len(texts[hit].encode("utf-8"))
+            print(f"  ✅ 全文  {spdx:14} ← {hit}（{n:,} 字节）")
         else:
-            pointer.append(f)
-            print(f"  ⚠️ 指针  {f:26} {n:>7} 字节  （法律文本指向外部 URL）")
-    if not files:
-        print("  ❌ 无任何许可文件")
-        miss.append("(none)")
-    print(f"  结果：存在 {len(files)} 份，全文 {len(full)} / 指针 {len(pointer)}")
-    if pointer:
-        print("  说明：指针件在法理上可用（CC 官方允许链接），但它使'仓库自带完整条款'不成立；")
-        print("        离线环境或链接失效时，使用者拿不到条款原文。计入 D-06，G7′ 前补齐。")
-    return len(full) == len(files) and bool(files)
+            print(f"  ❌ 缺全文 {spdx:14} 无文件同时命中 {len(signs)} 条条款特征")
+
+    # 指针自述：提到官方 legalcode，却既不附正文、也不指向本地全文
+    stubs = []
+    for rel, t in texts.items():
+        if rel in found.values() or "legalcode" not in t or "licenses/" in t:
+            continue
+        stubs.append(rel)
+    for s in stubs:
+        print(f"  ⚠️ 指针  {s}（提到 legalcode，既无正文也未指向 licenses/）")
+
+    miss = [k for k, v in found.items() if not v]
+    ok = len(LICENSE_SIGNS) - len(miss)
+    print(f"  结果：{len(LICENSE_SIGNS)} 份许可，全文 {ok}，缺 {len(miss)}，指针自述 {len(stubs)}")
+    if miss:
+        print("  说明：缺全文使「仓库自带完整条款」不成立——离线或链接失效时使用者拿不到原文。")
+        print("        补齐动作为下载官方文本，非撰写；见 _ops/build_license_texts.py。")
+    return not miss and not stubs
 
 
 def rule3(root, files, matrix):
