@@ -114,7 +114,7 @@ APP_DIR=${DRAWCOMMONS_APP_DIR:-/opt/drawcommons/app}
 COMPOSE_FILE=${DRAWCOMMONS_COMPOSE:-/opt/drawcommons/compose.yml}
 if [ -d "$APP_DIR" ] && command -v docker >/dev/null 2>&1; then
     app_changed=0
-    for f in app.py ledger_hash.py Dockerfile; do
+    for f in app.py ledger_hash.py legal.py Dockerfile; do
         if head_file "repo/deploy/app/$f" > "$APP_DIR/$f.new" 2>/dev/null && [ -s "$APP_DIR/$f.new" ]; then
             if cmp -s "$APP_DIR/$f.new" "$APP_DIR/$f"; then
                 rm -f "$APP_DIR/$f.new"

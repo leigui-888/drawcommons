@@ -44,5 +44,13 @@ git -c gpg.ssh.allowedSignersFile=repo/allowed_signers verify-tag v2.1-rc10
 
 ## 状态
 
-代码可用、基线可复现；**协议三件套未齐（免责声明与隐私政策未合并），`protocol_ready=false`，
-不得对外发布服务**。详见 `VERSION.md`。
+代码可用、基线可复现；**协议三件套已齐、版本串统一 `v2.1-r5`（2026-11-12），`protocol_ready=true`**。
+
+但这不等于可以开服务：三份文本**都未经执业律师书面审核**（`VERSION.md` 的生效条件 ③ 未满足），
+计划生效日 2026-12-21 会按顺延规则顺延。`protocol_ready` 只说明「三件套齐、版本串一致、可进公示」。
+详见 `VERSION.md`。
+
+**公示已开始**：站点 `/terms` 及三份正文 `/terms/agreement`、`/terms/privacy`、`/terms/disclaimer`
+自 2026-11-12 起公示 30 日；全站页首标「公示中，尚未生效」。每份正文页顶印 sha256，
+由服务对同一份字节现算，`/terms/<key>.txt` 可下载自核。三份公示稿共 26 处【待填】，
+原样保留、不代填。

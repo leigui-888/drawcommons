@@ -3,7 +3,7 @@
 # 纯标准库应用：无 pip 依赖，构建秒级，内存占用 ~20MB
 FROM python:3.12-slim
 WORKDIR /srv
-COPY ledger_hash.py app.py ./
+COPY ledger_hash.py app.py legal.py ./
 COPY data/ ./data/
 ENV PORT=8000
 EXPOSE 8000

@@ -94,6 +94,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from ledger_hash import GENESIS, build_chain, canonical, verify_chain
 
+# 三件套的公示文本。由 `_ops/build_legal_pages.py` 从 Markdown 生成，勿手改：
+# 里面装的是原文（逐字节）与预渲染好的 HTML。运行时不解析 Markdown——一份法律
+# 文本的呈现不该依赖一段没被审过的渲染代码。
+import legal
+
 DB_PATH = os.environ.get("LEDGER_DB", "data/ledger.db")
 # 访问计数单独一个库，与账本库不同文件、不参与建链：计数器坏了、丢了、
 # 被人清了，账本与锚值一个字节都不受影响。
@@ -123,6 +128,42 @@ BADGES = [
     "暂行名 · 名称待检索（商标申请在审）",
     "未获外部法律意见（外审进行中）",
 ]
+
+# ── 协议公示（v1.2，2026-11-12）──────────────────────────────────────────────
+# 三件套 30 日公示（用户协议 1.11.5、1.20.3）的站点载体。此前公示只有一个
+# 日历上的日期，页面上找不到任何文本——公示这件事得有地方可看。
+#
+# 起算日只写在这里一处：页面上所有日期都从它算，免得「起算日」散落在正文、
+# 页脚、状态卡里各写一遍、改一处漏两处。
+DISCLOSURE_START = "2026-11-12"     # 公示起算日 = 本组页面实际上线之日
+DISCLOSURE_DAYS = 30
+PLANNED_EFFECTIVE = "2026-12-21"
+
+# 页面上印的指纹不写死：启动时对 raw 现算。写死的指纹迟早与文本漂移，
+# 而这种「印出来的校验值对不上自己吐出的字节」正是本站最不该犯的错。
+for _doc in legal.DOCS:
+    _blob = _doc["raw"].encode("utf-8")
+    _doc["sha256"] = hashlib.sha256(_blob).hexdigest()
+    _doc["bytes"] = len(_blob)
+
+# 【待填】的总处数从正文里数出来，不手写：「若干处」是含糊，「26 处」可核对。
+# 数字对不上时，说明生成的 legal.py 与源稿脱节了，比含糊其辞更容易被发现。
+TBD_TOTAL = sum(_doc["html"].count('class="tbd"') for _doc in legal.DOCS)
+
+
+def _notice_bar(lang: str = "zh") -> str:
+    """全站页首的「未生效」标注。每页都有，不只是首页 —— 生效状态是前提，
+    不是某一页的补充说明。"""
+    if lang == "en":
+        return ('<div class="notice"><div class="wrap">'
+                '<b>Protocol v2.1-r5 is published for comment — not yet in force.</b>'
+                f'<span>Effective date planned for {PLANNED_EFFECTIVE}, subject to four conditions. '
+                '<a href="/terms">Notice page (Chinese)</a></span></div></div>')
+    return ('<div class="notice"><div class="wrap">'
+            '<b>协议 v2.1-r5 公示中，尚未生效。</b>'
+            f'<span>计划生效日 {PLANNED_EFFECTIVE}，以四项条件全部满足为前提。'
+            '<a href="/terms">公示页</a></span></div></div>')
+
 
 def datasource_banner(db_path: str) -> str:
     """启动横幅用的「库从哪来」一行。
@@ -526,6 +567,78 @@ PAGE_CSS = r"""
             margin: 2rem 0 0; letter-spacing: .02em; }
   .visits b { color: var(--ink); font-weight: 600; font-family: var(--mono);
               font-variant-numeric: tabular-nums; }
+
+  /* 页首「未生效」标注：全站每页都有，压在最上面，比页头更靠前 */
+  .notice { background: #fbf7ec; border-bottom: 1px solid #e8dfc8; }
+  .notice .wrap { display: flex; flex-wrap: wrap; align-items: baseline;
+                  gap: .2rem .9rem; padding: .55rem 2rem; max-width: 60rem;
+                  font-size: .82rem; color: #6b5b33; }
+  .notice b { color: #4a3e20; font-weight: 600; }
+  .notice a { color: #8a6d1f; }
+
+  /* 公示页：状态卡 + 三份文本入口 + 生效条件 */
+  .status { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+            padding: .3rem 1.2rem; margin: 1.4rem 0 .4rem; }
+  .status .row { display: flex; flex-wrap: wrap; gap: .2rem 1rem; align-items: baseline;
+                 padding: .55rem 0; border-top: 1px solid var(--line); font-size: .88rem; }
+  .status .row:first-child { border-top: 0; }
+  .status .k { color: var(--muted); min-width: 6.5rem; font-size: .82rem; }
+  .status .v { color: var(--ink); font-weight: 500; }
+  .status .v.hot { color: #8a5a00; }
+  .status .v.mono { font-family: var(--mono); font-size: .8rem; word-break: break-all; }
+  .docs { display: grid; gap: .7rem; margin: 1.2rem 0 .4rem; }
+  .doccard { display: block; background: var(--card); border: 1px solid var(--line);
+             border-left: 5px solid var(--teal); border-radius: 12px; padding: .85rem 1.1rem;
+             text-decoration: none; color: var(--ink);
+             transition: transform .18s ease, box-shadow .18s ease; }
+  .doccard:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(15,118,110,.12); }
+  .doccard b { font-size: 1rem; }
+  .doccard .ver { font-family: var(--mono); font-size: .76rem; color: var(--teal);
+                  margin-left: .6rem; }
+  .doccard p { margin: .3rem 0 0; color: var(--muted); font-size: .84rem; }
+  .doccard .meta { display: block; margin-top: .45rem; color: var(--muted);
+                   font-size: .76rem; font-family: var(--mono); word-break: break-all; }
+  .doccard .go { display: inline-block; margin-top: .45rem; font-size: .84rem;
+                 font-weight: 600; color: var(--teal); }
+  .conds { width: 100%; border-collapse: collapse; font-size: .85rem; margin: .8rem 0 .2rem; }
+  .conds th, .conds td { border: 1px solid var(--line); padding: .5rem .6rem;
+                         text-align: left; vertical-align: top; line-height: 1.65; }
+  .conds th { background: var(--card); font-weight: 600; }
+  .conds td.st { white-space: nowrap; font-size: .82rem; }
+  .conds .no { color: #8a5a00; }
+  .conds .yes { color: var(--teal); }
+
+  /* 公示正文：法律文本的排版。比站点正文更松的行距、更小的字号 */
+  .doc { max-width: 47rem; margin: 1.2rem 0 0; }
+  .doc h2 { font-size: 1.14rem; margin: 2.2rem 0 .7rem; padding-top: 1rem;
+            border-top: 1px solid var(--line); line-height: 1.5; }
+  .doc h3 { font-size: 1.0rem; margin: 1.7rem 0 .5rem; line-height: 1.5; }
+  .doc h4 { font-size: .94rem; margin: 1.3rem 0 .4rem; }
+  .doc p { margin: .6rem 0; line-height: 1.9; font-size: .93rem; }
+  .doc blockquote { margin: 1rem 0; padding: .75rem 1.05rem; background: var(--card);
+                    border-left: 3px solid var(--teal); border-radius: 0 8px 8px 0; }
+  .doc blockquote p { margin: .35rem 0; font-size: .86rem; color: var(--muted);
+                      line-height: 1.75; }
+  .doc ul, .doc ol { margin: .55rem 0 .55rem 1.3rem; font-size: .92rem; line-height: 1.85; }
+  .doc li { margin: .2rem 0; }
+  .doc code { font-family: var(--mono); font-size: .84rem; background: var(--bg);
+              border: 1px solid var(--line); border-radius: 5px; padding: .05rem .3rem;
+              word-break: break-word; }
+  .doc del { color: var(--muted); }
+  .doc hr { border: 0; border-top: 1px solid var(--line); margin: 1.7rem 0; }
+  .doc .tw { overflow-x: auto; margin: 1rem 0; -webkit-overflow-scrolling: touch; }
+  .doc table { border-collapse: collapse; width: 100%; font-size: .82rem; }
+  .doc th, .doc td { border: 1px solid var(--line); padding: .4rem .55rem;
+                     text-align: left; vertical-align: top; line-height: 1.65; }
+  .doc th { background: var(--card); font-weight: 600; }
+  .doc mark.tbd { background: #fdf0d5; color: #8a5a00; padding: 0 .18rem; border-radius: 3px; }
+  .doc pre.code { background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+                  padding: .7rem .9rem; overflow-x: auto; font-size: .8rem; line-height: 1.6; }
+  .docmeta { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+             padding: .8rem 1.1rem; margin: 1.4rem 0 .2rem; font-size: .8rem; color: var(--muted); }
+  .docmeta .val { font-family: var(--mono); color: var(--ink); word-break: break-all;
+                  font-size: .78rem; }
+  .docmeta div + div { margin-top: .4rem; }
 """
 
 # 页面文案里的固定串。三页共用，改一处即可。
@@ -597,6 +710,7 @@ def _page(title: str, desc: str, hero: str, body: str, path: str,
         f"<style>{BASE_CSS}</style>\n"
         f"<style>{PAGE_CSS}</style>\n"
         "</head>\n<body>\n"
+        f"{_notice_bar('en' if lang == 'en' else 'zh')}\n"
         f"{hero}\n"
         f'<div class="wrap">\n{body}\n</div>\n'
         f"{footer}\n"
@@ -652,6 +766,9 @@ HOME_BODY = """
     <span class="go">进入 →</span>
   </a>
 </div>
+
+<p class="plain" style="margin:.9rem 0 0">协议三件套（v2.1-r5）正在公示，尚未生效
+   → <a href="/terms">公示页</a></p>
 
 <h2>这是什么</h2>
 <p><b>一本公开的互助账。</b>谁帮了谁、帮的是什么、后来有没有兑现，逐条记在上面。
@@ -773,6 +890,9 @@ EN_HOME_BODY = """
     <span class="go">Enter →</span>
   </a>
 </div>
+
+<p class="plain" style="margin:.9rem 0 0">The three protocol documents (v2.1-r5) are published for
+   comment and are not yet in force → <a href="/terms">notice page (Chinese)</a></p>
 
 <h2>What this is</h2>
 <p><b>A public mutual-aid ledger.</b> It records who helped whom, with what, and whether it was
@@ -988,17 +1108,147 @@ def render_en_ledger() -> bytes:
     )
 
 
+NAV_TERMS = ('<div class="nav"><a href="/">← 返回首页</a>'
+             '<span class="sep">/</span><a href="/contributors">贡献与参与者</a>'
+             '<span class="sep">/</span><a href="/ledger">账本数据查询</a></div>')
+NAV_DOC = ('<div class="nav"><a href="/terms">← 协议公示</a>'
+           '<span class="sep">/</span><a href="/">返回首页</a></div>')
+
+# 四项生效条件。状态写死在页面里，是因为它们此刻就是事实判断，不该由模板
+# 从别处推断——推断错了，公示页会替项目说一句没兑现的话。
+CONDITIONS = [
+    ("①", "笔数上限与准入笔数已回填（1.7.2、1.16.3）", "no", "未满足",
+     "五处【待填】原样保留，公示稿不代填"),
+    ("②", f"{DISCLOSURE_DAYS} 日公示期满（1.11.5）", "no", "进行中",
+     f"自 {DISCLOSURE_START} 起算"),
+    ("③", "三项法律问题经执业律师书面答复（附录 B 第 2–4 项）", "no", "未取得",
+     "送审包已定稿，回件后按实际档位标注"),
+    ("④", "§2、§3 已按 r5 合并", "yes", "已满足", "2026-11-12 两份各自成册"),
+]
+
+
+def render_terms() -> bytes:
+    docs = "".join(
+        f'<a class="doccard" href="/terms/{esc(d["key"])}">'
+        f'<b>{esc(d["short"])}</b><span class="ver">{esc(d["version"])}</span>'
+        f'<p>{esc(d["blurb"])}</p>'
+        f'<span class="meta">{d["bytes"]:,} 字节 · sha256 {esc(d["sha256"][:16])}…</span>'
+        '<span class="go">阅读全文 →</span></a>'
+        for d in legal.DOCS
+    )
+    conds = "".join(
+        f'<tr><td>{n}</td><td>{esc(text)}</td>'
+        f'<td class="st"><span class="{cls}">{esc(label)}</span></td>'
+        f'<td>{esc(note)}</td></tr>'
+        for n, text, cls, label, note in CONDITIONS
+    )
+    body = f"""
+<div class="status">
+  <div class="row"><span class="k">版本串</span><span class="v">v2.1-r5（三份一致）</span></div>
+  <div class="row"><span class="k">状态</span><span class="v hot">公示中，尚未生效</span></div>
+  <div class="row"><span class="k">公示起算</span><span class="v">{DISCLOSURE_START}</span></div>
+  <div class="row"><span class="k">公示期</span><span class="v">{DISCLOSURE_DAYS} 日，自起算日起连续计算，不因生效日顺延中断（1.20.3）</span></div>
+  <div class="row"><span class="k">计划生效日</span><span class="v">{PLANNED_EFFECTIVE}，以四项条件全部满足为前提</span></div>
+</div>
+
+<h2>三份文本</h2>
+<p class="plain">三份同版本串、同日生效。下面是全文入口，每份都另附 <code>.txt</code>
+   原文——页面上印的 sha256 由同一份字节现算，可以自己核对一遍。</p>
+<div class="docs">{docs}</div>
+
+<h2>四项生效条件</h2>
+<p class="plain">任一条未满足，本版本即为公示稿而非生效文本；生效日顺延至全部满足之日，另行公告。
+   顺延不改变公示的性质，公示期照常计算。</p>
+<table class="conds">
+  <thead><tr><th>#</th><th>条件</th><th>当前</th><th>说明</th></tr></thead>
+  <tbody>{conds}</tbody>
+</table>
+
+<h2>这份公示是什么，不是什么</h2>
+<p><b>是</b>拟生效文本的全文，连同它的空白。三份文本里共 {TBD_TOTAL} 处
+   <mark class="tbd">【待填】</mark>——笔数上限、责任上限、管辖法院、准入笔数、托管方全称。
+   这些是还没定的业务参数，不是排版瑕疵，也不是忘了删的占位符；
+   公示稿原样保留，任何人都不代填，包括审阅方。</p>
+<p><b>不是什么</b>：不是生效文本，签不了、也约束不了任何人<b>——除了我们自己</b>。
+   这份公示本身即是一句承诺：在条件满足之前，我们不会按它主张任何权利。</p>
+<p>三份文本<b>均未经执业律师书面审核</b>。任何场合都不应把它表述为「已获法律意见」；
+   生效条件 ③ 正是为此而设，未取得即不生效。</p>
+
+<h2>怎么核这份文本</h2>
+<p>每份文档页顶都印着该文本的 sha256。把 <code>/terms/&lt;名称&gt;.txt</code> 下载下来
+   <code>sha256sum</code> 一遍，与页面上的值逐字符比对即可——两者出自同一份字节，
+   对不上就是被改过。docx、PDF 只是排版形态，字体与分页不改变文本。</p>
+
+<h2>意见与变更</h2>
+<p>对文本有意见，写到 <a href="mailto:admin@drawcommons.org">admin@drawcommons.org</a>，
+   标题请含「协议公示意见」。公示期内文本若有变更，本页会留变更记录并另行公示；
+   已公示的版本不覆盖、不删除。</p>
+<p class="plain">变更记录：v2.1-r5　{DISCLOSURE_START}　首次公示（三份同版本串）。</p>
+"""
+    return _page(
+        "协议公示 · 众汲之井",
+        "众汲之井三件套（用户协议、隐私政策、免责声明）v2.1-r5 公示页："
+        "全文、四项生效条件与当前状态，附可自行核对的文本指纹。",
+        _hero("协议公示",
+              "三份文本、一个版本串，公示中——尚未生效。",
+              nav=NAV_TERMS),
+        body,
+        "/terms",
+    )
+
+
+def _render_doc(key: str) -> bytes:
+    doc = legal.DOCS_BY_KEY[key]
+    meta = (
+        '<div class="docmeta">'
+        f'<div>版本串 <span class="val">{esc(doc["version"])}</span>　·　状态 <b>公示稿，尚未生效</b>'
+        f'　·　{doc["bytes"]:,} 字节</div>'
+        f'<div>sha256 <span class="val">{esc(doc["sha256"])}</span></div>'
+        f'<div>原文 <a href="/terms/{esc(key)}.txt">/terms/{esc(key)}.txt</a>'
+        '（纯文本，与上面的指纹同一份字节）</div>'
+        '</div>'
+    )
+    body = (meta
+            + f'<article class="doc">{doc["html"]}</article>'
+            + '<p class="plain" style="margin-top:2.2rem">'
+              '<a href="/terms">← 协议公示</a>　·　本文本为公示稿，尚未生效；'
+              '文本以本页为准，排版形态（docx / PDF）不改变文本。</p>')
+    return _page(
+        f'{doc["short"]}（{doc["version"]}）· 公示稿 · 众汲之井',
+        f'{doc["short"]} {doc["version"]} 公示稿：{doc["blurb"]}附原文 sha256，可自行核对。',
+        _hero(doc["short"], f'{doc["version"]}　·　公示稿，尚未生效', nav=NAV_DOC),
+        body,
+        f"/terms/{key}",
+    )
+
+
+def render_agreement() -> bytes:
+    return _render_doc("agreement")
+
+
+def render_privacy() -> bytes:
+    return _render_doc("privacy")
+
+
+def render_disclaimer() -> bytes:
+    return _render_doc("disclaimer")
+
+
 def render_page() -> bytes:
     """兼容旧名：默认渲染首页。六个页面各有自己的 render_*。"""
     return render_home()
 
 
-# 路径 → 渲染函数。六页一一对应：中文三页讲同一件事，英文三页把同一件事用英文讲。
+# 路径 → 渲染函数。中文七页讲同一件事，英文三页把同一件事用英文讲。
 # 路由与计数都从这里取，避免「加了页面忘了计数」这种半拉子改动。
 PAGES = {
     "/": render_home,
     "/contributors": render_contributors,
     "/ledger": render_ledger,
+    "/terms": render_terms,
+    "/terms/agreement": render_agreement,
+    "/terms/privacy": render_privacy,
+    "/terms/disclaimer": render_disclaimer,
     "/en": render_en_home,
     "/en/contributors": render_en_contributors,
     "/en/ledger": render_en_ledger,
@@ -1072,11 +1322,19 @@ class Handler(BaseHTTPRequestHandler):
             # 探活专用：不碰账本链（verify 是 O(n) 全链重算），也不进访问日志，
             # 免得每 30 秒一条 127.0.0.1 污染以后的访问统计。
             self._send(200, b"ok", "text/plain; charset=utf-8")
-        # 六页：中文三页（/ 讲项目，/contributors 讲人，/ledger 讲数据）与英文三页
-        # （/en、/en/contributors、/en/ledger）一一对应，同一件事只有一种说法。
+        # 公示文本的纯文本原文。与文档页上印的 sha256 出自同一份字节：
+        # 谁都能下载、自己 sha256sum 一遍，与页面对一遍。
+        elif path.startswith("/terms/") and path.endswith(".txt"):
+            doc = legal.DOCS_BY_KEY.get(path[len("/terms/"):-len(".txt")])
+            if doc is None:
+                self._send(404, b'{"error":"not found"}', "application/json")
+            else:
+                self._send(200, doc["raw"].encode("utf-8"), "text/plain; charset=utf-8")
+        # 中文七页（/ 讲项目，/contributors 讲人，/ledger 讲数据，/terms 及其三份正文）
+        # 与英文三页（/en、/en/contributors、/en/ledger）一一对应，同一件事只有一种说法。
         # path 已被 rstrip，"/ledger/" 到这里就是 "/ledger"——两者都渲染，
         # 若在此 301 到带斜杠的形式会造成重定向循环。
-        # 计数只算中文首页的 GET：其余五页与 /api/* 一概不记；do_HEAD 复用本函数，
+        # 计数只算中文首页的 GET：其余页面与 /api/* 一概不记；do_HEAD 复用本函数，
         # 监控探活若用 HEAD / 会把数字刷起来，那不是「有人来看」，是「有人在数自己」。
         elif path in PAGES:
             if path == "/" and not getattr(self, "_head_only", False):
@@ -1139,5 +1397,6 @@ if __name__ == "__main__":
         print(f"visits: ⚠ 不可用（{VISITS.error}）——首页不显示访问者数", flush=True)
     print(f"listening on {ADDR[0]}:{ADDR[1]}  "
           f"(/ 介绍, /contributors 贡献与参与者, /ledger 账本数据查询, "
+          f"/terms 协议公示 + 三份正文, "
           f"/en english, /en/contributors, /en/ledger, /api/... json)", flush=True)
     ThreadingHTTPServer(ADDR, Handler).serve_forever()

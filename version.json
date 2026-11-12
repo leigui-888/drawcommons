@@ -7,8 +7,8 @@
   "baseline_commit": "84cf110",
   "components": {
     "user_terms": "v2.1-r5",
-    "disclaimer": "pending",
-    "privacy": "pending",
+    "disclaimer": "v2.1-r5",
+    "privacy": "v2.1-r5",
     "whitepaper": "2.1",
     "ledger_ddl": "1.3",
     "rubric_card": "2.4",
@@ -22,12 +22,24 @@
     "former_code_name": "数字丐帮",
     "status": "暂行名 · 商标检索回件 2026-11-27"
   },
+  "disclosure": {
+    "started": "2026-11-12",
+    "period_days": 30,
+    "pages": [
+      "/terms",
+      "/terms/agreement",
+      "/terms/privacy",
+      "/terms/disclaimer"
+    ],
+    "plain_text": "/terms/<key>.txt",
+    "note": "公示起算日＝该组页面上线之日，30 日，按用户协议 1.20.3 连续计算、不因生效日顺延中断。三份公示稿共 26 处【待填】，原样保留、任何人不代填。正文页顶印的 sha256 由服务启动时对同一份字节现算，下载 .txt 即可自行比对。"
+  },
   "release_gate": {
     "build_ledger": "exit 0",
     "check_spec": "4/4",
     "regen_manifest": "35/35 + 29/29",
-    "protocol_ready": false,
-    "note": "protocol_ready=false 的原因：免责声明与隐私政策尚未合并到 v2.1-r5。三件套不全，不得发布。"
+    "protocol_ready": true,
+    "note": "三件套六份齐备、版本串统一 v2.1-r5（2026-11-12）：用户协议 §1、免责声明 §2、隐私政策 §3 均为 r5 合版稿。protocol_ready=true 只表示「三件套齐、版本串一致、可进入公示」，不表示已获外部法律意见——三份都未经执业律师书面审核，用户协议文首的生效条件 ③ 仍未满足，故计划生效日 2026-12-21 会按顺延规则顺延，公示期照常计算。"
   },
   "updated": "2026-11-12"
 }
