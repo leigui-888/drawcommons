@@ -2,12 +2,15 @@
 
 # 众汲之井 2.0 · 仓库许可归属
 
-> **本 README 只回答一个问题：这个仓库里的东西，你能不能合法用、按什么条件用。** 十分钟接入的 README 是 M2-R1 的产物，本文件不承担那个职责——现在还没有可接入的东西。
+> **本 README 回答两件事**：这个仓库里的东西你能不能合法用、按什么条件用；以及**从哪里开始用**。
+> 十分钟上手在 [`examples/README.md`](examples/README.md)，三个能直接跑起来的示例在 `examples/`。
+> 当前是 beta（协议 v2.1-r5 公示中、未生效），账本里是 4 条结构验证样例。
 
 ## 1. 你要的东西在哪
 
 | 你想做什么 | 看哪个目录 | 许可 | 你需要做什么 |
 | --- | --- | --- | --- |
+| **十分钟接入，先跑起来** | `examples/`（先读 `examples/README.md`） | Apache-2.0 | 保留版权与许可声明 |
 | 用代码起一套服务 | `src/` | Apache-2.0 | 保留版权与许可声明、NOTICE |
 | 照原样部署线上那套账本服务 | `deploy/` | Apache-2.0 | 保留版权与许可声明、NOTICE |
 | 实现本项目的接口/schema | `spec/`（**先读 `spec/README.md`**：一份条目规范，不含金额字段） | **CC0-1.0** | **什么都不用做** |
@@ -21,6 +24,7 @@
 第一列是路径模式，按**从上到下第一个匹配**生效。新增目录必须在此表登记，否则 CI 判"无许可归属"。
 
 ```licenses
+licenses/SOURCES.md             CC-BY-SA-4.0
 LICENSE*                        NOASSERTION
 DCO                             CC-BY-SA-4.0
 NOTICE                          CC-BY-SA-4.0
@@ -30,9 +34,16 @@ credits.json*                   CC-BY-SA-4.0
 REVIEWS.md                      CC-BY-SA-4.0
 reviews.json*                   CC-BY-SA-4.0
 allowed_signers*                CC0-1.0
+MANIFEST.sha256                 CC0-1.0
 README.md                       CC-BY-SA-4.0
 TRADEMARK.md                    CC-BY-SA-4.0
 src/**                          Apache-2.0
+examples/index.html             CC-BY-SA-4.0
+examples/README.md              CC-BY-SA-4.0
+examples/**/*.md                CC-BY-SA-4.0
+examples/**/*.py                Apache-2.0
+examples/**/*.mjs               Apache-2.0
+examples/**/*.sh                Apache-2.0
 scripts/**                      Apache-2.0
 deploy/app/data/**              CC-BY-4.0
 deploy/**                       Apache-2.0
@@ -84,14 +95,17 @@ JSON 不能写注释，这不是可以通融的技术细节：**没有伴生文�
 
 | 项 | 状态 |
 | --- | --- |
-| 归属表 | ✅ **18 条路径模式**，覆盖全部 32 个已跟踪文件；`repo_lint` 的 R3（覆盖率）、R4（逐件声明）、R5（`spec/` 必须 CC0）据此判定 |
-| 四份许可文件 | ✅ 4/4 存在；其中全文仅 1 份（Apache-2.0），3 份为指针（见 D-06） |
-| 文件头/伴生文件 | ✅ R4 8/8：5 个头声明（3 个 `.py` + `compose.yml` + `daily.sh`），3 个 `.license` 伴生（`spec/entry.schema.json`、`credits.json`、`reviews.json`） |
+| 归属表 | ✅ **26 条路径模式**，覆盖全部 44 个已跟踪文件；`repo_lint` 的 R3（覆盖率）、R4（逐件声明）、R5（`spec/` 必须 CC0）据此判定 |
+| 四份许可文件 | ✅ **4/4 全文**（2026-11-12 补齐，D-06 销项）。Apache-2.0 在 `LICENSE`，三份 CC 正文在 `licenses/`，各带溯源头与正文 SHA-256 |
+| 逐文件清单 | ✅ `MANIFEST.sha256`（35 条）：`sha256sum -c MANIFEST.sha256` 可逐字节复验。清单由 `evidence/regen_repo_manifest.py` 生成，不手写 |
+| 文件头/伴生文件 | ✅ R4 11/11：8 个头声明（5 个 `.py` + `compose.yml` + `daily.sh` + 示例 `.sh`），3 个 `.license` 伴生（`spec/entry.schema.json`、`credits.json`、`reviews.json`） |
+| 仓库体检 | ✅ `repo_lint` **16/16**（2026-11-12 首次全绿；此前 R2 缺全文、R9 缺清单） |
 | 名录 | ✅ `CREDITS.md` + `credits.json`，由 R12/R13 双向校验（见下） |
 | 发布签名 | ✅ 从 `v2.1-rc5` 起 tag 带 SSH 签名；公钥 `allowed_signers`，指纹由 R14 与 `CREDITS.md` §10 对齐。**仓库内这一层不是独立信任根**；仓库外的 DNS TXT 与 GitHub 公钥 2026-11-12 已落地并实测一致（见 §10.3） |
 | 第三方内容 | 无（NOTICE 已声明） |
 | 名称 | ⚠️ 未检索、未注册，不得对外声称已获商标保护 |
 | 仓库托管与公开 | ✅ 只读裸仓公开：`https://drawcommons.org/repo.git` |
+| 接入示例 | ✅ 3 个（验链 / 消费 / 巡检），均零依赖；2026-11-12 对着线上实测通过 |
 
 > **名录不是「致谢页」。** `CREDITS.md` 登记三类人（著作权贡献者 / 数据贡献者 / 支持者），
 > 因为这三类的法律基础和救济方式完全不同——支持者没有著作权，只有约定。把三者混成一张

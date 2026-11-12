@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>众汲之井 2.1 · 接入索引</title>
+<!-- 静态索引页：不依赖后端、不联网也能看；所有命令都可直接复制。 -->
+<style>
+  :root{
+    --ink:#1b1b1b; --muted:#666; --line:#e2e0dc; --bg:#fcfbf9; --card:#fff;
+    --accent:#8a3b2e; --code-bg:#f4f2ee;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --ink:#e8e6e2; --muted:#9b9892; --line:#33312e; --bg:#161514;
+           --card:#1e1c1a; --accent:#d98b7a; --code-bg:#242220; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.7 system-ui,-apple-system,"Segoe UI","Noto Sans SC",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:52rem;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+  .status{display:flex;flex-wrap:wrap;gap:.4rem .5rem;margin:0 0 1.6rem;padding:0;list-style:none}
+  .status li{font-size:.76rem;letter-spacing:.02em;padding:.18rem .55rem;
+    border:1px solid var(--line);border-radius:999px;color:var(--muted);background:var(--card)}
+  .status li.warn{color:var(--accent);border-color:currentColor}
+  h1{font-size:1.5rem;line-height:1.35;margin:0 0 .5rem;letter-spacing:-.01em}
+  .lede{margin:0 0 2rem;color:var(--muted);font-size:.94rem}
+  h2{font-size:1rem;margin:2.4rem 0 .7rem;padding-bottom:.4rem;border-bottom:1px solid var(--line)}
+  p{margin:.6rem 0}
+  code,pre{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85em}
+  code{background:var(--code-bg);padding:.1em .35em;border-radius:3px}
+  pre{background:var(--code-bg);padding:.75rem .9rem;border-radius:8px;
+    overflow-x:auto;line-height:1.6;margin:.7rem 0}
+  pre code{background:none;padding:0}
+  table{width:100%;border-collapse:collapse;font-size:.88rem;margin:.6rem 0}
+  th,td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:.76rem;color:var(--muted);font-weight:600;letter-spacing:.03em}
+  .cards{display:grid;gap:.9rem;grid-template-columns:1fr}
+  @media (min-width:40rem){ .cards{grid-template-columns:1fr 1fr 1fr} }
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem}
+  .card h3{margin:0 0 .25rem;font-size:.92rem}
+  .card p{margin:0 0 .5rem;font-size:.82rem;color:var(--muted);line-height:1.55}
+  .card code{font-size:.78em}
+  .note{border-left:3px solid var(--line);padding:.1rem 0 .1rem .9rem;margin:1.2rem 0;
+    color:var(--muted);font-size:.88rem}
+  footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--line);
+    color:var(--muted);font-size:.78rem}
+  a{color:var(--accent);text-decoration:none;border-bottom:1px solid currentColor}
+  a:hover{opacity:.75}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <ul class="status">
+    <li class="warn">协议 v2.1-r5 公示中，尚未生效</li>
+    <li>计划生效日 2026-12-21</li>
+    <li>beta · 账本为 4 条结构验证样例（假 ID）</li>
+  </ul>
+
+  <h1>接入索引</h1>
+  <p class="lede">三个只读接口，没有账号、没有密钥、没有 SDK。你能做的第一件事不是「申请接入」，
+    而是自己验一遍——所以这里把验证写成了三行命令。</p>
+
+  <h2>接口</h2>
+  <table>
+    <thead><tr><th>端点</th><th>返回</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><code>/api/ledger/items</code></td><td>全部条目，每条带 <code>prev_hash</code> / <code>hash</code></td><td>拿走数据</td></tr>
+      <tr><td><code>/api/ledger/verify</code></td><td><code>{ok, first_bad, chain_tail, genesis}</code></td><td>看服务端自检结果</td></tr>
+      <tr><td><code>/api/ledger/export</code></td><td>导出件原文，<b>它的 sha256 就是锚值</b></td><td>校验的基准</td></tr>
+    </tbody>
+  </table>
+
+  <pre><code># 自己算锚值，再去 /ledger 页面对一眼
+curl -s https://drawcommons.org/api/ledger/export | sha256sum</code></pre>
+
+  <p class="note">这里故意<b>不印锚值</b>。写死一个校验值，它迟早与文本漂移，而「印出来的校验值
+    对不上自己吐出的字节」正是这类站点最不该犯的错。上面这条命令，任何时候跑都算得出当下的真值。</p>
+
+  <h2>三个示例</h2>
+  <div class="cards">
+    <div class="card">
+      <h3><a href="01-verify-chain/README.md">01 · 验链</a></h3>
+      <p>Python 3.8+，零依赖。重算哈希、查链、比对锚值。<br>看它报警：<code>--tamper</code></p>
+      <pre><code>python3 verify.py</code></pre>
+    </div>
+    <div class="card">
+      <h3><a href="02-consume-json/README.md">02 · 消费</a></h3>
+      <p>Node 18+，零依赖。统计后生成一段可嵌入的 HTML 卡片，带署名。</p>
+      <pre><code>node summarize.mjs</code></pre>
+    </div>
+    <div class="card">
+      <h3><a href="03-monitor-shell/README.md">03 · 巡检</a></h3>
+      <p>POSIX sh + curl。每天一行记录，退出码区分「正常／链坏／取不到」。</p>
+      <pre><code>./check.sh</code></pre>
+    </div>
+  </div>
+
+  <h2>三条边界</h2>
+  <p><b>一、验哈希用 Python，别用 JS 重写。</b>Python 的 <code>json.dumps(2.0)</code> 是
+    <code>"2.0"</code>，JS 的 <code>JSON.stringify(2.0)</code> 是 <code>"2"</code>。同一份数据算出
+    两个哈希，你会得到一个假的「校验失败」，然后开始怀疑数据——而数据是对的。</p>
+  <p><b>二、账本记的是申报与确认，不是事实本身。</b>链完整只证明「这份记录与入链时一致」，
+    不证明「这件事真的发生过」。</p>
+  <p><b>三、现在是 beta。</b>字段与口径都会变，<code>rule_version</code> 就是干这个的。真要把数据用于
+    决策，等到 30 日公示期满、协议生效之后。</p>
+
+  <h2>许可</h2>
+  <table>
+    <thead><tr><th>内容</th><th>许可</th><th>你要做什么</th></tr></thead>
+    <tbody>
+      <tr><td><code>examples/</code> 下的代码</td><td>Apache-2.0</td><td>保留版权与许可声明</td></tr>
+      <tr><td>接口返回的数据</td><td>CC-BY-4.0</td><td>署名（格式不限）</td></tr>
+      <tr><td><code>spec/</code> 里的规范</td><td>CC0-1.0</td><td>什么都不用做</td></tr>
+      <tr><td>名称与「兼容」标识</td><td>商标规则</td><td>遵守认证条件，见 <code>TRADEMARK.md</code></td></tr>
+    </tbody>
+  </table>
+
+  <footer>
+    众汲之井 2.1 · 协议 v2.1-r5（公示中）· 本页为静态文件，可离线打开，不依赖本站任何脚本。<br>
+    更细的说明在各示例目录的 README；仓库级许可归属见 <code>../README.md</code>。
+  </footer>
+</div>
+</body>
+</html>

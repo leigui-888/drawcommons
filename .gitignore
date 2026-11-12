@@ -11,3 +11,10 @@ visits.db-shm
 __pycache__/
 *.pyc
 .DS_Store
+
+# 示例的产物与运行时状态：都是生成物，换台机器跑就不一样，不该入库。
+# 但 examples/*/state.tsv 对**你自己**有价值——它是巡检记录，建议单独存别处或提交到你自己的仓库。
+# 注意：带斜杠的模式锚定到本文件所在目录，故须写成 repo/examples/…；
+# 写成 examples/*/out.html 匹配不到底下那层，git 仍会把它当未跟踪文件算进清单。
+repo/examples/*/out.html
+repo/examples/*/state.tsv
