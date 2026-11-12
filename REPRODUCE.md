@@ -11,7 +11,7 @@
 | Python | 3.10+（实测 3.12.16 与 3.13.12） | **纯标准库，无第三方依赖**，不需要 `pip install` |
 | SQLite | 任意现代版本（实测 3.46.1） | Python 自带 `sqlite3` 即可。`spec/ddl_w4.sql` 只用 `CREATE TABLE/VIEW/TRIGGER` 与 `RAISE`，未用 `STRICT`、生成列、窗口函数等新特性 |
 | 操作系统 | 不限 | Windows 与 Linux（Debian 13 容器）已实测；macOS 未实测，但代码无平台相关分支 |
-| 磁盘 | 10 MB | 仓库 52 KiB，加上重建的库不到 1 MB |
+| 磁盘 | 10 MB | 工作树约 1 MB，加 `.git` 约 2 MB；发布包约 250 KB，重建的库不到 1 MB |
 
 不需要联网、不需要任何凭据、不需要我们提供的任何服务。第 2 节起的命令在断网机器上同样成立。
 
@@ -33,7 +33,7 @@ git clone https://drawcommons.org/repo.git drawcommons
 cd drawcommons
 
 python3 evidence/build_ledger.py      # ① 建基线库 + 执行 DDL + 十一次应当被拒的操作
-python3 evidence/regen_manifest.py    # ② 重算并校验 35 件（0-snapshot）+ 23 件（仓库根）
+python3 evidence/regen_manifest.py    # ② 重算并校验 35 件（0-snapshot）+ 30 件（仓库根）
 ```
 
 这两条是邀请的全部内容。**任一条非 0，就是我们错了**，按第 5 节告诉我们。
@@ -160,14 +160,14 @@ R12 报「无法追溯的作者 1」+「依据可核验 2/3」，R13 报「已�
 这样做是为了让署名承诺**可被第三方核验**，而不是靠维护者自觉：名录里每个名字都指得到
 具体提交，谁删了一条，旧版本里的快照哈希对不上（见 `CREDITS.md` §8）。
 
-**R14 补的是第三层：签名。** 名录证明「谁做了什么」，签名证明「这个版本是不是权利人发的」。
+**R14 补的是第三层：签名。** 名录证明「谁做了这个站」，签名证明「这个版本是不是权利人发的」。
 R14 比对 `repo/allowed_signers` 里的公钥指纹与 `CREDITS.md` §10 记载的指纹，并检查每个
 principal 都在名录内、每把钥都限定了 `namespaces="git"`。它防的是**换钥却忘改文档**——
 此时验签命令照着文档敲会报 `Good signature`，签的其实是旧钥，比没有签名更误导。
 
 R14 有个天然的局限，规则输出里直接印出来了：公钥与指纹在同一个仓库里，能改仓库的人可以
-两份一起改。它只防自己改漏，防不了合谋篡改。后者只能靠仓库外的指纹渠道（`CREDITS.md` §10.3：
-DNS TXT 与 GitHub 公钥，**均尚未设置**）。
+两份一起改。它只防自己改漏，防不了合谋篡改。后者靠仓库外的指纹渠道（`CREDITS.md` §10.3：
+`_sign.drawcommons.org` 的 DNS TXT 与 GitHub 账号公钥，**两条 2026-11-12 均已落地并实测一致**）。
 
 我们选择让 R2、R9 留在红色，而不是改规则让它变绿——一个会把不合格项藏起来的检查器，比没有检查器更坏。**如果你用 `set -e` 跑脚本，请把这一条放在判据之外。**
 
@@ -189,8 +189,9 @@ Good "git" signature for 2379731846@qq.com with ED25519 key SHA256:3vOTR4UHVjuwc
 
 - **只覆盖 tag 对象**，不覆盖你下载到的 `.tar.gz`（那是 `.sha256` 与 §5 锚值的事）；
 - **不证明 commit 的 author 是谁**（那是名录与 git 历史的事，见 `repo/CREDITS.md` §2）；
-- **公钥与指纹同在仓库内**，能改仓库的人可以两份一起改——它不是独立的信任根，
-  独立渠道（DNS TXT、GitHub 公钥）**尚未设置**，见 `repo/CREDITS.md` §10.3；
+- **公钥与指纹同在仓库内**，能改仓库的人可以两份一起改——它不是独立的信任根；
+  仓库外的两条交叉渠道（`_sign.drawcommons.org` 的 DNS TXT、GitHub 账号公钥）
+  **2026-11-12 已落地并实测一致**，但两者与仓库同在权利人手里，限度见 `repo/CREDITS.md` §10.3；
 - **`v2.0-final` 与 `rc1`–`rc4` 未签名**，机制建立前发布，且不补签（补签要移动 tag，
   已下载的包会与 tag 脱钩）；**`rc5` 起每个 tag 都已签名**，逐版清单见 `repo/CREDITS.md` §10。
 
@@ -246,9 +247,9 @@ cdec34e5bb85018a9a0d905307ee2103fa1ee7a9f046290987cc1a801efe30a9
 
 ## 8. 许可
 
-- 代码（`src/`、`deploy/`）：Apache-2.0，保留版权与许可声明、NOTICE；
-- 接口与 schema（`spec/`）：CC0-1.0，随便用，不用署名；
-- 数据（`data/`、`evidence/*.db`）：CC-BY-4.0，署名即可；
-- 文档（`repo/` 与 `0-snapshot/`）：CC-BY-SA-4.0，署名 + 改编同样开放。
+- 代码（`repo/src/`、`repo/deploy/`）：Apache-2.0，保留版权与许可声明、NOTICE；
+- 接口与 schema（`repo/spec/`、根 `spec/`）：CC0-1.0，随便用，不用署名；
+- 数据（`repo/deploy/app/data/`；`evidence/*.db` 是构建产物、不入库）：CC-BY-4.0，署名即可；
+- 文档（`repo/` 与 `0-snapshot/`，本文件同）：CC-BY-SA-4.0，署名 + 改编同样开放。
 
 逐文件归属见 `repo/README.md` 的机器可读表——`repo_lint.py` 的 R3 就是照它逐件检查的。本文件（仓库根 `REPRODUCE.md`）同为 CC-BY-SA-4.0。

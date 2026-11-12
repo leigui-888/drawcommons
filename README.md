@@ -14,7 +14,7 @@
 | 想了解 | 看 |
 | --- | --- |
 | 项目当前版本与状态 | [`VERSION.md`](VERSION.md)、[`version.json`](version.json) |
-| 谁做了什么（名录，逐版快照） | [`repo/CREDITS.md`](repo/CREDITS.md)、[`repo/credits.json`](repo/credits.json) |
+| 谁做了这个站（名录，逐版快照） | [`repo/CREDITS.md`](repo/CREDITS.md)、[`repo/credits.json`](repo/credits.json) |
 | 自己动手验证，不用信任何人 | [`REPRODUCE.md`](REPRODUCE.md)——两条命令，无需联网与凭据 |
 | 这套账本怎么部署 | [`repo/deploy/README.md`](repo/deploy/README.md) |
 | 代码与数据的许可条件 | [`repo/README.md`](repo/README.md) |
@@ -27,7 +27,8 @@
 信任文件就在仓库里，指定它即可：
 
 ```bash
-git clone git@github.com:leigui-888/drawcommons.git
+# 仓库是公开的，https 即可匿名克隆，不需要 GitHub 账号或公钥
+git clone https://github.com/leigui-888/drawcommons.git
 cd drawcommons
 git -c gpg.ssh.allowedSignersFile=repo/allowed_signers verify-tag v2.1-rc10
 ```

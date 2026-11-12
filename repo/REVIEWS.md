@@ -100,7 +100,7 @@ git -c gpg.ssh.allowedSignersFile=repo/allowed_signers verify-commit <sha>
 | `date` | 审查日期 | — |
 | `verdict` | `accept` / `reject` | 只允许这两个值 |
 | `basis` | 卡在哪条判据、或满足了哪几条 | `accept` 时四个判据要能对上 |
-| `contribution` | `code` / `docs` / `data` | 与名录 `roles` 不冲突 |
+| `contribution` | `code` / `spec` / `docs` / `data` | 与名录 `roles` 不冲突（`roles` 另可含 `deploy` / `maintainer`，那是**职能**，不是贡献类型） |
 
 `accept` 有一条硬连带：**该提交必须出现在该作者 `credits.json` 的 `evidence.commits` 里。**
 审过了却没进依据，等于名录漏记，R16 直接红——这正是「审查」与「署名」之间要焊死的地方。

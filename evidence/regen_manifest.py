@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 老夫 <2379731846@qq.com>
-"""regen_manifest.py —— 重算并校验 MANIFEST（0-snapshot 5 份 35 件 + 仓库根 1 份 16 件）。
+"""regen_manifest.py —— 重算并校验 MANIFEST（0-snapshot 5 份 35 件 + 仓库根 1 份 30 件）。
 
 判据（开工清单 §7 C0）：干净目录 clone 后两条命令即可复现：
-  1) python3 evidence/build_ledger.py     -> exit 0（六次攻击全被拒）
-  2) python3 evidence/regen_manifest.py   -> 0-snapshot 35/35、仓库根 16/16，exit 0
+  1) python3 evidence/build_ledger.py     -> exit 0（十一处非法写入全被拒）
+  2) python3 evidence/regen_manifest.py   -> 0-snapshot 35/35、仓库根 30/30，exit 0
 
 口径（沿用各 MANIFEST 头部，2026-11-08 按审查 P2-06 重排）：
   · 代码/数据取节点原始字节，全量入表，强制校验；

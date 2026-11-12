@@ -86,7 +86,7 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum
   done
   ```
 
-  `post-receive` 做五件事：刷 `update-server-info`；**验签闸门**——为新推的 `v*` tag 验 SSH 签名，验不过就不出包（把 `REFUSED` 打到推送方终端）；为通过的 tag 出包并重算 `.sha256`；把该包复制成 `latest` 别名（校验值独立重算，不复制版本化那份，否则 `sha256sum -c` 会因文件名不符报错）；把 `repo/CREDITS.md`、`repo/credits.json`、`repo/REVIEWS.md`、`repo/reviews.json`、`repo/allowed_signers` 摊到 `/download/`——**这些东西只活在裸仓对象库里时，对浏览器等于不存在**，而署名承诺、审查记录与验签公钥恰恰是给不看 git 的人看的。
+  `post-receive` 做六件事：刷 `update-server-info`；**验签闸门**——为新推的 `v*` tag 验 SSH 签名，验不过就不出包（把 `REFUSED` 打到推送方终端）；为通过的 tag 出包并重算 `.sha256`；把该包复制成 `latest` 别名（校验值独立重算，不复制版本化那份，否则 `sha256sum -c` 会因文件名不符报错）；把 `repo/CREDITS.md`、`repo/credits.json`、`repo/REVIEWS.md`、`repo/reviews.json`、`repo/allowed_signers` 摊到 `/download/`——**这些东西只活在裸仓对象库里时，对浏览器等于不存在**，而署名承诺、审查记录与验签公钥恰恰是给不看 git 的人看的；把 `repo/deploy/app/` 下的 `app.py` 与 `ledger_hash.py` 同步进服务器应用目录，**字节真变了**才重建容器（2026-11-12 补这一步：镜像构建时才 `COPY app.py`，钩子原先不碰应用层，于是「仓库里改了页面、线上还是旧代码」可以静默很久——当天首页改完四小时未上线，靠比对字节数才发现）。
 
   `update` 只做一件事：**拒绝移动已存在的 tag**。新建放行、删除放行、改指向一律拒绝。之所以不能只靠 `receive.denyNonFastForwards`：实测那个配置拦得住分支强推，**拦不住 tag 更新**——`git push -f` 把已有 tag 指到别的提交，服务端会输出 `+ 02a229b...b7dc962 (forced update)` 并接受，因为 git 认为 tag 本就不存在快进关系。而移动 tag 是最隐蔽的改写：`git log` 看不出异常，下载过的包与 tag 脱钩，包本身的 `sha256` 却仍然通过。裸仓另需 `git config receive.denyNonFastForwards true`（拦分支），两条配合才完整。
 

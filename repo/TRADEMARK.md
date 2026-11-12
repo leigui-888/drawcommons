@@ -36,12 +36,17 @@ A 档与 B 档的分界线只有一句：**"我实现了这个规范"是事实�
 
 | 编号 | 测试项 | 通过判据 | 复现方式 |
 | --- | --- | --- | --- |
-| T1 | 清单可读 | `GET /list` 返回 200，响应体可被 JSON 解析，且含 `items` 数组 | `curl -s <base>/list ``\| jq '.items ``\| length'` |
-| T2 | 条目合规 | 每条账本条目通过 `spec/ledger-entry.schema.json` 校验，0 处错误 | 用任意 2020-12 校验器跑 schema |
+| T1 | 清单可读 | `GET /api/ledger/items` 返回 200，响应体可被 JSON 解析，且含 `items` 数组 | `curl -s <base>/api/ledger/items \| jq '.items \| length'` |
+| T2 | 条目合规 | 每条条目通过**该实现自己声明的**那份 schema 校验，0 处错误；声明的是哪一份，须在它自己的文档里写明 | 用任意 2020-12 校验器跑它声明的那份 schema |
 | T3 | 链可验证 | 用 `src/ledger_hash.py` 的 `verify_chain()` 校验全链，返回 `(True, None)` | `python src/ledger_hash.py` 同款调用 |
 | T4 | 无必需扩展 | 所有 `x-` 扩展字段均为可选；删掉全部 `x-` 字段后仍能通过 T2、T3 | 删除后重跑 |
-| T5 | 无付费门槛 | 不带任何账号、Key、Cookie，T1 与账本公开页均返回数据 | 干净容器内 `curl` |
-| T6 | 可导出 | 导出接口返回 JSON Lines，每行可独立校验，且附校验脚本 | `curl <base>/export ``\| head -1` |
+| T5 | 无凭据门槛 | 不带任何账号、Key、Cookie，T1 返回 200 且 `items` 非空 | 干净容器内 `curl` |
+| T6 | 可导出且可复算 | 导出接口返回可复算的字节，其 sha256 与公开锚值一致；导出件内含逐条哈希 | `curl -s <base>/api/ledger/export \| sha256sum`，再与页面锚值比对 |
+
+**T2 为什么不再写死文件名。** 2026-11-12 审计发现：`spec/` 下有**两本账**——`ledger-entry.schema.json`
+记资金（`amount_fen` 必填），`contribution-entry.schema.json` 与根 `spec/ddl_w4.sql` 记事（无金额）。
+把 T2 绑死在某一份上，会让按另一份实现的合规系统被判不合规。所以 T2 判的是「它自己声明的
+那一份、且声明得出来」，不是「必须等于我们的文件」。三者关系见 `spec/README.md`。
 
 **六项全部可自测，人工审核项为 0。** 这个设计有直接后果：不存在"审核工作量"，
 因此**不存在按工作量收费的理由**（见 §3 第 3 档）。认证的成本落在申请人自己身上，

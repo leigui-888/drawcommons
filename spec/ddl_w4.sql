@@ -9,7 +9,9 @@
 --   触发器：DGB_LED_015 撤回同意是终态 / DGB_LED_016 实名须显式绑定（INSERT 与 UPDATE 两路都拦）
 -- v1.2 变更（对应审查报告 P0-03 / P0-04 / P2-01 / P2-02）：
 --   P0-03  append-only：三表 BEFORE UPDATE / BEFORE DELETE 一律 ABORT（DGB_LED_012 / DGB_LED_013）
---   P0-04  旧积分列迁出主表：magnitude_legacy → archive_magnitude_v1，主表不再留可写连续量
+--   P0-04  旧积分列迁出主表：magnitude_legacy → archive_magnitude_v1
+--          （迁出的是「历史积分」这个概念，不是「量」本身：单次交付的规模仍记在
+--           magnitude 列，见第 3 段。两者区别不靠「列不存在」保证，靠第 3 段的约束）
 --   P2-01  删除 magnitude_hint，计量列三表同构
 --   P2-02  scope 不再以 DEFAULT 兜底：mutual_id 可判定者回填 mutual，其余留 NULL 并标 scope_unresolved
 
@@ -37,6 +39,10 @@ UPDATE ledger_receive SET scope_unresolved=1 WHERE scope IS NULL;
 UPDATE ledger_payback SET scope_unresolved=1 WHERE scope IS NULL;
 
 -- 3) 计量刻度（删除 magnitude_hint：三表同构，见 P2-01）
+--    magnitude 只描述「这一次交付有多大」（小时、次数、字数一类），**不描述「这个人值多少分」**。
+--    协议层面禁止：跨条目累加为主体评分、据此给主体排序、生成可交易的信用资产。
+--    结构上保留这一列，因为「一次帮了多少」是客观事实；被禁止的是把它变成对「人」的度量。
+--    若将来要按它排序，那不是加一条查询，是改协议——按 append-only 与 v2 换版走。
 ALTER TABLE ledger_give    ADD COLUMN magnitude REAL NOT NULL DEFAULT 0 CHECK (magnitude >= 0);
 ALTER TABLE ledger_receive ADD COLUMN magnitude REAL NOT NULL DEFAULT 0 CHECK (magnitude >= 0);
 ALTER TABLE ledger_payback ADD COLUMN magnitude REAL NOT NULL DEFAULT 0 CHECK (magnitude >= 0);

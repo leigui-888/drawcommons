@@ -24,8 +24,8 @@ Copyright 2026 老夫 <2379731846@qq.com>
 
   代码（src/、scripts/、部署配置）              Apache License 2.0
   接口规范与 schema（spec/）                    CC0 1.0 Universal
-  数据（data/）                                 Creative Commons Attribution 4.0
-  文档与白皮书（docs/）                          Creative Commons Attribution-ShareAlike 4.0
+  数据（deploy/app/data/）                      Creative Commons Attribution 4.0
+  文档与白皮书（repo/*.md；docs/ 为预留路径）    Creative Commons Attribution-ShareAlike 4.0
 
 本仓库当前不包含任何第三方代码、数据或文档。若日后引入，须在本 NOTICE 中逐项列出
 来源、版本、许可与修改说明；未列出的第三方内容视为未获授权引入。
