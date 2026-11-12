@@ -101,6 +101,37 @@ for f in repo/CREDITS.md repo/credits.json repo/REVIEWS.md repo/reviews.json rep
     fi
 done
 
+# 6. 应用层部署。2026-11-12 发现的口子：镜像构建时才 COPY app.py，钩子原先不碰它，
+#    于是「仓库里改了页面 → 线上还是几个月前的代码」可以静默很久。当天实测：首页改完
+#    四小时未上线，靠比对字节数才发现。
+#    只在该文件真的变了才重建（cmp 比字节），避免每次推送都白跑一次 build。
+APP_DIR=${DRAWCOMMONS_APP_DIR:-/opt/drawcommons/app}
+COMPOSE_FILE=${DRAWCOMMONS_COMPOSE:-/opt/drawcommons/compose.yml}
+if [ -d "$APP_DIR" ] && command -v docker >/dev/null 2>&1; then
+    app_changed=0
+    for f in app.py ledger_hash.py; do
+        if head_file "repo/deploy/app/$f" > "$APP_DIR/$f.new" 2>/dev/null && [ -s "$APP_DIR/$f.new" ]; then
+            if cmp -s "$APP_DIR/$f.new" "$APP_DIR/$f"; then
+                rm -f "$APP_DIR/$f.new"
+            else
+                mv -f "$APP_DIR/$f.new" "$APP_DIR/$f"
+                app_changed=1
+            fi
+        else
+            rm -f "$APP_DIR/$f.new"
+        fi
+    done
+    if [ "$app_changed" = 1 ]; then
+        # 重建失败只记日志、让推送照常成功：站点旧代码比"推不上去"好排查，
+        # 且回滚推送不是这里该做的事（违反不可改写）。
+        ( cd "$(dirname "$COMPOSE_FILE")" && docker compose -f "$COMPOSE_FILE" up -d --build app ) \
+            > /dev/null 2>&1 || log "app rebuild FAILED — 站点仍是旧代码，需人工处理"
+        log "app layer deployed (rebuild)"
+    else
+        log "app layer unchanged"
+    fi
+fi
+
 if git remote | grep -qx github; then
     git push --mirror github > /dev/null 2>&1 \
         || log "github mirror push failed (本地推送已完成)"
