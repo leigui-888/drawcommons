@@ -20,6 +20,19 @@
 
 **口径未动**：`/api/ledger/export` 一字未改，锚值仍为 `cdec34e5bb85018a…`；页面 14,110 B → 15,829 B。
 
+### 同批修掉：页面改动此前根本不会上线（`v2.1-rc13`）
+
+首页改完我先查了线上字节数，发现仍是 **14,110 B**——旧版。根因不在缓存：镜像构建时才
+`COPY app.py`，而 `post-receive` 只做「验签 → 出包 → 摊下载件 → 镜像」，**从不部署
+`/opt/drawcommons/app/`**。于是「仓库里改了页面」与「线上是哪个页面」之间没有任何机械约束，
+过去几次页面更新都是手工 `scp` 完成的，没有任何地方记着这件事。
+
+- 钩子新增第 6 步：从 HEAD 取出 `repo/deploy/app/{app.py,ledger_hash.py}` 写入
+  `$DRAWCOMMONS_APP_DIR`，**逐字节 `cmp`，真变了才** `docker compose up -d --build app`。
+- 重建失败只记日志、不让推送失败：站点跑旧代码可以排查，而"回滚推送"违反不可改写。
+- 实测：故意让服务器文件与仓库不同，推 rc13，日志出现 `app layer deployed (rebuild)`，
+  服务器 `app.py` 与仓库同哈希 `215d0628…`，探针行被覆盖，首页 15,829 B。
+
 ## 2026-11-12 凌晨（四）· 公开镜像上线；tag 保护实证；root README
 
 - GitHub 公开镜像建成：`leigui-888/drawcommons`（`main` + 11 tag，与本地逐引用一致）。
