@@ -1151,6 +1151,10 @@ def render_terms() -> bytes:
   <div class="row"><span class="k">计划生效日</span><span class="v">{PLANNED_EFFECTIVE}，以四项条件全部满足为前提</span></div>
 </div>
 
+<p class="plain" style="margin:.9rem 0 0">用户协议文首仍写着「当前未起算：公示自本稿发布之日起算」——
+   那是 2026-11-12 定稿时点的状态标注。本页上线即为发布，公示自 {DISCLOSURE_START} 起算；
+   文本一字未改，所以指纹与定稿时完全相同。</p>
+
 <h2>三份文本</h2>
 <p class="plain">三份同版本串、同日生效。下面是全文入口，每份都另附 <code>.txt</code>
    原文——页面上印的 sha256 由同一份字节现算，可以自己核对一遍。</p>
