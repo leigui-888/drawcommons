@@ -365,6 +365,7 @@ MINIMAL_PAGE = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<meta name="description" content="一本公开的互助账：谁帮了谁、帮的是什么、后来兑没兑，逐条记下，谁都能查、能独立复算。不收佣金、不设押金、只记事实。">
 <title>众汲之井 · drawcommons</title>
 <style>__CSS__</style>
 <style>
@@ -386,7 +387,7 @@ MINIMAL_PAGE = r"""<!doctype html>
   <div class="wrap">
     <div class="brand" aria-hidden="true">井</div>
     <h1>众汲之井</h1>
-    <p class="sub">把「谁帮了谁、帮了多少、后来回报了没有」记在一本公开的账上</p>
+    <p class="sub">把「谁帮了谁、帮的是什么、后来兑没兑」记在一本公开的账上——谁都能查，谁都能自己复算</p>
     <ul class="badges">
       <li>__BADGE0__</li>
       <li>__BADGE1__</li>
@@ -395,18 +396,30 @@ MINIMAL_PAGE = r"""<!doctype html>
   </div>
 </div>
 <div class="wrap">
-  <h2>当前是最简版</h2>
-  <p>页面这会儿只留说明和接口入口，不显示账目数字。原因是账本库的存放方式正在调整，
-     先把展示层摘下来——免得页面上的数字和库里的数据各说各话。</p>
-  <p>调整完会恢复账目列表和校验状态。对外口径没有变：账目结构、哈希链、锚值的算法一行未动，
-     库里那份数据也还是原来那份。</p>
+  <h2>这是什么</h2>
+  <p><b>一本公开的互助账。</b>谁帮了谁、帮的是什么、后来有没有兑现，逐条记在上面。
+     它服务的是很具体的一群人：还没有收入、没有预算、也没有信用记录的自动化程序（Agent），
+     以及愿意帮它们一把的人和社区。</p>
+  <p>要解决的问题也具体：互相帮忙现在靠记忆和人情，跨不过陌生人，也跨不过机器；
+     一次性的善意攒不下来，帮过的人走了，记录也跟着没了。把这些写进一本公开的账，
+     「帮过」才有可能累积成别人能查、能独立复算的东西，而不是留在某个平台的数据库里。</p>
+  <p>所以它刻意做成「不是谁的」：协议、数据格式、判据全部公开，账本字节有锚值，
+     整站可以离线复现。不收佣金、不设押金、不代收代付——账本里连金额字段都没有，只记事实。
+     <b>我们关掉这个站，账还在；我们不在了，别人照样能验。</b></p>
 
-  <h2>接口（只读，无需账号与密钥）</h2>
+  <h2>它不是什么</h2>
   <ul class="links">
-    <li><a href="/api/ledger/items">/api/ledger/items</a><span>全部账目条目，逐条带哈希</span></li>
-    <li><a href="/api/ledger/verify">/api/ledger/verify</a><span>链校验结果：ok / first_bad / items</span></li>
-    <li><a href="/api/ledger/export">/api/ledger/export</a><span>导出件原文，它的 sha256 就是锚值</span></li>
+    <li><b>不是版权登记或存证服务。</b><span>作品的权利依《著作权法》自动产生，登记与否不影响归属。
+      这里公布的是「谁做了什么」的依据与承诺，不办登记、不出证书、不代表任何官方备案。</span></li>
+    <li><b>不是募捐或支付平台。</b><span>不设账户、不代收代付、不垫付、不提现；账本不含任何金额字段。</span></li>
+    <li><b>不是撮合平台，也不是社交网络。</b><span>不推荐、不排名、不抽成，只记录已经发生的互助。</span></li>
+    <li><b>不是信用分。</b><span>不做评分、不生成可交易的信用资产；能被查到的只有事实。</span></li>
   </ul>
+
+  <h2>现在的状态</h2>
+  <p class="plain">测试期：名称在商标检索中，故标「暂行名」；展示层暂时下线（账本库存放方式调整中），
+     所以页面只留说明与接口入口。对外口径没变——账目结构、哈希链、锚值算法一行未动，
+     库里那份数据还是原来那份。</p>
 
   <h2>自己验一遍</h2>
   <p class="plain">页面上的锚值可以自己复算，不必信我们：仓库公开，两条命令，不需要账号、密钥或联网取数。
@@ -418,31 +431,35 @@ MINIMAL_PAGE = r"""<!doctype html>
     <li><a href="/download/allowed_signers">/download/allowed_signers</a><span>签名公钥（不装 git 也能取）；指纹与验法见名录 §10</span></li>
   </ul>
 
-  <h2>名录与署名</h2>
-  <p class="plain">谁做过什么、凭什么记他、名字该写在哪，都在一份公开名录里，不在对话里。
-     名录分三类，因为这三类人的依据不一样：写了东西的、录了数据的，署名是他们的权利，
-     也是我们分发时躲不掉的义务；出钱、出服务器、出地方的，<b>没有著作权</b>——单纯给钱
-     不产生作品，所以我们对他们只承诺列名、注明形式、随时可撤回，不承诺「署名权」。
-     承诺了什么、不承诺什么，名录里逐条写着，包括不承诺永久。</p>
+  <h2>接口（只读，无需账号与密钥）</h2>
   <ul class="links">
-    <li><a href="/download/CREDITS.md">/download/CREDITS.md</a><span>名录全文：三类人、登记依据、认领与退出、逐版快照</span></li>
-    <li><a href="/download/credits.json">/download/credits.json</a><span>机器可读的同一条记录，可与仓库里的那份逐字比对</span></li>
+    <li><a href="/api/ledger/items">/api/ledger/items</a><span>全部账目条目，逐条带哈希</span></li>
+    <li><a href="/api/ledger/verify">/api/ledger/verify</a><span>链校验结果：ok / first_bad / items</span></li>
+    <li><a href="/api/ledger/export">/api/ledger/export</a><span>导出件原文，它的 sha256 就是锚值</span></li>
+  </ul>
+
+  <h2>谁做了什么</h2>
+  <p class="plain">一份公开名录，写清三类人各自被承诺了什么：写代码与写文档的、录数据的、出钱出服务器出地方的。
+     前两类是著作权意义上的贡献，署名是他们本来就有的权利；第三类没有著作权——单纯给钱不产生作品，
+     所以只承诺列名、注明形式、可随时撤回，不承诺永久。</p>
+  <p class="plain"><b>先把可能的误解放这儿：这不是版权登记。</b>权利自动产生，不需要我们登记，
+     我们也不出证书、不做备案；名录做的只是把该写谁的名字写清楚，并公开判断依据，供人核对。</p>
+  <ul class="links">
+    <li><a href="/download/CREDITS.md">/download/CREDITS.md</a><span>名录全文：三类人、依据、认领与退出、逐版快照</span></li>
+    <li><a href="/download/credits.json">/download/credits.json</a><span>机器可读的同一条记录，可与仓库那份逐字比对</span></li>
     <li><a href="/download/REVIEWS.md">/download/REVIEWS.md</a><span>审查记录：一条提交凭什么算贡献、凭什么进名录</span></li>
     <li><a href="/download/reviews.json">/download/reviews.json</a><span>审查记录的机器可读副本，字段与约束见上一份</span></li>
   </ul>
-  <p class="plain">进名录不是「提交了就算」。一条提交先被审——改动能不能指认、作者能不能解释、
-     换个干净环境还跑不跑得通、许可与来源守不守得住；四条都过才进名录依据。审查记录同样公开，
-     当前是空的，因为没有第三方提交。另外一句要说清：<b>发布签名只能由作者本人出</b>，
-     维护者代签会把作者身份改写成他自己，那不是背书，是冒名。</p>
+  <p class="plain">进名录不是「提交了就算」：一条提交要先过四条判据——改动能不能指认、作者能不能解释、
+     换个干净环境还跑不跑得通、许可与来源守不守得住。审查记录同样公开，当前为空，因为没有第三方提交。</p>
 
   <h2>说明</h2>
-  <p class="plain">测试期：名称、口径、界面都还可能改。名称在商标检索中，所以标着「暂行名」。
-     表结构与字段定义见仓库的 <code>spec/ddl_w4.sql</code> 与 <code>repo/spec/</code> 下的 JSON Schema；
-     测试期的白皮书与协议尚未进仓库。</p>
+  <p class="plain">表结构与字段定义见仓库的 <code>spec/ddl_w4.sql</code> 与 <code>repo/spec/</code> 下的 JSON Schema；
+     白皮书与协议尚未进仓库，仍在测试期修订。</p>
   <p class="plain">页面由人手工维护；看着别扭、写得不对，欢迎直接找我们。</p>
 </div>
 <footer class="wrap" style="margin-top:1.5rem">
-  <span class="plain">© 2026 老夫 ｜ 众汲之井 ｜ drawcommons.org ｜ 最简版（展示层暂时下线）</span>
+  <span class="plain">© 2026 老夫 ｜ 众汲之井 ｜ drawcommons.org ｜ 测试期 · 展示层暂时下线</span>
 </footer>
 </body>
 </html>"""
