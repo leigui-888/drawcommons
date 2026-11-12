@@ -8,10 +8,13 @@ drawcommons.org, www.drawcommons.org {
 	encode zstd gzip
 
 	# 访问日志：docker logs 会随容器重建丢失，落盘才可回溯与统计。
+	# 保留期按时间而非仅按容量：隐私政策 3.2.4.2 / 3.5.1 写的是「不超过 30 天」，
+	# 而那两处写的必须与这里一致——承诺写在文本里，兑现写在配置里。
+	# roll_keep_for 设置后 roll_keep 被忽略，故只留前者（30 天 = 720h）。
 	log {
 		output file /data/access.log {
 			roll_size 20MiB
-			roll_keep 8
+			roll_keep_for 720h
 		}
 		format json
 	}
