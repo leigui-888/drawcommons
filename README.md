@@ -1,5 +1,9 @@
 # 众汲之井 · drawcommons
 
+> **本版本未生效。** 协议 v2.1-r5 处于 30 日公示期（起算 2026-11-12，计划生效日 2026-12-21）；
+> 三份文本尚未取得执业律师书面意见，生效日按顺延规则顺延。当前为 beta，账本内为 4 条
+> 结构验证样例（假 ID）。**可以试，不宜押。**
+
 **这是公开可读副本；发布口在 [drawcommons.org](https://drawcommons.org)。此处打 tag 不等于发版。**
 
 每一版的正式发布以 `drawcommons.org` 上带签名的 tag 与发布包为准：镜像站的 tag 被平台规则
@@ -13,6 +17,7 @@
 
 | 想了解 | 看 |
 | --- | --- |
+| **动手接入（十分钟，三个能跑的示例）** | [`repo/examples/README.md`](repo/examples/README.md) |
 | 项目当前版本与状态 | [`VERSION.md`](VERSION.md)、[`version.json`](version.json) |
 | 谁做了这个站（名录，逐版快照） | [`repo/CREDITS.md`](repo/CREDITS.md)、[`repo/credits.json`](repo/credits.json) |
 | 自己动手验证，不用信任何人 | [`REPRODUCE.md`](REPRODUCE.md)——三条判据，无需联网与凭据 |
