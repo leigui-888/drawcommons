@@ -44,6 +44,9 @@ examples/**/*.md                CC-BY-SA-4.0
 examples/**/*.py                Apache-2.0
 examples/**/*.mjs               Apache-2.0
 examples/**/*.sh                Apache-2.0
+examples/**/*.toml              Apache-2.0
+examples/**/*.json              Apache-2.0
+examples/**/*.license           Apache-2.0
 scripts/**                      Apache-2.0
 deploy/app/data/**              CC-BY-4.0
 deploy/**                       Apache-2.0
@@ -95,9 +98,9 @@ JSON 不能写注释，这不是可以通融的技术细节：**没有伴生文�
 
 | 项 | 状态 |
 | --- | --- |
-| 归属表 | ✅ **26 条路径模式**，覆盖全部 47 个已跟踪文件；`repo_lint` 的 R3（覆盖率）、R4（逐件声明）、R5（`spec/` 必须 CC0）据此判定 |
+| 归属表 | ✅ **29 条路径模式**，覆盖全部 51 个已跟踪文件；`repo_lint` 的 R3（覆盖率）、R4（逐件声明）、R5（`spec/` 必须 CC0）据此判定 |
 | 四份许可文件 | ✅ **4/4 全文**（2026-11-12 补齐，D-06 销项）。Apache-2.0 在 `LICENSE`，三份 CC 正文在 `licenses/`，各带溯源头与正文 SHA-256 |
-| 逐文件清单 | ✅ `MANIFEST.sha256`（46 条）：`sha256sum -c MANIFEST.sha256` 可逐字节复验。清单由 `evidence/regen_repo_manifest.py` 生成，不手写 |
+| 逐文件清单 | ✅ `MANIFEST.sha256`（50 条）：`sha256sum -c MANIFEST.sha256` 可逐字节复验。清单由 `evidence/regen_repo_manifest.py` 生成，不手写 |
 | 文件头/伴生文件 | ✅ R4 13/13：10 个头声明（7 个 `.py` + `compose.yml` + `daily.sh` + 示例 `check.sh`），3 个 `.license` 伴生（`spec/entry.schema.json`、`credits.json`、`reviews.json`） |
 | 仓库体检 | ✅ `repo_lint` **16/16**（2026-11-12 首次全绿；此前 R2 缺全文、R9 缺清单） |
 | 名录 | ✅ `CREDITS.md` + `credits.json`，由 R12/R13 双向校验（见下） |

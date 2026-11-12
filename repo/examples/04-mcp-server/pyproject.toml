@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
+#
+# 打包只有一个目的：发到 MCP Registry。Registry 只存元数据、不存代码，
+# 所以包必须先落在 PyPI 上，Registry 的条目才有东西可指。
+#
+# 两个决定：
+# 1. 源码仍是同目录的 server.py 一份，**没有副本**。代价是 wheel 里装的是顶层模块
+#    `server`（py-modules），而不是 `drawcommons_ledger/` 包——这是"不复制源码"换来的，
+#    写在这里而不是装作没这回事。真要当库用，先重构成包目录。
+# 2. 两个 console script 指向同一个 main：`drawcommons-ledger` 给人敲，
+#    `drawcommons-ledger-mcp` 与包同名，`uvx drawcommons-ledger-mcp` 才能直接跑起来。
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drawcommons-ledger-mcp"
+version = "0.1.0"
+description = "Read-only MCP server for a public audit ledger: entries, local hash-chain recheck, anchor."
+readme = "README-pypi.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [{ name = "老夫", email = "2379731846@qq.com" }]
+keywords = ["mcp", "model-context-protocol", "ledger", "audit", "read-only", "hash-chain"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://drawcommons.org"
+Repository = "https://github.com/leigui-888/drawcommons"
+Documentation = "https://github.com/leigui-888/drawcommons/tree/main/repo/examples/04-mcp-server"
+
+[project.scripts]
+drawcommons-ledger = "server:main"
+drawcommons-ledger-mcp = "server:main"
+
+[tool.setuptools]
+py-modules = ["server"]

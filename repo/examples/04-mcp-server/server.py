@@ -51,7 +51,7 @@ import urllib.error
 import urllib.request
 
 SERVER_NAME = "drawcommons-ledger"
-SERVER_VERSION = "0.1.0-beta"
+SERVER_VERSION = "0.1.0"   # 与 pyproject.toml / server.json 同值；beta 这件事写在 instructions 里
 DEFAULT_BASE = "https://drawcommons.org"
 TIMEOUT = 20                      # 秒。公网够用；卡住时不至于让客户端干等
 UA = f"{SERVER_NAME}/{SERVER_VERSION} (+https://drawcommons.org)"
@@ -466,6 +466,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="众汲之井账本 MCP server（stdio，只读）")
     ap.add_argument("--base", default=os.environ.get("LEDGER_BASE", DEFAULT_BASE),
                     help=f"站点根地址，默认 {DEFAULT_BASE}（也可用环境变量 LEDGER_BASE）")
+    ap.add_argument("--version", action="version",
+                    version=f"%(prog)s {SERVER_VERSION}")
     a = ap.parse_args(argv)
     if not a.base.startswith(("http://", "https://")):
         print(f"--base 必须以 http:// 或 https:// 开头：{a.base}", file=sys.stderr)

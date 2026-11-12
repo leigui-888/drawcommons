@@ -1,0 +1,11 @@
+SPDX-License-Identifier: Apache-2.0
+SPDX-FileCopyrightText: 2026 老夫 <2379731846@qq.com>
+
+本文件是 server.json 的许可归属声明（伴生文件）。
+JSON 格式无法写入注释，故许可归属不能写在被许可文件内部。
+
+服务端代码（server.py）是 Apache-2.0；这份 server.json 是 MCP Registry 的条目元数据，
+随代码同许可，避免"元数据归谁"变成一个说不清的问题。
+
+许可：Apache License 2.0
+法律文本：见仓库根 repo/LICENSE

@@ -2,7 +2,7 @@
 # 生成：cd repo && python ../evidence/regen_repo_manifest.py
 # 校验：sha256sum -c MANIFEST.sha256
 # 口径：git ls-files --cached --others --exclude-standard（与 repo_lint 的 tracked_files 同源）
-# 生成时点：2026-11-12　条目：46
+# 生成时点：2026-11-12　条目：50
 #
 # 本清单只固定字节，不解释内容；条款与规范的含义以各文件正文为准。
 5517675ce0b17dfe7e5853aaff82f3ff362929e0826584c56bf627ca3a8020aa  CONTRIBUTING.md
@@ -13,7 +13,7 @@ c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4  LICENSE
 03062c92321ac53acf2d894713544a37209e3ebb9fe805d17b851ff9ef99875b  LICENSE-CC-BY-SA-4.0.md
 c25a4bca00831b6d235cf67f230c747ee67a01a84e41879ca9ee191557cc4c8d  LICENSE-CC0-1.0.md
 d2bf3e6904f4a48612ee3f700749235d04224953a852e6c31685c2b2a6799b57  NOTICE
-bfcb2a155b97300e40425b5e9aef145299edc803329151a849ab017ed1a0922d  README.md
+701908f020540093fe16ff72236f8fa4f104e66d6225517aa1a53b34ddf78c04  README.md
 b93108bc1a1c920d3a1a5be8999619af9be11d35ee97055eb0073b0465e15494  REVIEWS.md
 53e2c2817a96c2fb246d684f646c231ee1f7eeea473f8a5f19358af9275fd117  TRADEMARK.md
 f9ad51b3b30e49ec6efb8ffe8c33a17d1fbeced697c0eb61ce9aac38732fa40f  allowed_signers
@@ -36,9 +36,13 @@ d1405bcc0ffd74a98709699b4a2816f4262f1c6ab8f238fc67ea4fc7f810c604  deploy/app/Doc
 962d08b3094038c20241752cdcebe12d3618aa0444d3720c22650921d500b560  examples/02-consume-json/summarize.mjs
 cb5702ecfe516e24653290473028ffd97dcbca910b322c9f1002aa47df4a31d9  examples/03-monitor-shell/README.md
 b41f33f23e5d1674f144b05080699184c9de5944c27bd85a3c962f1d7162da4d  examples/03-monitor-shell/check.sh
-acfab6c3a67aff25320bb5ed02891870da5d69142738c509b8e5572d5afd36c7  examples/04-mcp-server/README.md
+973ff7b91e9b4fa0f108448a921118dd5f553634015b8bd2b1a11e98961b3a75  examples/04-mcp-server/README-pypi.md
+6addf492d3f43fcb2fa534631732be7a3183ab310d50a3748222620732ee513b  examples/04-mcp-server/README.md
+1a5ee3c578c71a75f25783ffb4b6508a595e1b6c9cb2a10aa4e9aa6bd69dcb1b  examples/04-mcp-server/pyproject.toml
 7b4985ed0b66fdcae2bee38fed6f05fb78c32324bfe398a699107e440bf0919d  examples/04-mcp-server/selftest.py
-4645646ceea493abe5f39f97cbc9b0dc3bf8e555ad39687b10d2e17cf08a2fdd  examples/04-mcp-server/server.py
+b33c702874ebad05fb46ae30eedcb8e474d8713772eaee495f84715faf160d04  examples/04-mcp-server/server.json
+55fcca3e8b3b9922d902e1f597b578761cb3308d7553b059b3b75bfd7e11fe1d  examples/04-mcp-server/server.json.license
+32b94d80e8f33092a3a924aa09b7ec3643f0146b86223321cbdf0a5882ecbb1d  examples/04-mcp-server/server.py
 f5b23af34b42754a11e5bfb25b8d6c69745c039e55087620856e961e47a974bb  examples/README.md
 c16ec726bd3b1ad55cfd8e2720702fbaf2c34de720447c847e90da0a0d42e3af  examples/index.html
 e534b4e9fc60180beb8b9a051be3b20b63ee0c1b0eff7a1a608b8266afc3c5a2  licenses/CC-BY-4.0.txt

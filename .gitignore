@@ -18,3 +18,9 @@ __pycache__/
 # 写成 examples/*/out.html 匹配不到底下那层，git 仍会把它当未跟踪文件算进清单。
 repo/examples/*/out.html
 repo/examples/*/state.tsv
+
+# 打包产物：wheel/sdist 与 egg-info 是生成物，随时可由 `python -m pip wheel .` 重出，
+# 不该入库，也不该进两份清单。
+repo/examples/*/dist/
+repo/examples/*/build/
+repo/examples/*/*.egg-info/

@@ -158,6 +158,32 @@ python3 selftest.py
 
 ---
 
+## 要发到 MCP Registry 的话
+
+Registry 只存元数据、不存代码，所以条目必须指向一个真实存在的包。本目录因此多了三样东西，
+都是为发版准备的，读代码不需要它们：
+
+| 文件 | 为什么在 |
+| --- | --- |
+| `pyproject.toml` | 打成 wheel，发到 PyPI。**源码仍只有 `server.py` 一份**，没有副本 |
+| `README-pypi.md` | PyPI 长描述；第一行是 `mcp-name:` 标记，Registry 用它证明包是你的 |
+| `server.json` | Registry 条目：`io.github.leigui-888/drawcommons-ledger`，pypi / stdio / `uvx` |
+
+```bash
+python3 -m pip wheel --no-deps -w dist .     # 出 wheel，不联网装依赖
+python3 -m pip install --no-deps --target /tmp/x dist/*.whl   # 试装
+```
+
+三处版本号必须同值（`pyproject.toml` / `server.json` 的 `version` 与 `packages[0].version`），
+改一处改三处。包的版本一旦发出去就不可撤回（PyPI 只能 yank，不能删），所以宁可慢一版。
+
+**打包的代价写在明处**：wheel 里装的是顶层模块 `server`，不是 `drawcommons_ledger/` 包——
+这是"不复制源码"换来的。真要当库用，得先重构成包目录。
+
+发布本身需要 PyPI 账号与 API token（只有持有者能做），步骤见 `_ops/R1-投放清单.md`。
+
+---
+
 ## 许可
 
 Apache-2.0（与 `src/` 同）。拿去改、拿去嵌进你自己的 agent，保留版权与许可声明即可。

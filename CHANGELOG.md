@@ -1,5 +1,56 @@
 # CHANGELOG
 
+## 2026-11-12 夜（十四）· MCP 打包：为了进 Registry，先把包做出来（未打 tag）
+
+原计划是「去 `modelcontextprotocol/servers` 提一条列表 PR」。**这条路已经关了**，
+核实于 2026-11-12，CONTRIBUTING 原文：
+
+> **We accept issues, not pull requests.** … Pull requests against this repository are
+> opened by the repository maintainers only.
+
+> We don't accept: — **New server implementations.** Publish them to the MCP Server
+> Registry instead. — **Server listings.** The README's list of third-party servers has
+> been retired in favor of the Registry.
+
+也就是说：官方入口只剩 MCP Registry，而 Registry **只存元数据、不存代码**——条目必须指向
+一个真实存在的包。所以这一轮做的是「包」，不是「文案」。
+
+### 新增四个文件（都在 `repo/examples/04-mcp-server/`）
+
+| 文件 | 作用 |
+| --- | --- |
+| `pyproject.toml` | 打成 wheel。源码仍只有 `server.py` 一份，**没有副本** |
+| `README-pypi.md` | PyPI 长描述；首行是 `mcp-name:` 标记（Registry 靠它证明包是你的） |
+| `server.json` | Registry 条目：`io.github.leigui-888/drawcommons-ledger`，pypi / stdio / `uvx` |
+| `server.json.license` | JSON 写不了注释，按既有规矩给伴生文件（R4 逼出来的，见下） |
+
+同时把 `SERVER_VERSION` 从 `0.1.0-beta` 改成 `0.1.0`，与 `pyproject.toml`、`server.json`
+三处同值；beta 这件事写在握手的 `instructions` 里，不写在版本号里——**预发布版本号会让
+`uvx` 默认解析不到**。
+
+### 三个决定，都写在明处
+
+1. **不复制源码**。wheel 里装的是顶层模块 `server`（`py-modules`），不是
+   `drawcommons_ledger/` 包。这是「源码只有一份」的代价，写进 README 与 pyproject 注释；
+   真要当库用，得先重构成包目录。
+2. **两个 console script 指向同一个 `main`**：`drawcommons-ledger` 给人敲，
+   `drawcommons-ledger-mcp` 与包同名，`uvx drawcommons-ledger-mcp` 才能直接跑。
+3. **不发预发布版本**。0.1.0 一次到底，写错就只能发 0.1.1——PyPI 只能 yank 不能删。
+
+### 判据逼出来的一件事
+
+新增 `server.json` 后 `repo_lint` 从 16/16 掉到 15/16：R4 要求 JSON 有 `.license` 伴生。
+补上伴生文件后，R3 又红——归属表里没有 `examples/**/*.license` 这类模式。
+两条都是既有规矩在按设计工作，不是新问题。归属表 26 → 29 条模式，覆盖 51 个文件。
+
+### 实测
+
+- wheel 建得出（11,881 B，`py3-none-any`，零 `Requires-Dist`），元数据里 `mcp-name` 在
+- 装到临时目录后握手 + `ledger_verify` 通过（`verdict: agree`，锚值 `cdec34e5…`）
+- `repo_lint` 16/16、regen 35/35 + 34/34、子清单 50/50、build_ledger exit 0、check_spec 4/4
+
+**未打 tag**：这一轮是发版前的准备，等 PyPI 上的 0.1.0 与 tag 对得上时再一起签。
+
 ## 2026-11-12 夜（十三）· rc18：MCP server（示例 4）——R1 里唯一「现在就能投」的东西
 
 R1 投放清单第二节第一项写的是「MCP server ❌ 没有 → **不可投放**，要先写」。
