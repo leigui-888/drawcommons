@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# 构建上下文只留一个文件：镜像里也确实只有它。
+# 本仓库有整棵 0-snapshot 与证据文件，全打进去等于把 200MB 当作构建上下文。
+*
+!repo/examples/04-mcp-server/server.py

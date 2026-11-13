@@ -67,6 +67,32 @@ Windows 上命令写 `python`（或 `py`，参数加 `-3`），路径用正斜�
 
 ---
 
+## 用 Docker 跑（目录站就是这么跑的）
+
+仓库根有一个 `Dockerfile`，只为这件事存在：让目录站（Glama）能构建、能起、能问清三个 tool。
+
+```bash
+# 构建上下文是仓库根，不是本目录（代码在 repo/ 下，镜像是从根上取的）
+docker build -t drawcommons-ledger-mcp .
+
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+  | docker run --rm -i drawcommons-ledger-mcp
+```
+
+`-i` 不能省：stdin 一关，stdio server 就退出了。
+
+镜像里只有一件事：`server.py` 一个文件。没有 pip install、没有构建期联网、没有 root
+（uid 10001），74 MB，全部来自 `python:3.12-alpine` 本身。`.dockerignore` 把构建上下文
+压到只剩那一个文件——本仓库有整棵 `0-snapshot`，不这么写等于每次构建都上传几百兆。
+
+为什么 Dockerfile 放仓库根而不放本目录：Glama 只认仓库根的 Dockerfile，并且拿根当构建
+上下文。代价是多一层 `COPY repo/examples/...`，写在这里，好过让人找不到入口。
+
+---
+
 ## 三个 tool
 
 | tool | 参数 | 返回 | 什么时候用 |
