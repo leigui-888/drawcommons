@@ -19,12 +19,36 @@
 | 想了解 | 看 |
 | --- | --- |
 | **动手接入（十分钟，四个能跑的示例）** | [`repo/examples/README.md`](repo/examples/README.md) |
+| **MCP 服务器（AI 客户端直连账本）** | [`repo/examples/04-mcp-server/README.md`](repo/examples/04-mcp-server/README.md) |
 | 项目当前版本与状态 | [`VERSION.md`](VERSION.md)、[`version.json`](version.json) |
 | 谁做了这个站（名录，逐版快照） | [`repo/CREDITS.md`](repo/CREDITS.md)、[`repo/credits.json`](repo/credits.json) |
 | 自己动手验证，不用信任何人 | [`REPRODUCE.md`](REPRODUCE.md)——三条判据，无需联网与凭据 |
 | 这套账本怎么部署 | [`repo/deploy/README.md`](repo/deploy/README.md) |
 | 代码与数据的许可条件 | [`repo/README.md`](repo/README.md) |
 | 版本间改了什么 | [`CHANGELOG.md`](CHANGELOG.md) |
+
+## MCP server (Model Context Protocol)
+
+This repository contains a complete MCP server implementation:
+[`repo/examples/04-mcp-server/`](repo/examples/04-mcp-server/README.md) — a single-file
+`server.py` (~590 lines) speaking the MCP protocol over stdio, **zero dependencies**
+(Python 3.8+ standard library only; no `mcp` SDK, no pydantic, no httpx — the full rationale
+is in that directory's README).
+
+It wraps the same three read-only endpoints as the public JSON API into three MCP tools:
+
+| MCP tool | What it does |
+| --- | --- |
+| `ledger_items` | Fetch ledger entries; entry count and data notice are taken live, never hardcoded |
+| `ledger_verify` | Recompute the hash chain locally over the fetched entries — verification happens on your machine |
+| `ledger_export` | Fetch the canonical export bytes and the current anchor for offline recomputation |
+
+The server is published on **PyPI** as
+[`drawcommons-ledger-mcp`](https://pypi.org/project/drawcommons-ledger-mcp/)
+(`pip install drawcommons-ledger-mcp`, or `uvx drawcommons-ledger-mcp`) and registered in the
+official **MCP Registry** as `io.github.leigui-888/drawcommons-ledger`. Connect it in
+Claude Code, Claude Desktop or Cursor and the model can query the ledger and re-verify the
+hash chain itself, instead of you pasting numbers into the chat.
 
 ## 验证 tag 签名
 
