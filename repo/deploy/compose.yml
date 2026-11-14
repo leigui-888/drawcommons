@@ -17,6 +17,7 @@ services:
       - ./git:/srv/git:ro
     depends_on:
       - app
+      - ingest
 
   app:
     build: ./app
@@ -43,6 +44,32 @@ services:
     # 可读（docker ps 显示 healthy/unhealthy），供外部监控或人工判断。
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # 写入面。与 app 同一个 build context、不同 Dockerfile。
+  #
+  # **同一个库，两种挂载权限**：app 仍旧 `:ro`，只有这一个容器 `:rw`。
+  # 这就是「公开页在物理上没有写库能力」这条承诺的兑现方式——不是靠代码里不写
+  # INSERT，而是靠内核不让它写。合成一个进程就得把 app 的卷改成读写，那条承诺
+  # 当场退化成注释。
+  ingest:
+    build:
+      context: ./app
+      dockerfile: Dockerfile.ingest
+    container_name: ledger-ingest
+    restart: unless-stopped
+    expose:
+      - "8001"
+    volumes:
+      # 唯一一个以读写方式挂账本库的容器。宿主目录须 chown 999:999。
+      - ./app/data:/srv/data:rw
+    environment:
+      - LEDGER_DB=/srv/data/ledger.db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/healthz', timeout=3).status == 200 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3

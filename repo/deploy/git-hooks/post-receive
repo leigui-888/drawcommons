@@ -114,7 +114,11 @@ APP_DIR=${DRAWCOMMONS_APP_DIR:-/opt/drawcommons/app}
 COMPOSE_FILE=${DRAWCOMMONS_COMPOSE:-/opt/drawcommons/compose.yml}
 if [ -d "$APP_DIR" ] && command -v docker >/dev/null 2>&1; then
     app_changed=0
-    for f in app.py ledger_hash.py legal.py Dockerfile; do
+    # r6 起同一个 build context 出两个镜像：app（只读）与 ingest（写入面）。
+    # 少同步一个文件的后果是「仓库里改了、线上构建用的还是旧的」，而日志一切正常
+    # ——这正是 2026-11-12 那次四小时未上线的原因，所以按 context 全量列。
+    for f in app.py ledger_hash.py ledger_store.py legal.py Dockerfile \
+             ingest.py signing.py Dockerfile.ingest agent.md; do
         if head_file "repo/deploy/app/$f" > "$APP_DIR/$f.new" 2>/dev/null && [ -s "$APP_DIR/$f.new" ]; then
             if cmp -s "$APP_DIR/$f.new" "$APP_DIR/$f"; then
                 rm -f "$APP_DIR/$f.new"
@@ -142,9 +146,11 @@ if [ -d "$APP_DIR" ] && command -v docker >/dev/null 2>&1; then
     if [ "$app_changed" = 1 ]; then
         # 重建失败只记日志、让推送照常成功：站点旧代码比"推不上去"好排查，
         # 且回滚推送不是这里该做的事（违反不可改写）。
-        ( cd "$(dirname "$COMPOSE_FILE")" && docker compose -f "$COMPOSE_FILE" up -d --build app ) \
-            > /dev/null 2>&1 || log "app rebuild FAILED — 站点仍是旧代码，需人工处理"
-        log "app layer deployed (rebuild)"
+        # 两个服务一起重建：ledger_store.py 是两个镜像共用的，只重建 app 会让
+        # 写入面继续跑旧模块——而它照样 healthy。
+        ( cd "$(dirname "$COMPOSE_FILE")" && docker compose -f "$COMPOSE_FILE" up -d --build app ingest ) \
+            > /dev/null 2>&1 || log "app/ingest rebuild FAILED — 线上仍是旧代码，需人工处理"
+        log "app + ingest layer deployed (rebuild)"
     else
         log "app layer unchanged"
     fi

@@ -41,12 +41,40 @@ drawcommons.org, www.drawcommons.org {
 		file_server
 	}
 
-	reverse_proxy app:8000 {
-		# 覆写而非追加：Caddy 默认会把客户端自带的 X-Forwarded-For 追加进链条，
-		# 那样客户端能伪造来源 IP，日志就不可信。这里固定成真实对端。
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto {scheme}
-		# 上游 Server 头带出 Python 版本号，去掉
-		header_down -Server
+	# 需求单发现口是**读**，所以归 app 而不是 ingest。
+	# `/api/v1/*` 那条通配把整个前缀给了写入面，但 `GET /api/v1/requests` 不写库、
+	# 不验签、读的是需求单而不是账目——放进写面会让「ingest 只做写」这条部署口径
+	# 变模糊，而那条口径正是「公开页物理上不能写」的另一半。
+	# handle 组按匹配器具体性排序，`/api/v1/requests*` 比 `/api/v1/*` 更具体，
+	# 永远排在前面；`/api/v1/request`（单数，写口）不会被它吃掉，两者互不重叠。
+	handle /api/v1/requests* {
+		reverse_proxy app:8000 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_down -Server
+		}
+	}
+
+	# 写入面（r6）：三条受控 POST。与公开页是两个容器、两条路径。
+	# 放在 catch-all 之前：Caddy 的 handle 组按匹配长度排序，`handle { ... }`
+	# 无匹配器，永远最后兜底——所以「/api/v1/* 走 ingest、其余走 app」不需要
+	# 任何显式优先级，顺序由匹配器本身决定。
+	handle /api/v1/* {
+		reverse_proxy ingest:8001 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_down -Server
+		}
+	}
+
+	handle {
+		reverse_proxy app:8000 {
+			# 覆写而非追加：Caddy 默认会把客户端自带的 X-Forwarded-For 追加进链条，
+			# 那样客户端能伪造来源 IP，日志就不可信。这里固定成真实对端。
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			# 上游 Server 头带出 Python 版本号，去掉
+			header_down -Server
+		}
 	}
 }

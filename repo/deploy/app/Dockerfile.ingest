@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 老夫 <2379731846@qq.com>
+# 写入面（ingest）。与只读的 app 共用同一个 build context（./app），不同 Dockerfile。
+#
+# 为什么只装这四个 .py：写入面没有展示层，app.py / legal.py / data/ 一概不进镜像。
+# 少一个模块就少一块能被打的地方，而它一个都用不上。
+FROM python:3.12-slim
+WORKDIR /srv
+
+COPY ledger_hash.py ledger_store.py signing.py ingest.py ./
+
+# 验签用 ssh-keygen（SSHSIG，OpenSSH ≥ 8.0 才有 -Y verify）。这是本镜像唯一的
+# 系统依赖，也是刻意选的：不自己实现 Ed25519，失败方式是「验不过」而不是「验错了」。
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssh-client \
+ && rm -rf /var/lib/apt/lists/*
+
+# uid/gid 固定 999，与 app 镜像的 appuser 同一个数字。
+# 这不是巧合：宿主 ./app/data 以 999:999 存在，两个容器都要进得去——app 只读、
+# ingest 读写。换一个数字的后果是「容器起来了、日志没报错、写入静默失败」。
+RUN groupadd -g 999 ingest \
+ && useradd -r -u 999 -g ingest -s /usr/sbin/nologin ingest \
+ && mkdir -p /srv/data \
+ && chown -R ingest:ingest /srv
+USER ingest
+
+ENV PORT=8001
+EXPOSE 8001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/healthz', timeout=3).status == 200 else 1)"
+
+CMD ["python", "ingest.py"]
