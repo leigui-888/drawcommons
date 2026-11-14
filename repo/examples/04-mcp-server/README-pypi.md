@@ -5,9 +5,12 @@
 **Read-only** MCP server for a public audit ledger. Zero dependencies (Python standard
 library only, stdio transport). No accounts, no API keys, no write path.
 
-> **Beta.** The ledger currently holds 4 structural samples with **fake IDs**, not real
-> records, and the governing protocol is published for comment but not yet in force.
-> Cite these numbers only with that caveat attached.
+> **Beta.** This ledger currently holds test data, not real records. The `instructions`
+> block sent at handshake is built **at that moment** from the live site: it states how many
+> entries exist and quotes the site's own `data_notice` about what that data is. If the
+> fetch fails, it asserts no number at all. Protocol version and its comment status are not
+> hardcoded here — a version string written into a package goes stale, and a stale version
+> string is worse than none: see <https://drawcommons.org/terms>.
 
 ## Run
 

@@ -54,7 +54,7 @@
 <div class="wrap">
 
   <ul class="status">
-    <li class="warn">协议 v2.1-r5 公示中，尚未生效</li>
+    <li class="warn">协议 v2.1-r6 公示中，尚未生效</li>
     <li>计划生效日 2026-12-21</li>
     <li>beta · 账本为 4 条结构验证样例（假 ID）</li>
   </ul>
@@ -85,6 +85,8 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum</code></pre>
       <h3><a href="01-verify-chain/README.md">01 · 验链</a></h3>
       <p>Python 3.8+，零依赖。重算哈希、查链、比对锚值。<br>看它报警：<code>--tamper</code></p>
       <pre><code>python3 verify.py</code></pre>
+      <p>同目录 <code>verify-confirm.py</code>：验受方确认的签名（需 <code>ssh-keygen</code>）。
+        「无法验」不等于「通过」，两者都不写成「已确认」。</p>
     </div>
     <div class="card">
       <h3><a href="02-consume-json/README.md">02 · 消费</a></h3>
@@ -129,7 +131,7 @@ curl -s https://drawcommons.org/api/ledger/export | sha256sum</code></pre>
   </table>
 
   <footer>
-    众汲之井 2.1 · 协议 v2.1-r5（公示中）· 本页为静态文件，可离线打开，不依赖本站任何脚本。<br>
+    众汲之井 2.1 · 协议 v2.1-r6（公示中）· 本页为静态文件，可离线打开，不依赖本站任何脚本。<br>
     更细的说明在各示例目录的 README；仓库级许可归属见 <code>../README.md</code>。
   </footer>
 </div>
