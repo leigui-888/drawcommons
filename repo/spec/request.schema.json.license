@@ -1,0 +1,13 @@
+SPDX-License-Identifier: CC0-1.0
+SPDX-FileCopyrightText: 2026 老夫 <2379731846@qq.com>
+
+本文件是 request.schema.json 的许可归属声明（伴生文件）。
+JSON 格式无法写入注释，故许可归属不能写在被许可文件内部。
+
+许可：CC0 1.0 Universal（公有领域贡献）
+法律文本：https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+附加说明（不构成许可条件，只是让引用者知道该看哪儿）：
+本规范与 entry.schema.json 同为 CC0，可任意复制、改写、商用，不需署名。
+实现者若只抄一份文件，须同时抄走 request.md 里 §1「为什么不进哈希链」
+与 §5「双签签什么」——两段写的是本规范成立的前提，不是补充说明。

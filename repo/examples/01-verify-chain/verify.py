@@ -89,8 +89,13 @@ def check_chain(items: list[dict]) -> tuple[bool, int | None, str]:
     return True, None, f"链尾 {tail[:16]}…"
 
 
-def check_anchor(base: str, quiet: bool) -> tuple[bool, str]:
-    raw = get(base.rstrip("/") + "/api/ledger/export", binary=True)
+def check_anchor(base: str, raw: bytes) -> tuple[bool, str]:
+    """页面印的锚值 vs 导出件字节算出来的。
+
+    `raw` 由调用方传进来：同一份字节既算锚值又数确认条数，只取一次。
+    早先这里自己再取一次，于是 items 与 export 是两次独立 GET——中间只要有
+    一次写入，链检查与锚值检查比对的就不是同一版数据，两个结论拼不成一句话。
+    """
     actual = hashlib.sha256(raw).hexdigest()
     printed = page_anchor(base)
     if printed is None:
@@ -117,44 +122,82 @@ def main() -> int:
     a = ap.parse_args()
     base = a.base.rstrip("/")
 
+    # 只取一次：导出件是**同一份字节**的来源——链、确认条数、锚值都由它算。
+    # 早先 items 与 export 是两次独立 GET，中间只要有一次写入，两个结论就不是
+    # 同一版数据；而这条脚本的全部价值在于「三个结论合起来能说明一件事」。
     try:
-        payload = get(base + "/api/ledger/items")
+        raw_export = get(base + "/api/ledger/export", binary=True)
     except Exception as e:                                   # noqa: BLE001
         print(f"取数失败：{e}", file=sys.stderr)
+        print("（这是「取不到数据」，不是「校验不通过」——退出码 2）", file=sys.stderr)
         return 2
 
-    items = payload.get("items") or []
+    try:
+        payload = json.loads(raw_export.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError) as e:
+        print(f"导出件不是 JSON（{type(e).__name__}）：{e}", file=sys.stderr)
+        print("（拿到了字节但不是账本——多半是代理错误页；退出码 1）", file=sys.stderr)
+        return 1
+    if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
+        print("导出件里没有 items 数组——不是账本导出格式，无法验（退出码 1）", file=sys.stderr)
+        return 1
+
+    items = payload["items"]
     if a.tamper:
         items = tamper(items)
         if not a.quiet:
             print("⚠ 已篡改第 2 条的 unit 字段（演示用）\n")
 
     ok_chain, bad_at, why = check_chain(items)
+
+    # 确认层（v1.4 起导出件多出的顶层键）。**只报数，不假装验过**：验确认签名要调
+    # ssh-keygen，而本脚本的承诺是「零依赖、只要标准库」。两件事分开说，比为了完整性
+    # 把依赖悄悄加进来诚实。
+    confs = payload.get("confirmations")
+    n_conf = len(confs) if isinstance(confs, list) else 0
+
     if not a.quiet:
         print(f"条目数     {len(items)}")
         print(f"data_notice {payload.get('data_notice', '')}")
+        if confs is not None:
+            print(f"受方确认   {n_conf} 条（本脚本只报数，不验签名——"
+                  f"要验跑 verify-confirm.py）")
         print()
 
-    # 演示模式只跑链检查：锚值是线上真实字节，与本地篡改后的链不可比
-    ok_anchor, anchor_why = (True, "（演示模式跳过）") if a.tamper else check_anchor(base, a.quiet)
+    # 演示模式只跑链检查：改的是本地那份 items，线上锚值比的是**没改过**的字节，
+    # 两者不可比。所以这里如实报 skipped——早先写的是 True，等于替一个没做的
+    # 检查签字，而 quiet 下连「跳过」两个字都不会出现。
+    if a.tamper:
+        ok_anchor, anchor_why = "skipped", "（演示模式：改的是本地那份，与线上锚值不可比）"
+    else:
+        try:
+            ok_anchor, anchor_why = check_anchor(base, raw_export)
+        except Exception as e:                               # noqa: BLE001
+            print(f"取数失败（/ledger）：{e}", file=sys.stderr)
+            print("（页面拿不到 = 取不到数据，不是锚值对不上——退出码 2）", file=sys.stderr)
+            return 2
 
     if a.quiet:
         print(f"chain_ok={ok_chain} anchor_ok={ok_anchor} items={len(items)}"
+              + (f" confirmations={n_conf}" if confs is not None else "")
               + (f" first_bad={bad_at}" if not ok_chain else ""))
     else:
         print(f"  {'✅' if ok_chain else '❌'} 链完整　{why}")
-        print(f"  {'✅' if ok_anchor else '❌'} 锚值一致　{anchor_why}")
+        mark = "—" if ok_anchor == "skipped" else ("✅" if ok_anchor else "❌")
+        print(f"  {mark} 锚值一致　{anchor_why}")
         print()
         if not ok_chain:
             print(f"结论：第 {bad_at} 条（自 0 起）对不上。")
             print("      这意味着该条记录在入链后被改过，或者链被整段替换过。")
             print("      注意：这不能证明是运营方改的，只能证明「你现在拿到的这份」")
             print("      与当初入链的那份不是同一份。")
-        elif ok_anchor:
+        elif ok_anchor is True:
             print("结论：三项都对得上。这只证明「你拿到的数据与页面公示的一致」，")
             print("      不证明数据内容为真——账本记的是申报与确认，不是事实本身。")
+        else:
+            print("结论：只验了链（演示模式跳过了锚值比对）。")
 
-    return 0 if (ok_chain and ok_anchor) else 1
+    return 0 if (ok_chain and ok_anchor is True) else 1
 
 
 if __name__ == "__main__":

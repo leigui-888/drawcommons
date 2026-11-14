@@ -32,10 +32,22 @@ node summarize.mjs            # 写出 out.html
 | 身份 | `type` `entry_id` `mutual_id` `from_agent_id` `to_agent_id` | `type` 只有 `give` / `receive` / `payback` 三态 |
 | 内容 | `category` `quantity` `unit` `note` | **没有金额字段，永远不会有**——资金面整体不在本规范内 |
 | 上下文 | `occurred_at` `scope` `scope_unresolved` `magnitude` `duration_hours` | `scope: mutual` 表示双边互助 |
-| 可核验 | `verifiability` `window_expires_at` `rule_version` | `verifiability` 是**标签**：`self_reported` / `counterparty_confirmed` / `third_party`。它是申报者的说法，不是系统的判定 |
+| 可核验 | `verifiability` `window_expires_at` `rule_version` | `verifiability` 是**标签**且**永远停在 `self_reported`**（条目哈希覆盖全部字段、表 append-only，改这一列链就断）。对方确认不在条目里——见下一节 |
 | 链 | `prev_hash` `hash` | 最后两个，用于示例 1 的本地重算 |
 
 字段的权威定义在 [`spec/entry.schema.json`](../../spec/entry.schema.json)（CC0，随便用）。
+
+**同一次交付在账本里是一对。** 需求单进到 `delivered` 那一次会同时生成两条：`give`
+（`g-<request_id>`，给方是认领方、受方是发布方）与 `receive`（`r-<request_id>`，带
+`evidence_uri`），共用 `mutual_id = m-<request_id>`。所以按 `mutual_id` 分组时，`m-rq_…`
+下面通常正好是这两条；`m-` 后面接的不是 `rq_` 的，是 v2.2 之前的历史行，格式不同属正常。
+
+**对方确认在导出件的 `confirmations` 里，与 `items` 并列。**
+`GET /api/ledger/export` 的顶层是四个键：`confirmations` / `data_notice` / `genesis` / `items`。
+每条确认带 `kind`、`entry_id`、`party_id`、`key_fp`、`pubkey`、`sig`、`signed_at`——
+**带 `pubkey` 是为了让你不必回来问「这个主体用哪把钥」**；不带 `payload`（按规则自己重建：
+`drawcommons-confirm-v1\n<entry_id>\n<hash>\n`）；也不带 `entry_hash`（否则你会拿它验它自己，
+条目被换掉也发现不了）。批量接口 `/api/ledger/items` 只给条目，要确认请取导出件。
 
 ## 两个容易做错的地方
 

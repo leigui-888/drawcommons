@@ -11,10 +11,36 @@ v1.3 起把"主体展示与同意撤回"纳入自测：
 import sqlite3, os, sys
 
 DB = os.path.join(os.path.dirname(__file__), "ledger_w4.db")
-# C0 起 DDL 唯一源为 spec/ddl_w4.sql；保留同目录回退，便于在 0-snapshot 内单独复跑冻结基线。
+# C0 起 DDL 唯一源为 spec/ddl_w4.sql（v1.3 基线）；v2.2 起在其后追加 spec/ddl_v1.4.sql。
+# 两个文件按顺序执行：先基线后增量。分开而不是合并，是因为 v1.3 的字节已被 tag 固定，
+# 原地追加会造成「同一版本号两份 ddl_w4.sql」。保留同目录回退，便于在 0-snapshot 内复跑。
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_CANDS = [os.path.join(_HERE, "..", "spec", "ddl_w4.sql"), os.path.join(_HERE, "ddl_w4.sql")]
-DDL_PATH = next((p for p in _CANDS if os.path.exists(p)), _CANDS[-1])
+
+
+def _ddl_paths() -> list[str]:
+    names = ("ddl_w4.sql", "ddl_v1.4.sql")
+    out = []
+    for n in names:
+        cands = [os.path.join(_HERE, "..", "spec", n), os.path.join(_HERE, n)]
+        out.append(next((p for p in cands if os.path.exists(p)), cands[-1]))
+    return out
+
+
+DDL_PATHS = _ddl_paths()
+
+# 用法：
+#   python3 evidence/build_ledger.py                      # 默认：重建 evidence/ledger_w4.db，跑全部自测
+#   python3 evidence/build_ledger.py --db /tmp/x.db       # 换输出路径（判据脚本用临时库，不碰正式产物）
+#   python3 evidence/build_ledger.py --ddl ddl_w4.sql     # 只跑到某一版（用来造「旧库」做迁移测试）
+if "--db" in sys.argv:
+    DB = sys.argv[sys.argv.index("--db") + 1]
+if "--ddl" in sys.argv:
+    _only = sys.argv[sys.argv.index("--ddl") + 1]
+    DDL_PATHS = [p for p in DDL_PATHS if os.path.basename(p) == _only]
+    if not DDL_PATHS:
+        print("FAIL 未知 --ddl：%s" % _only, file=sys.stderr)
+        sys.exit(2)
+
 def _reset(db):
     """把库恢复到可重建状态。优先删文件；删不掉（占用/权限/安全策略）就地清空。
 
@@ -49,9 +75,13 @@ INSERT INTO ledger_give(give_id,mutual_id,from_agent_id,to_agent_id,category,qua
 INSERT INTO ledger_receive(receive_id,mutual_id,state,points) VALUES('r_1','m1','delivered',0);
 INSERT INTO ledger_payback(payback_id,mutual_id,points) VALUES('p_1','m1',0);
 """)
-ddl = open(DDL_PATH, encoding="utf-8").read()
-con.executescript(ddl)
+for _p in DDL_PATHS:
+    if not os.path.exists(_p):
+        print("FAIL 找不到 DDL：%s" % _p, file=sys.stderr)
+        sys.exit(2)
+    con.executescript(open(_p, encoding="utf-8").read())
 con.commit()
+print("DDL 已执行：", " + ".join(os.path.basename(p) for p in DDL_PATHS))
 
 rows = con.execute("SELECT give_id,scope,scope_unresolved,magnitude,verifiability,rule_version FROM ledger_give ORDER BY give_id").fetchall()
 print("DDL OK; ledger_give:", rows)

@@ -7,7 +7,7 @@
 需要镜像自含数据或本机直接跑服务时，先重建再复制：
 
 ```bash
-python3 evidence/build_ledger.py            # 生成 evidence/ledger_w4.db（4 条、假 ID，sha256 31445fa5…）
+python3 evidence/build_ledger.py            # 生成 evidence/ledger_w4.db（4 条、假 ID，sha256 7dc2d787…）
 cp evidence/ledger_w4.db deploy/app/data/ledger.db
 ```
 

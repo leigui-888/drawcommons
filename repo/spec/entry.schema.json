@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://drawcommons.org/spec/entry.schema.json",
-  "title": "众汲之井 账本条目（v2.1 合并版）",
-  "description": "一本账，三种状态（give 给 / receive 受 / payback 还），一条链。字段与 spec/ddl_w4.sql v1.3 建出的库一致，也与 /api/ledger/items 的输出一致。本规范不含任何金额字段，且不接受金额：S0 阶段只接受实物支持（服务器、带宽、设备、场地、人力），账本记的是「给了什么、给了多少件或多少小时」，不是「折合多少钱」。下面 not 一项是硬约束——任何带 amount_fen 的条目都不是本规范的实例；资金面（donation / expense / 采购 / 配捐）在 S0 未启用，不在此处定义，启用属协议换版。扩展字段一律可选、以 x- 前缀命名，不得成为必需项（R10 禁私有方言）。本文件以 CC0-1.0 发布，许可见同名 .license 伴生文件。",
+  "title": "众汲之井 账本条目（v2.2 草案）",
+  "description": "一本账，三种状态（give 给 / receive 受 / payback 还），一条链。字段与 spec/ddl_w4.sql v1.3 + spec/ddl_v1.4.sql 建出的库一致，也与 /api/ledger/items 的输出一致。本规范不含任何金额字段，且不接受金额：S0 阶段只接受实物支持（服务器、带宽、设备、场地、人力），账本记的是「给了什么、给了多少件或多少小时」，不是「折合多少钱」。下面 not 一项是硬约束——任何带 amount_fen 的条目都不是本规范的实例；资金面（donation / expense / 采购 / 配捐）在 S0 未启用，不在此处定义，启用属协议换版。扩展字段一律可选、以 x- 前缀命名，不得成为必需项（R10 禁私有方言）。本文件以 CC0-1.0 发布，许可见同名 .license 伴生文件。",
   "x-license": "CC0-1.0",
-  "x-spec-version": "2.1.0",
+  "x-spec-version": "2.2.0-draft.1",
   "x-scope": "实物与劳动支持；不含资金。资金面设计件见 0-snapshot/W6/repo/spec/ledger-entry.schema.json（冻结基线）与 git 历史，不并入本规范。",
   "type": "object",
   "additionalProperties": false,
@@ -70,9 +70,13 @@
       "description": "受领状态，现行样例为 delivered（东西到了）。仅 type=receive 出现。"
     },
     "occurred_at": {
-      "type": "string",
+      "type": ["string", "null"],
       "format": "date-time",
-      "description": "发生时点，UTC，ISO 8601。这是「东西交到了」的时间，不是「钱到账」的时间——S0 没有到账。注意：现行库里只有 ledger_give 有时间列，ledger_receive 与 ledger_payback 没有——这是**已知缺陷**（v2.2 补），所以本规范不把 occurred_at 列为全类型必填。规范不写实现做不到的事；补齐时间列要动表结构与锚值，属换版，不在这里悄悄加。仅 type=give 时必填（见 allOf）。"
+      "description": "发生时点，UTC，ISO 8601。这是「东西交到了」的时间，不是「钱到账」的时间——S0 没有到账。v1.4 起 receive 与 payback 也有这一列（spec/ddl_v1.4.sql），所以三类条目都能带发生时间；但 r5 遗留条目（rule_version = pr_v1.1.0）写入时该列并不存在，按当时的规范解释、不补造时间——补造时间就是伪造事实。新版本条目必填（见 allOf）。"
+    },
+    "evidence_uri": {
+      "type": ["string", "null"],
+      "description": "交付凭据的定位符（URL / 仓库路径 / 邮件 ID 一类），指向能证明「东西确实到了」的物证。v1.4 起落在 receive 上；与 request.evidence_uri 是同一份值被复制，不是引用链——两处各自独立可验，「指针的指针」在审计时只会多一层不信任。新版本 receive 必填（见 allOf）。"
     },
     "note": {
       "type": ["string", "null"],
@@ -171,6 +175,37 @@
             { "required": ["quantity"] },
             { "required": ["unit"] }
           ]
+        }
+      }
+    },
+    {
+      "description": "新版本条目（rule_version 不是 pr_v1.1.0）的 receive / payback 必须带发生时间。r5 遗留条目豁免：写入时该列不存在，按当时规范解释。",
+      "if": {
+        "properties": {
+          "type": { "enum": ["receive", "payback"] },
+          "rule_version": { "not": { "const": "pr_v1.1.0" } }
+        },
+        "required": ["type", "rule_version"]
+      },
+      "then": {
+        "required": ["occurred_at"],
+        "properties": { "occurred_at": { "type": "string" } }
+      }
+    },
+    {
+      "description": "新版本 receive 还必须带交付凭据的落点，且不得为空串。",
+      "if": {
+        "properties": {
+          "type": { "const": "receive" },
+          "rule_version": { "not": { "const": "pr_v1.1.0" } }
+        },
+        "required": ["type", "rule_version"]
+      },
+      "then": {
+        "required": ["occurred_at", "evidence_uri"],
+        "properties": {
+          "occurred_at": { "type": "string" },
+          "evidence_uri": { "type": "string", "minLength": 1 }
         }
       }
     }

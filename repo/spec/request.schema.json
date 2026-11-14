@@ -1,0 +1,271 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://drawcommons.org/spec/request.schema.json",
+ "title": "众汲之井 需求单状态行（v2.2 草案）",
+ "description": "一次需求单的状态写入。本规范校验的是**一行**，不是一单：需求单不进哈希链，状态变化以新增行表达（seq 递增），公开视图取每组最大 seq。这样做的理由写在 request.md §2——哈希链只装已经发生的事实，而需求是意图，可撤回、可过期，append-only 的链装不下可撤回的东西。本规范与 spec/ddl_v1.4.sql 的 request 表一致，也与 /api/v1/requests 的读输出一致。不含任何金额字段：需求描述「缺什么、缺多久」，不描述「值多少钱」。本文件以 CC0-1.0 发布，许可见同名 .license 伴生。",
+ "x-license": "CC0-1.0",
+ "x-spec-version": "2.2.0-draft.1",
+ "x-scope": "需求单（intent）。不是账目：不参与哈希链、不计入锚值、不构成任何人对任何人的义务。",
+ "x-confirm-signature": {
+  "description": "对收方确认签名的唯一格式。被签的是账本条目的 hash，不是条目 JSON——hash 已覆盖全部字段，签 hash 等于签整条记录，且验签方不必实现同一套 canonical JSON。实测依据见 request.md §5。",
+  "payload": "drawcommons-confirm-v1\\n<entry_id>\\n<entry_hash>\\n",
+  "encoding": "UTF-8, LF, 无 BOM",
+  "container": "OpenSSH SSHSIG",
+  "sign": "ssh-keygen -Y sign -f <party-key> -n drawcommons-confirm <payload-file>",
+  "verify": "ssh-keygen -Y verify -f <allowed_signers> -I <party_id> -n drawcommons-confirm -s <sig> < payload-file",
+  "order": "先重算 hash 并与条目 hash 比对，再验签。顺序不可倒：签名只证明签过这 32 字节，证明记录未被改靠重算。",
+  "on_failure": "拒写，不落库，没有「差一点的确认」：DGB_LED_030 条目不存在；DGB_LED_031 签名主体不是这条 give 的受方；DGB_LED_034 签名与按条目重算的 hash 不符；DGB_LED_035 这条已经确认过（不覆盖、不撤销）。理由：确认一旦落库只有「有/没有」两态，一条错签名就是一条永远修不掉的错话；客户端重签是幂等的，不产生新记录。",
+  "storage": "确认不进条目表：`verifiability` 是条目列、条目 hash 覆盖全部字段、表 append-only，改这一列等于改 hash、链会当场断。确认单独存 `entry_confirm`，导出时并入顶层 `confirmations` 数组（与 `items` 并列），条目字节不动。"
+ },
+ "type": "object",
+ "additionalProperties": false,
+ "patternProperties": {
+  "^x-": {
+   "description": "可选扩展字段。必须带 x- 前缀；删掉全部 x- 字段后仍须通过本规范。"
+  }
+ },
+ "not": {
+  "required": [
+   "amount_fen"
+  ]
+ },
+ "required": [
+  "request_id",
+  "seq",
+  "state",
+  "category",
+  "need_desc",
+  "window_expires_at",
+  "requested_by",
+  "created_at"
+ ],
+ "properties": {
+  "request_id": {
+   "type": "string",
+   "pattern": "^rq_[0-9a-z]{8,32}$",
+   "description": "需求单标识。由发布方生成，服务端唯一约束兜底；同一 request_id 的多行是同一单的状态序列，不是多张单。"
+  },
+  "seq": {
+   "type": "integer",
+   "minimum": 1,
+   "description": "本行在状态序列中的序号，从 1 起连续。必须等于同 request_id 当前最大 seq + 1——跳号意味着有状态被跳过，那正是审计要抓的东西。"
+  },
+  "state": {
+   "type": "string",
+   "enum": [
+    "open",
+    "claimed",
+    "delivered",
+    "closed",
+    "withdrawn",
+    "expired"
+   ],
+   "description": "四态主链 open → claimed → delivered → closed，两条旁支：withdrawn（发布方撤回）、expired（窗口到期未认领）。状态只许前进，终态不得再有后继行。"
+  },
+  "category": {
+   "type": "string",
+   "minLength": 1,
+   "maxLength": 64,
+   "description": "缺的东西的类别词（compute / bandwidth / device / venue / labor 一类），与账本条目的 category 同一词表。是类别，不是科目。"
+  },
+  "need_desc": {
+   "type": "string",
+   "minLength": 1,
+   "maxLength": 2000,
+   "description": "缺什么、要多少、什么条件下算交付。只写事，不写人：不得包含姓名、电话、住址、身份证号等可识别信息——需求单是公开的，写进去的内容不会因为撤回而消失。"
+  },
+  "window_expires_at": {
+   "type": "string",
+   "description": "需求有效期截止时点（UTC，ISO 8601）。空串表示无期限。到期由定时任务写入一行 state=expired，不是原地改。空串必须在公开页显示为「无期限」，不得隐藏该字段。"
+  },
+  "requested_by": {
+   "type": "string",
+   "pattern": "^[A-Za-z0-9_-]{1,64}$",
+   "description": "发布方的 party_id。**允许假名**——party 表默认 display_mode=pseudonymous，发布需求不要求实名；但**必须有主体**：无主体的需求无法被认领、无法进入双签，写进库只会变成一条永远 open 的噪声。同一单的所有状态行此字段必须相同。"
+  },
+  "claim_agent_id": {
+   "type": [
+    "string",
+    "null"
+   ],
+   "pattern": "^[A-Za-z0-9_-]{1,64}$",
+   "description": "认领方的 party_id。state=claimed 起必填。认领即承诺交付，因此认领方必须是登记过公钥的主体（否则交付时无法双签）。"
+  },
+  "evidence_uri": {
+   "type": [
+    "string",
+    "null"
+   ],
+   "description": "交付证据的指针（URI 或内容哈希引用）。state=delivered 起必填。与账本条目 receive.evidence_uri 是**同一份值被复制**，不是引用链——两处各自独立可验，避免「指针的指针」。"
+  },
+  "occurred_at": {
+   "type": [
+    "string",
+    "null"
+   ],
+   "format": "date-time",
+   "description": "实际交付时点（UTC，ISO 8601）。state=delivered 起必填，且必须早于等于该行的 created_at——先有交付，后有记录。"
+  },
+  "created_at": {
+   "type": "string",
+   "format": "date-time",
+   "description": "本行写入时点（UTC，ISO 8601）。由服务端盖章，不接受客户端自带——它是状态序列的时间轴，可被自填就没有意义。"
+  },
+  "note": {
+   "type": [
+    "string",
+    "null"
+   ],
+   "description": "自由文本备注。可为 null，但 null 必须在公开页显示为「无备注」，不得隐藏该字段。"
+  }
+ },
+ "allOf": [
+  {
+   "if": {
+    "properties": {
+     "state": {
+      "const": "open"
+     }
+    },
+    "required": [
+     "state"
+    ]
+   },
+   "then": {
+    "properties": {
+     "claim_agent_id": {
+      "const": null
+     },
+     "occurred_at": {
+      "const": null
+     },
+     "evidence_uri": {
+      "const": null
+     },
+     "seq": {
+      "const": 1
+     }
+    },
+    "description": "open 只能是第 1 行，且尚无认领方、无交付时间、无证据——否则「还没人认领就已经交付了」。"
+   }
+  },
+  {
+   "if": {
+    "properties": {
+     "state": {
+      "const": "claimed"
+     }
+    },
+    "required": [
+     "state"
+    ]
+   },
+   "then": {
+    "required": [
+     "claim_agent_id"
+    ],
+    "properties": {
+     "claim_agent_id": {
+      "type": "string"
+     },
+     "occurred_at": {
+      "const": null
+     },
+     "evidence_uri": {
+      "const": null
+     }
+    }
+   }
+  },
+  {
+   "if": {
+    "properties": {
+     "state": {
+      "enum": [
+       "delivered",
+       "closed"
+      ]
+     }
+    },
+    "required": [
+     "state"
+    ]
+   },
+   "then": {
+    "required": [
+     "claim_agent_id",
+     "occurred_at",
+     "evidence_uri"
+    ],
+    "properties": {
+     "claim_agent_id": {
+      "type": "string"
+     },
+     "occurred_at": {
+      "type": "string"
+     },
+     "evidence_uri": {
+      "type": "string",
+      "minLength": 1
+     }
+    }
+   }
+  },
+  {
+   "if": {
+    "properties": {
+     "state": {
+      "enum": [
+       "withdrawn",
+       "expired"
+      ]
+     }
+    },
+    "required": [
+     "state"
+    ]
+   },
+   "then": {
+    "properties": {
+     "occurred_at": {
+      "const": null
+     },
+     "evidence_uri": {
+      "const": null
+     }
+    },
+    "description": "撤回与过期都不代表交付发生，因此不得携带交付时间与证据。"
+   }
+  }
+ ],
+ "examples": [
+  {
+   "request_id": "rq_7f3a91c2",
+   "seq": 1,
+   "state": "open",
+   "category": "compute",
+   "need_desc": "需要一台 2 核 4G 的机器跑 CI，为期两个月。交付条件：SSH 可达且能装 Docker。",
+   "window_expires_at": "2026-12-15T00:00:00Z",
+   "requested_by": "party_gamma",
+   "claim_agent_id": null,
+   "evidence_uri": null,
+   "occurred_at": null,
+   "created_at": "2026-11-20T09:12:00Z",
+   "note": null
+  },
+  {
+   "request_id": "rq_7f3a91c2",
+   "seq": 3,
+   "state": "delivered",
+   "category": "compute",
+   "need_desc": "需要一台 2 核 4G 的机器跑 CI，为期两个月。交付条件：SSH 可达且能装 Docker。",
+   "window_expires_at": "2026-12-15T00:00:00Z",
+   "requested_by": "party_gamma",
+   "claim_agent_id": "party_delta",
+   "evidence_uri": "sha256:5b1c0e9a7d2f4c8b6a3e1d0f9c7b5a4e3d2c1b0a9f8e7d6c5b4a39281706f5e4",
+   "occurred_at": "2026-11-22T14:30:00Z",
+   "created_at": "2026-11-22T14:31:07Z",
+   "note": "容器已起，Docker 25.0.3"
+  }
+ ]
+}
