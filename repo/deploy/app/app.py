@@ -1621,6 +1621,71 @@ EN_BADGES = [
 ]
 
 
+# ── /llms.txt：给 agent 的发现入口（2026-11-15）──────────────────────────────
+# 为什么在根路径另开一份，而不是让 agent 自己去 /home 里翻到 /agent.md：
+# 浏览器打 `/` 会 302 到三屏引导（产品决策，不改），而 agent 跟到 `/welcome`
+# 只拿到 9 个字，它没有理由为一篇说明书去猜路径。`/llms.txt` 是 llmstxt.org
+# 的约定位置，抓一次就够。
+# 这里**不复制** /agent.md 的正文：那份约 14 KB，回答「怎么做」；这份只回答
+# 「这是什么、去哪读、现在的锚值是多少」。两处都存数字，迟早各说各话，所以
+# 条数与锚值一律从 LEDGER 现算——这正是复盘里抓到的「正文写 4 条、实际 6 条」
+# 那类毛病，不再重犯一次。
+def render_llms() -> bytes:
+    if LEDGER is None:
+        state = ("- 数据层暂不可用，锚值与条目数取不到；等 `/api/ledger/export`\n"
+                 "  恢复后再算，不要把这一行当成「账本为空」。\n")
+    else:
+        state = (
+            f"- 条目数：{len(LEDGER.chain)}\n"
+            f"- 锚值（`/api/ledger/export` 的 sha256）：\n"
+            f"  {LEDGER.export_sha256}\n"
+            "- 数据性质：测试期结构验证样例（假 ID）；条数以 `/api/ledger/items`\n"
+            "  的 `count` 为准（导出件里的 `data_notice` 是冻结措辞，不随条数改）\n"
+            "- 自行复算：\n"
+            "  `curl -s https://drawcommons.org/api/ledger/export | sha256sum`\n"
+        )
+    doc = f"""# 众汲之井 · DrawCommons
+
+> 一个公开、可自行复算的互助账本：只追加、导出件取 sha256 当锚值、任何人可自己复算，
+> 不必相信运营方。
+> A public, append-only mutual-aid ledger. The anchor is the sha256 of the export;
+> anyone can recompute it without trusting the operator.
+
+站点 https://drawcommons.org · 本文件 https://drawcommons.org/llms.txt
+面向机器的完整说明：https://drawcommons.org/agent.md （约 14 KB，含可直接跑的接入脚本）
+
+## 这是什么
+
+- 只记已经发生的事：有人缺东西写一条需求单，有人补上了记一条账目，受方对那条账目签一次名
+- 账本只追加；条目进哈希链；确认与条目并列、不进链
+- 不做的：托管资金、撮合、评分、排名、站内私信
+
+## 只读接口（无需账号、无需 API Key）
+
+- `GET /api/ledger/items` — 全部条目，逐条带 hash；含 `count` / `genesis` / `data_notice`
+- `GET /api/ledger/verify` — 链校验：`ok` / `first_bad` / `items` / `chain_tail`（服务端自述，可自行复算）
+- `GET /api/ledger/export` — 导出件原文；它的 sha256 就是锚值
+- `GET /api/v1/requests` — 需求单（`?state=open` 只看可接的）
+
+## 现在的状态（每次请求现算，不缓存）
+
+{state}
+## 页面（给人看的，接入不必读）
+
+- https://drawcommons.org/home — 项目说明
+- https://drawcommons.org/ledger — 账本与当前锚值
+- https://drawcommons.org/testing — 测试与验证
+- https://drawcommons.org/terms — 三份协议正文；纯文本另有 `/terms/<key>.txt`
+- 全站 `noindex`：不供搜索引擎收录，本站也不做 SEO
+
+## 边界
+
+- 写口需要 ed25519 签名，签名覆盖原始字节；不接受未签名写入
+- 本文件是说明书，不是接口。任何数字以对应接口的返回为准
+"""
+    return doc.encode("utf-8")
+
+
 def render_home() -> bytes:
     meta, body = content("zh", "home")
     return _page(
@@ -2650,6 +2715,10 @@ class Handler(BaseHTTPRequestHandler):
         # 欢迎层的图片。放在 PAGES 之后、兜底 404 之前：它只服务白名单里的六个名字。
         elif path.startswith("/images/"):
             self._serve_image(path[len("/images/"):])
+        # 给 agent 的发现入口。放在 `/agent.md` 之前：`/llms.txt` 是约定的
+        # 第一站，`/agent.md` 是它的下一跳。两者都不碰 `/` 的 302。
+        elif path == "/llms.txt":
+            self._send(200, render_llms(), "text/plain; charset=utf-8")
         # 给 agent 的接入指南。放在站点根而不是 /api/ 下：它不是接口，是说明书，
         # 一个只会 curl 的 agent 拿到 URL 就该能读懂并照做。
         elif path == "/agent.md":
