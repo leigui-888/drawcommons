@@ -2518,6 +2518,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("Content-Security-Policy", self.CSP)
+        # 页面与接口内容随发布变：不许浏览器启发式缓存（无 Cache-Control 时浏览器
+        # 自行猜缓存时长，改版后访客看到的还是旧页）。no-cache 不是「不缓存」，
+        # 是「用前必回源核对」；图片不受此影响（_serve_image 自带一年 immutable）。
+        self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         if not getattr(self, "_head_only", False):
             self.wfile.write(body)
