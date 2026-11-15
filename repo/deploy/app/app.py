@@ -834,9 +834,14 @@ PAGE_CSS = r"""
   .nav a { color: var(--teal); text-decoration: none; }
   .nav a:hover { text-decoration: underline; }
   .nav .sep { color: #cfd6d3; }
+  /* 分组导航：组名弱化（.ng），组间竖线（.gsep）比组内 · 重半档 */
+  .nav .ng { color: var(--muted); opacity: .8; letter-spacing: .05em; }
+  .nav .gsep { color: #cfd6d3; }
   .hero .nav { color: rgba(255,255,255,.85); margin: 0 0 .8rem; }
   .hero .nav a { color: #fff; }
   .hero .nav .sep { color: rgba(255,255,255,.45); }
+  .hero .nav .ng { color: rgba(255,255,255,.62); }
+  .hero .nav .gsep { color: rgba(255,255,255,.38); }
   .hero.slim { padding: 1.6rem 2rem 1.25rem; }
   .hero.slim h1 { font-size: 1.26rem; }
   .hero.slim .sub { font-size: .88rem; max-width: 42em; }
@@ -1124,16 +1129,58 @@ NAV_ITEMS = {
     ],
 }
 
+# 2026-11-16 凌晨：导航从四条平铺改成按功能与逻辑分四组（结构图定下的分组）——
+#   了解（参与者·公告）→ 查证（账本·审计）→ 参与（需求发布·网页签署）→ 治理（条款）。
+# 混放的病灶就是这三种性质共用一级地位：参与者的名录、查证账本、提交动作、法律文本
+# 在旧导航里长得一模一样。路由与后端不动，只动导航的分组与渲染。
+# `sign` 指向 /sign/ 网页签署页（仓库外的静态页，w06 现场件）——把它放进「参与」，
+# 是因为它是提交动作，不是阅读材料，不再与内容页并排。
+NAV_GROUPS = {
+    "zh": [
+        ("了解", [("contributors", "/contributors", "参与者"),
+                  ("notices", "/notices", "公告")]),
+        ("查证", [("ledger", "/ledger", "账本数据查询"),
+                  ("testing", "/testing", "测试与验证"),
+                  ("audit", "/audit.md", "审计任务书")]),
+        ("参与", [("requests", "/requests", "需求发布"),
+                  ("sign", "/sign/", "网页签署")]),
+        ("治理", [("terms", "/terms", "条款与公示")]),
+    ],
+    # 英文版逐组对应，但两处刻意不同：
+    #   · /sign/ 页面只有中文版（钥在本地生成，页面即工具），英文导航不列，
+    #     免得链过去是中文页——同当年不列英文需求页的理由。
+    #   · 条款目前只有中文渲染，标明「（中文）」再链，不装作有英文版。
+    "en": [
+        ("Understand", [("contributors", "/en/contributors", "Contributors"),
+                        ("notices", "/en/notices", "Notices")]),
+        ("Verify", [("ledger", "/en/ledger", "Ledger data"),
+                    ("testing", "/en/testing", "Testing &amp; verification"),
+                    ("audit", "/audit.md", "Audit brief")]),
+        ("Take part", [("requests", "/en/requests", "Requests")]),
+        ("Governance", [("terms", "/terms", "Terms（中文）")]),
+    ],
+}
+
 
 def _nav(skip: str = "", *, lang: str = "zh", back: str = "",
          lang_href: str = "/en/home") -> str:
-    """生成导航条。``skip`` 是当前页——不链自己，链了读者会以为自己没点动。"""
-    bits = ([back] if back else []) + [
-        f'<a href="{href}">{label}</a>'
-        for key, href, label in NAV_ITEMS[lang] if key != skip
-    ]
-    bits.append(f'<a href="{lang_href}">{"中文" if lang == "en" else "English"}</a>')
-    return '<div class="nav">' + '<span class="sep">/</span>'.join(bits) + "</div>"
+    """生成导航条。``skip`` 是当前页——不链自己，链了读者会以为自己没点动。
+
+    分组渲染：组与组之间用竖线隔开，组名是弱化的前缀（.ng），组内链接用 · 连。
+    整组被 skip 掉就整组不显示——不出现一个空组名挂在那里。
+    """
+    groups_html = []
+    for glabel, items in NAV_GROUPS[lang]:
+        links = [f'<a href="{href}">{label}</a>'
+                 for key, href, label in items if key != skip]
+        if links:
+            groups_html.append(f'<span class="ng">{glabel}</span>'
+                               + '<span class="sep">·</span>'.join(links))
+    body = '<span class="gsep">│</span>'.join(groups_html)
+    body += f'<span class="gsep">│</span><a href="{lang_href}">{"中文" if lang == "en" else "English"}</a>'
+    if back:
+        body = back + '<span class="gsep">│</span>' + body
+    return '<div class="nav">' + body + "</div>"
 
 
 NAV_HOME = _nav(lang_href="/en/home")
@@ -1242,7 +1289,8 @@ CONTENT_DIR = os.environ.get("CONTENT_DIR") or os.path.join(
 
 # PAGES 只收零参函数，带查询参数与静态资源不在那张表里，但它们确实可跳。
 _EXTRA_ROUTES = ("/requests", "/en/requests", "/download/", "/images/",
-                 "/api/v1/", "/agent.md", "/sign/", "/healthz", "/repo.git")
+                 "/api/v1/", "/agent.md", "/audit.md", "/sign/",
+                 "/healthz", "/repo.git")
 
 _KNOWN_SLOTS = {"TOPBAR", "STATS", "ANCHOR", "EN_NOTE"}
 _SLOT_RE = re.compile(r"__([A-Z][A-Z0-9_]*)__")
@@ -1779,7 +1827,7 @@ def render_notices() -> bytes:
         "公告 · 众汲之井",
         "站点变更与账本结构的正式公告：结构升级、协议文本变更，以及作废值与重算口径的说明。",
         _hero("公告", "每一次动到对外口径的变更，都会在这里留一条正式的说明。",
-              nav=_nav(back='<a href="/home">← 返回首页</a>', lang_href="/en/notices")),
+              nav=_nav("notices", back='<a href="/home">← 返回首页</a>', lang_href="/en/notices")),
         _notices_body("zh"),
         "/notices",
     )
@@ -1791,7 +1839,7 @@ def render_en_notices() -> bytes:
         "Formal notices about site and ledger changes — structural upgrades, protocol revisions, "
         "and what values were voided.",
         _hero("Notices", "Every change that moves a public claim leaves a formal notice here.",
-              nav=_nav(lang="en", back='<a href="/en/home">← Back</a>', lang_href="/notices")),
+              nav=_nav("notices", lang="en", back='<a href="/en/home">← Back</a>', lang_href="/notices")),
         _notices_body("en"),
         "/en/notices",
         lang="en", footer=EN_FOOTER,
