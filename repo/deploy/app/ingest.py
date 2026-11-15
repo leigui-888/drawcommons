@@ -40,6 +40,7 @@ import sqlite3
 import threading
 import time
 import traceback
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import ledger_store
@@ -97,6 +98,60 @@ def status_for(code: str) -> int:
     if code.startswith("DGB_LED_"):
         return ledger_store.LED_STATUS.get(code[-3:], 422)
     return STATUS.get(code, 400)
+
+
+# 每个码配一句「下一步做什么」。给 agent 看的：它读得懂 HTTP 状态，但读不懂
+# 「DGB_ING_009」该怎么办。没有这句，24 种情况下它只能猜，而猜错的下场是
+# 往一个只追加的账本里写错东西。
+# **写的是动作，不是解释**——「签名覆盖原始字节」是解释，「别重排 JSON 再签」是动作。
+# 判据 `_ops/w0/error_codes_check.py` 保证：每个可达的码都有这一行，且不会出现
+# 码表里有、代码里没有的孤儿。
+CODE_HINTS = {
+    # —— 传输与鉴权 ——
+    "DGB_ING_001": "带齐 X-DG-Party / Issued / Nonce / Sig 四个头（见 /agent.md §4）",
+    "DGB_ING_002": "用 ssh-keygen -Y sign -n drawcommons-ingest 签原始字节，别重排 JSON",
+    "DGB_ING_003": "先 POST /api/v1/party 登记这把公钥，再签这一条",
+    "DGB_ING_004": "把本机时钟对准 UTC；issued_at 须在服务端时间 ±15 分钟内",
+    "DGB_ING_005": "每次请求换一个新 nonce（≥16 字节随机）；重试也要换",
+    "DGB_ING_006": "Content-Type: application/json，且 body 是一个 JSON 对象而不是数组",
+    "DGB_ING_007": "写口只有四个：/api/v1/party、/request、/entry、/confirm",
+    "DGB_ING_008": "pubkey 传 authorized_keys 里的整行 ssh-ed25519 AAAA…，单行、不带注释",
+    "DGB_ING_009": "按 detail 点名的字段补齐；请求体形状见 /agent.md §4 的示例",
+    "DGB_ING_010": "本端点只接受 display_mode=pseudonymous",
+    "DGB_ING_011": "这个 state 由服务端派生：delivered 生成两条账目，closed 由受方确认后自动追加",
+    "DGB_ING_012": "这把公钥已属于另一个主体；换钥就是换人，用新的 party_id 重新登记",
+    "DGB_ING_014": "同一 request_id 只能顺着状态机追加（每次带新的 state），不能重发一次 open",
+    "DGB_ING_015": "每主体每分钟 30 次；按 Retry-After 等待后重试",
+    "DGB_ING_016": "服务端兜底缺陷：把请求体与 detail 原文一并报给运营方，不要重试",
+    "DGB_ING_017": "换一个 <kind>_id；账本只追加，条目 id 不能复用",
+    "DGB_ING_018": "只发 schema 里的字段；signed_at / party_id / key_fp 都不接受客户端自带",
+    "DGB_ING_019": "省略 rule_version（默认 v1），或显式写 v1",
+    "DGB_ING_020": "请求体压到 64 KiB 以内；大文件放 evidence_uri 指过去",
+    "DGB_ING_021": "用 curl -d 或显式带 Content-Length；分块传输不被接受",
+    # —— 库约束（触发器）——
+    "DGB_LED_012": "账本只追加：改状态要 POST 一行新的 seq，不要 UPDATE",
+    "DGB_LED_013": "没有删除这条路径；写错了就再追加一行说明，别 DELETE",
+    "DGB_LED_014": "archive_magnitude_v1 是只读归档表，只追加、不改写",
+    "DGB_LED_015": "撤回同意是终态，撤回之后不能再改回去",
+    "DGB_LED_016": "实名展示须显式绑定 real_name_ref；本端点不收实名",
+    "DGB_LED_017": "pubkey 必须是单行、合法的 ssh-ed25519 authorized_keys 行",
+    "DGB_LED_018": "已登记的公钥不可更换；换钥 = 换 party_id",
+    "DGB_LED_019": "requested_by / claim_agent_id 里的主体必须先在 party 登记",
+    "DGB_LED_020": "按 open → claimed → delivered → closed 走，不能跳级，也不能从终态再出发",
+    "DGB_LED_021": "seq 由服务端算；同一 request_id 从 1 连续追加，不要自带 seq",
+    "DGB_LED_023": "claimed 必须带 claim_agent_id",
+    "DGB_LED_024": "delivered 必须带 occurred_at 与 evidence_uri（关闭行也要带）",
+    "DGB_LED_025": "一单只有一个 requested_by；换发布方请重开一单",
+    "DGB_LED_027": "mutual_id 必须是 m-rq_<request_id>，指向那张已交付的单子",
+    "DGB_LED_028": "mutual_id 指向的需求单当前必须处于 delivered / closed",
+    "DGB_LED_029": "凭据以第一次为准：改字段不是重试；要改就重开一单",
+    "DGB_LED_030": "确认指向的条目不存在：先 GET /api/ledger/items 核对 entry_id 与 hash",
+    "DGB_LED_031": "确认只能由受方签；给方自签不算双签",
+    "DGB_LED_032": "一次互助只允许一条 give 与一条 receive；重复交付请用同一 request_id 重试",
+    "DGB_LED_033": "give 的 from_agent_id 与 to_agent_id 不能是同一主体",
+    "DGB_LED_034": "payload 三行：drawcommons-confirm-v1、entry_id、hash，末尾各带换行",
+    "DGB_LED_035": "该条目已确认过；确认不可覆盖，要纠正只能追加说明",
+}
 
 
 class TooFast(Exception):
@@ -159,7 +214,7 @@ def op_party(writer, party: str, data: dict, env: dict) -> dict:
         # 而那个值从公网接口走进来就会留痕。留在运维侧写库。
         raise ledger_store.WriteError("DGB_ING_010", "本端点只接受 pseudonymous")
     key_line, blob = signing.parse_pubkey(data["pubkey"])
-    with writer.tx() as con:
+    with writer.tx(commit=not env.get("dry_run")) as con:
         writer.spend_nonce(con, env["nonce"], party)
         res = writer.register_party(con, pid, key_line, mode)
     res.update({"party_id": pid, "key_fp": signing.fingerprint(blob)})
@@ -187,7 +242,7 @@ def op_request(writer, party: str, data: dict, env: dict) -> dict:
             raise ledger_store.WriteError("DGB_ING_009", f"{state} 必须带 claim_agent_id")
         if party != data["claim_agent_id"]:
             raise ledger_store.WriteError("DGB_ING_011", f"{state} 只能由认领方（claim_agent_id）提交")
-    with writer.tx() as con:
+    with writer.tx(commit=not env.get("dry_run")) as con:
         writer.spend_nonce(con, env["nonce"], party)
         if state == "delivered":
             # 交付这一次是**一个转换**，不是一行状态：它同时产出 give 与 receive 两条
@@ -221,7 +276,7 @@ def op_entry(writer, party: str, data: dict, env: dict) -> dict:
         # 替别人记「他给过东西」不是本协议的动作：give 的给方就是签名者本人。
         raise ledger_store.WriteError("DGB_ING_011", "give 的 from_agent_id 必须就是签名主体")
     _require(data, "to_agent_id", "category", "occurred_at")
-    with writer.tx() as con:
+    with writer.tx(commit=not env.get("dry_run")) as con:
         writer.spend_nonce(con, env["nonce"], party)
         res = writer.append_entry(con, "give", data)
     return res
@@ -257,7 +312,7 @@ def op_confirm(writer, party: str, data: dict, env: dict) -> dict:
     if len(sig_text) > 8192 or "\x00" in sig_text:
         raise ledger_store.WriteError("DGB_ING_009", "sig 超长或含 NUL")
 
-    with writer.tx() as con:
+    with writer.tx(commit=not env.get("dry_run")) as con:
         writer.spend_nonce(con, env["nonce"], party)
         entry_hash = writer.chain_hash_of(con, kind, eid)
         if entry_hash is None:
@@ -379,8 +434,16 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _fail(self, code: str, detail: str, endpoint: str) -> None:
-        self._send(status_for(code), {"ok": False, "error": code,
-                                      "detail": detail, "endpoint": endpoint})
+        """错误体：码 + 人话 + **下一步**。`hint` 是给 agent 的那一格。
+
+        它是附加字段，加在既有三个字段之后——老的调用方按名取值（`error` / `detail`），
+        多一个键不会让它们解析失败。反过来若删字段或改码，才是破坏性的。
+        """
+        body = {"ok": False, "error": code, "detail": detail, "endpoint": endpoint}
+        hint = CODE_HINTS.get(code)
+        if hint:
+            body["hint"] = hint
+        self._send(status_for(code), body)
 
     def _client_ip(self) -> str:
         headers = getattr(self, "headers", None)
@@ -431,8 +494,22 @@ class Handler(BaseHTTPRequestHandler):
             if data is None:
                 data = parse_body(body)
             LIMITER.check(party)
+            # 演练开关（2026-11-15）：`?dry_run=1` 或 `X-DG-Dry-Run: 1`。
+            # 两种都给，是因为有的客户端改不了 URL。**查询串不参与签名**——
+            # `build_payload` 用的是去掉 `?` 之后的 path，所以加它不会让签名失效；
+            # 这一点是刻意保留的：演练要是得重新签一次，就没人会去演练了。
+            qs = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            env["dry_run"] = (
+                qs.get("dry_run", ["0"])[0] in ("1", "true", "yes")
+                or self.headers.get("X-DG-Dry-Run", "").strip() in ("1", "true", "yes"))
             res = op(WRITER, party, data, env)
             res.update({"ok": True, "endpoint": endpoint, "party": party, "key_fp": key_fp})
+            if env["dry_run"]:
+                # 必须显眼地说「没写」。否则调用方会以为已经落库，转头去查一条
+                # 不存在的记录——而账本是 append-only，它会以为「查不到」是数据丢了。
+                res["dry_run"] = True
+                res["note"] = ("演练：校验全部跑过，事务已回滚，库与锚值未变，nonce 未消耗。"
+                               "同一份请求去掉 dry_run 即为真写。")
             self._send(200, res)
             print(f"ingest ok {endpoint} party={party} {self._client_ip()}", flush=True)
         except TooFast as exc:

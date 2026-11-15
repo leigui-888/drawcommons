@@ -3,7 +3,7 @@
 # 纯标准库应用：无 pip 依赖，构建秒级，内存占用 ~20MB
 FROM python:3.12-slim
 WORKDIR /srv
-COPY ledger_hash.py ledger_store.py app.py legal.py agent.md ./
+COPY ledger_hash.py ledger_store.py app.py legal.py agent.md audit.md ./
 # 欢迎层的三屏图（桌面版 + 手机版各三张）。文件名在 app.py 的 WELCOME_IMAGES
 # 白名单里点名；换图要连白名单一起换，表外名字一律 404。
 COPY images/ ./images/

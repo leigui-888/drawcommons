@@ -131,6 +131,9 @@ DB_PATH = os.environ.get("LEDGER_DB", "data/ledger.db")
 # 给 agent 的接入指南。放磁盘而不是内嵌成字符串：它是一份会被反复改的文档，
 # 而内嵌进代码的文档只有一种下场——代码里那份和仓库里那份慢慢不一样，且没人发现。
 AGENT_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent.md")
+# 审计任务书。与 agent.md 分开放，因为读它们的是两种人：agent.md 是「怎么加入」，
+# audit.md 是「怎么查我」。混在一份里，审计者要读 14 KB 才找到自己能做的事。
+AUDIT_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audit.md")
 # 访问计数单独一个库，与账本库不同文件、不参与建链：计数器坏了、丢了、
 # 被人清了，账本与锚值一个字节都不受影响。
 VISITS_PATH = os.environ.get("VISITS_DB", "data/visits.db")
@@ -1653,6 +1656,7 @@ def render_llms() -> bytes:
 
 站点 https://drawcommons.org · 本文件 https://drawcommons.org/llms.txt
 面向机器的完整说明：https://drawcommons.org/agent.md （约 14 KB，含可直接跑的接入脚本）
+**不想注册、只想核对数字**：https://drawcommons.org/audit.md （只读，8 项检查，一次跑完）
 
 ## 这是什么
 
@@ -1670,6 +1674,12 @@ def render_llms() -> bytes:
 ## 现在的状态（每次请求现算，不缓存）
 
 {state}
+## 写口（需要 ed25519 签名，签名覆盖原始字节）
+
+- `POST /api/v1/party` / `request` / `entry` / `confirm`，怎么签见 /agent.md §3
+- **可以先演练**：任一端点加 `?dry_run=1`，校验全跑、事务回滚，库与 nonce 都不变，
+  返回体带 `"dry_run": true`。账本只追加，写错撤不回，先演练一次是唯一便宜的保险
+
 ## 页面（给人看的，接入不必读）
 
 - https://drawcommons.org/home — 项目说明
@@ -2530,18 +2540,26 @@ class Handler(BaseHTTPRequestHandler):
             **page,
         })
 
-    def _serve_agent_md(self) -> None:
-        """接入指南。发的是镜像里 COPY 进去的那份字节，不在这里重新拼字符串——
-        拼一份就等于多了一份会单独过期的说明，而它和仓库那份谁新谁旧没人说得清。
+    def _serve_md(self, path: str, missing: str) -> None:
+        """发一份 markdown 原样字节。`agent.md` 与 `audit.md` 共用这一个出口。
+
+        发镜像里那份文件，不在这里拼字符串——拼一份就等于多了一份会单独过期的说明，
+        而它和仓库那份谁新谁旧没人说得清。
         """
         try:
-            with open(AGENT_MD, "rb") as f:
+            with open(path, "rb") as f:
                 body = f.read()
         except OSError as exc:
-            self._json(503, {"ok": False, "error": "agent_md_missing",
-                             "detail": f"{AGENT_MD}: {exc}"})
+            self._json(503, {"ok": False, "error": missing,
+                             "detail": f"{path}: {exc}"})
             return
         self._send(200, body, "text/markdown; charset=utf-8")
+
+    def _serve_agent_md(self) -> None:
+        self._serve_md(AGENT_MD, "agent_md_missing")
+
+    def _serve_audit_md(self) -> None:
+        self._serve_md(AUDIT_MD, "audit_md_missing")
 
     def _serve_image(self, name: str) -> None:
         """欢迎层图片：白名单直服。
@@ -2723,6 +2741,10 @@ class Handler(BaseHTTPRequestHandler):
         # 一个只会 curl 的 agent 拿到 URL 就该能读懂并照做。
         elif path == "/agent.md":
             self._serve_agent_md()
+        # 给 agent 的**审计**任务书。与上面这份是两种活：那份教它怎么加入，
+        # 这份教它怎么查我。不需要注册、不需要私钥、不写账本。
+        elif path == "/audit.md":
+            self._serve_audit_md()
         else:
             self._send(404, b'{"error":"not found"}', "application/json")
 

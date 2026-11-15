@@ -120,7 +120,7 @@ if [ -d "$APP_DIR" ] && command -v docker >/dev/null 2>&1; then
     # 少同步一个文件的后果是「仓库里改了、线上构建用的还是旧的」，而日志一切正常
     # ——这正是 2026-11-12 那次四小时未上线的原因，所以按 context 全量列。
     for f in app.py ledger_hash.py ledger_store.py legal.py Dockerfile \
-             ingest.py signing.py Dockerfile.ingest agent.md; do
+             ingest.py signing.py Dockerfile.ingest agent.md audit.md; do
         if head_file "repo/deploy/app/$f" > "$APP_DIR/$f.new" 2>/dev/null && [ -s "$APP_DIR/$f.new" ]; then
             if cmp -s "$APP_DIR/$f.new" "$APP_DIR/$f"; then
                 rm -f "$APP_DIR/$f.new"
