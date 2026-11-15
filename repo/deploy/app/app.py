@@ -187,17 +187,19 @@ DATA_NOTICE = (
 # 为了一个欢迎页撕掉自己的封条不值。所以做成**纯 HTML/CSS**，且按 2026-11-15 的
 # 最终口径做成**与主页完全分离的前置引导模块**：
 #
-#   /          → 302 → /welcome        （进入应用的入口只做一件事：送去引导）
-#   /welcome   → 三屏全幅图，独立文档：自己的 doctype、自己的最小 CSS（WELCOME_CSS），
-#                不带站点导航/页脚/「未生效」标注/访问计数——与主页**各自独立渲染、
-#                资源互不共享**（唯一共享的是那六张图本身，它们就是引导的内容）。
-#   /home      → 主页（原 render_home 原样搬来）。引导第三击与每屏底部的
-#                「进入主页」按钮都导航到 /home——引导结束即进主页，不等待。
+#   /            → 302 → /welcome      （进入应用的入口只做一件事：送去引导）
+#   /welcome     → 第 1 屏
+#   /welcome/2   → 第 2 屏
+#   /welcome/3   → 第 3 屏            （英文同名：/en/welcome[/2|/3]）
+#   /home        → 主页（最后一屏的点击面与按钮都导航到 /home）
 #
-# 「点击任意处翻页」靠整屏锚点（.whit，铺满全屏的 <a>）：点 1→2→3→/home，
-# 点击链写死在渲染函数里。零脚本、零存储：**每次进入应用都走一遍引导**（用户
-# 2026-11-15 裁定去掉「首次」二字，因此不需要 cookie——隐私政策 3.12「不使用
-# Cookie」的口径原样成立）；屏上唯一可见的字是那个按钮。
+# **一页一屏**（2026-11-15 夜用户改口径：原来三屏叠在一个文档里、下滑就能看到三张图，
+# 那不是他要的）。所以这里没有 scroll-snap、没有 #w2 锚点跳转，html/body 直接
+# `overflow: hidden`——滚也滚不出下一页，翻页只有点击一条路：整屏点击面 → 下一页。
+#
+# 点击链写死在渲染函数里，零脚本、零存储：每次进入都走一遍引导（用户 2026-11-15
+# 裁定去掉「首次」二字，因此不需要 cookie，隐私政策 3.12「不使用 Cookie」原样成立）；
+# 屏上唯一可见的字仍是那个「进入主页」按钮。
 #
 # 图片由本进程白名单直服（``_serve_image``）：只认 WELCOME_IMAGES 里点名的六个文件，
 # 文件名到磁盘路径之间不做任何拼接，遍历与注入无从谈起；响应带一年 immutable 缓存
@@ -213,9 +215,12 @@ WELCOME_ALTS = {
            "An engineer and a humanoid robot debugging equipment together at night",
            "Two robots shaking hands above a city under the stars"],
 }
+# dot / dots 是给指示点用的读屏文案：拆页后指示点**是链接**，不能再 aria-hidden。
 WELCOME_LABELS = {
-    "zh": {"enter": "进入主页", "next": "下一张"},
-    "en": {"enter": "Enter site", "next": "Next image"},
+    "zh": {"enter": "进入主页", "next": "下一张",
+           "dot": "第 {i} 张，共 {n} 张", "dots": "引导进度"},
+    "en": {"enter": "Enter site", "next": "Next image",
+           "dot": "Image {i} of {n}", "dots": "Intro progress"},
 }
 # 白名单：文件名 → Content-Type。/images/ 下出现表外名字一律 404：
 # 不猜扩展名、不做目录列表、不拼路径——「服务谁」由代码点名，不由 URL 描述。
@@ -228,28 +233,26 @@ IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
 
 # 引导页自己的样式，与站点的 BASE_CSS/PAGE_CSS 零共享——它是一张独立文档，
 # 不带站点导航、页脚、提示条，也不依赖站点那套 token。没有「未生效」标注，
-# 所以每屏就是完整的 100svh，不需要第一屏折减。
+# 所以整页就是完整的 100svh，不需要折减。
 #
-# v1.9（2026-11-15 夜）：按用户给的第二版原型（毛玻璃 + 指示点 + Ken Burns）重做视觉，
-# 结构不动——仍是 scroll-snap 点击链、零脚本。四件事：
-#   ① 缓放从「每屏载入即播」改成「:target 触发当前屏」（首屏用 :first-of-type 兜住
-#      无锚点的初始状态）：点进哪屏，哪屏才开始缩，与原型「active 屏才动」一致；
-#   ② 图上加叠层：底部压暗 + 品牌色斜向轻染，给按钮与指示点保可读；
-#   ③ 每屏内嵌三枚指示点（当前屏拉长成胶囊）——指示点谁亮由渲染时写死在
-#      那一屏里，CSS 没有父选择器，这正是无脚本下唯一的做法；
-#   ④ 竖屏不再全屏裁切，改为居中圆角卡片 + 背景光晕（原型同款），图片不裁切。
+# v1.9.1（2026-11-15 夜，按「一页一屏」重做）：三处与 v1.9 的根本差别——
+#   ① 不再有 scroll-snap 与 `:target`：每页都是刚载入，缓放直接挂在 `.whit img` 上；
+#   ② `overflow: hidden` 把「下滑看下一张」这条路物理封死，翻页只能点；
+#   ③ 指示点从装饰性 span 变成 <a>：它就是三个页面之间的导航，当前页带
+#      aria-current="page"（视觉上是拉长的胶囊）。点上的可点区域用 ::after 撑到
+#      26px，视觉仍是 8px 的点。
 WELCOME_CSS = """
   html, body { margin: 0; padding: 0; background: #101614; }
-  @media (prefers-reduced-motion: no-preference) {
-    html { scroll-behavior: smooth; scroll-snap-type: y proximity; }
-  }
+  /* 一页一屏，不许滚动：三张图在三个 URL 上，滚也滚不出下一页。 */
+  html, body { height: 100%; overflow: hidden; }
+  /* 三页之间的淡入淡出：纯 CSS 的跨文档视图过渡，不支持的浏览器照常直接跳。 */
+  @view-transition { navigation: auto; }
   .ws { position: relative; height: 100vh; height: 100svh; overflow: hidden;
-        scroll-snap-align: start; scroll-snap-stop: always; background: #101614; }
+        background: #101614; }
   .whit { position: absolute; inset: 0; z-index: 1; display: block; cursor: pointer; }
   .whit picture, .whit img { width: 100%; height: 100%; object-fit: cover; display: block; }
   @media (prefers-reduced-motion: no-preference) {
-    .ws:first-of-type .whit img, .ws:target .whit img {
-      animation: kb 5.5s cubic-bezier(.22, 1, .36, 1) both; }
+    .whit img { animation: kb 5.5s cubic-bezier(.22, 1, .36, 1) both; }
     @keyframes kb { from { transform: scale(1.06); } to { transform: scale(1); } }
   }
   /* 叠层：底部压暗（按钮与指示点可读）+ 品牌色斜向轻染（站色，不是原型那个蓝） */
@@ -259,11 +262,15 @@ WELCOME_CSS = """
       linear-gradient(155deg, rgba(15, 118, 110, .12), rgba(255, 255, 255, 0) 46%,
         rgba(109, 90, 224, .10)); }
   .wdots { position: absolute; bottom: 5.2rem; left: 50%; transform: translateX(-50%);
-           z-index: 3; display: flex; gap: .55rem; pointer-events: none; }
-  .wdot { width: .5rem; height: .5rem; border-radius: 999px; background: rgba(255, 255, 255, .45);
+           z-index: 3; display: flex; align-items: center; gap: .55rem; }
+  .wdot { position: relative; display: block; width: .5rem; height: .5rem;
+          border-radius: 999px; background: rgba(255, 255, 255, .45);
           box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
           transition: width .4s cubic-bezier(.22, 1, .36, 1), background .4s; }
+  /* 视觉是 8px 的点，可点区域撑到 26px——手指不必瞄准 */
+  .wdot::after { content: ""; position: absolute; inset: -.55rem; }
   .wdot.on { width: 1.6rem; background: #fff; }
+  .wdot:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
   .wskip { position: absolute; bottom: 1.8rem; left: 50%; transform: translateX(-50%);
            z-index: 3; display: inline-block; padding: .68rem 2.2rem; border-radius: 999px;
            background: linear-gradient(118deg, #0b5a54 0%, #2e7d94 46%, #5f52d6 100%);
@@ -290,8 +297,8 @@ WELCOME_CSS = """
     .whit picture { width: 100%; max-width: 480px; aspect-ratio: 1440 / 894;
           border-radius: 1rem; overflow: hidden; background: #e9efec;
           box-shadow: 0 18px 44px -18px rgba(16, 22, 20, .42), 0 2px 10px rgba(16, 22, 20, .08); }
-    .whit img, .ws:first-of-type .whit img, .ws:target .whit img {
-          width: 100%; height: 100%; object-fit: cover; transform: none; animation: none; }
+    .whit img { width: 100%; height: 100%; object-fit: cover; transform: none;
+          animation: none; }
     .whit::after { display: none; }
     .wdot { background: rgba(16, 22, 20, .16); box-shadow: none; }
     .wdot.on { background: #0b5a54; }
@@ -299,38 +306,52 @@ WELCOME_CSS = """
 """
 
 
-def render_welcome(lang: str = "zh") -> bytes:
-    """前置引导页：三屏纯图片的**独立文档**，与主页零共享。
+def _welcome_url(lang: str, page: int) -> str:
+    """第 page 屏的地址。第 1 屏就是 `/welcome`（不另设 `/welcome/1`）。"""
+    base = "/en/welcome" if lang == "en" else "/welcome"
+    return base if page == 1 else f"{base}/{page}"
 
-    点击链 w1→w2→w3→/home（第三击是真实导航，即「引导结束自动进入主页」）；
-    每屏底部的「进入主页」按钮直达同一处。noindex：引导页不是内容页，
-    不该进任何索引。
+
+def render_welcome(lang: str = "zh", page: int = 1) -> bytes:
+    """引导第 `page` 屏：**一个页面一屏**，与主页零共享。
+
+    点击面链到下一页（最后一屏链到主页），底部按钮任何时候都直达主页。
+    page 越界时夹到 1..n——路由按 WELCOME_ALTS 的长度生成，正常不会越界，
+    夹住只是为了让「临时少一张图」不至于 500。noindex：引导页不是内容页。
     """
     en = lang == "en"
-    alts = WELCOME_ALTS["en" if en else "zh"]
-    lab = WELCOME_LABELS["en" if en else "zh"]
+    key = "en" if en else "zh"
+    alts = WELCOME_ALTS[key]
+    lab = WELCOME_LABELS[key]
     home = "/en/home" if en else "/home"
     n = len(alts)
-    out = []
-    for i, alt in enumerate(alts):
-        last = i == n - 1
-        nxt = home if last else f"#w{i + 2}"
-        hit_label = lab["enter"] if last else lab["next"]
-        # 指示点写死在各自屏里：谁亮由这一屏自己的序号决定（无脚本下没有别的办法）。
-        dots = "".join(f'<span class="wdot{" on" if j == i else ""}"></span>'
-                       for j in range(n))
-        out.append(
-            f'<section class="ws" id="w{i + 1}">'
-            f'<a class="whit" href="{nxt}" aria-label="{esc(hit_label)}">'
-            '<picture>'
-            '<source media="(max-width: 640px), (max-width: 900px) and (orientation: portrait)" '
-            f'srcset="/images/welcome-{i + 1}-m.jpg">'
-            f'<img src="/images/welcome-{i + 1}.jpg" alt="{esc(alt)}" '
-            f'width="1440" height="894" loading="{"eager" if i == 0 else "lazy"}" '
-            'decoding="async"></picture></a>'
-            f'<div class="wdots" aria-hidden="true">{dots}</div>'
-            f'<a class="wskip" href="{home}">{esc(lab["enter"])}</a>'
-            '</section>')
+    page = max(1, min(int(page), n))
+    i = page - 1
+    last = page == n
+    nxt = home if last else _welcome_url(lang, page + 1)
+    hit_label = lab["enter"] if last else lab["next"]
+
+    # 指示点：三枚都是真链接，当前页那枚带 aria-current 与 .on（拉长成胶囊）。
+    dots = "".join(
+        f'<a class="wdot{" on" if j == i else ""}"'
+        f' href="{_welcome_url(lang, j + 1)}"'
+        + (' aria-current="page"' if j == i else "")
+        + f' aria-label="{esc(lab["dot"].format(i=j + 1, n=n))}"></a>'
+        for j in range(n)
+    )
+
+    # 下一页的图先取：三页之间是真实导航，不预取会白一瞬。两档图各按自己的媒体
+    # 条件预取——桌面浏览器不会顺手把手机版也拉下来（两个条件互为补集）。
+    preload = ""
+    if not last:
+        k = page + 1
+        preload = (
+            f'<link rel="preload" as="image" href="/images/welcome-{k}-m.jpg" '
+            'media="(max-width: 640px), (max-width: 900px) and (orientation: portrait)">\n'
+            f'<link rel="preload" as="image" href="/images/welcome-{k}.jpg" '
+            'media="(min-width: 641px) and (orientation: landscape), (min-width: 901px)">\n'
+        )
+
     title = "Zhong Ji Zhi Jing" if en else "众汲之井"
     html = (
         f'<!doctype html>\n<html lang="{"en" if en else "zh-CN"}">\n<head>\n'
@@ -338,9 +359,20 @@ def render_welcome(lang: str = "zh") -> bytes:
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         '<meta name="robots" content="noindex, nofollow">\n'
         f"<title>{esc(title)}</title>\n"
+        f"{preload}"
         f"<style>{WELCOME_CSS}</style>\n"
         "</head>\n<body>\n"
-        f"{''.join(out)}\n"
+        '<section class="ws">'
+        f'<a class="whit" href="{nxt}" aria-label="{esc(hit_label)}">'
+        '<picture>'
+        '<source media="(max-width: 640px), (max-width: 900px) and (orientation: portrait)" '
+        f'srcset="/images/welcome-{page}-m.jpg">'
+        f'<img src="/images/welcome-{page}.jpg" alt="{esc(alts[i])}" '
+        'width="1440" height="894" loading="eager" '
+        'decoding="async"></picture></a>'
+        f'<nav class="wdots" aria-label="{esc(lab["dots"])}">{dots}</nav>'
+        f'<a class="wskip" href="{home}">{esc(lab["enter"])}</a>'
+        "</section>\n"
         "</body>\n</html>"
     )
     return html.encode("utf-8")
@@ -2295,6 +2327,22 @@ PAGES = {
     "/en/notices": render_en_notices,
     "/en/welcome": render_welcome_en,
 }
+
+
+def _welcome_route(lang: str, page: int):
+    """把「第几屏」包成零参视图，供 PAGES 表调用（表里只放零参函数）。"""
+    def view() -> bytes:
+        return render_welcome(lang, page)
+
+    view.__name__ = f"render_welcome_{lang}_p{page}"
+    return view
+
+
+# 引导页第 2 屏及以后：每屏一个独立 URL。条数跟着 WELCOME_ALTS 走，换图不必改这里。
+for _wp in range(2, len(WELCOME_ALTS["zh"]) + 1):
+    PAGES[f"/welcome/{_wp}"] = _welcome_route("zh", _wp)
+    PAGES[f"/en/welcome/{_wp}"] = _welcome_route("en", _wp)
+del _wp
 
 
 class Handler(BaseHTTPRequestHandler):
