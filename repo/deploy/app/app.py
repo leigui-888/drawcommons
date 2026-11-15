@@ -301,6 +301,8 @@ WELCOME_CSS = """
           background: radial-gradient(circle, rgba(15, 118, 110, .15),
             rgba(109, 90, 224, .10) 46%, rgba(255, 255, 255, 0) 72%);
           pointer-events: none; }
+    /* .whit 是 absolute 铺满全屏，.ws 的 flex 对它无效——居中要在它自己身上做。 */
+    .whit { display: flex; align-items: center; justify-content: center; }
     .whit picture { width: 100%; max-width: 480px; border-radius: 1rem; overflow: hidden;
           background: #e9efec;
           box-shadow: 0 18px 44px -18px rgba(16, 22, 20, .42), 0 2px 10px rgba(16, 22, 20, .08); }
