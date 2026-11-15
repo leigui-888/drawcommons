@@ -169,13 +169,21 @@ if [ -d "$APP_DIR" ] && command -v docker >/dev/null 2>&1; then
         fi
     done
     # 仓库里删掉的文案页，服务器上也要删——否则线上留着一页没人认领的旧文案。
-    find "$APP_DIR/content" -type f -name '*.html' 2>/dev/null | while read -r f; do
-        rel=${f#"$APP_DIR/content/"}
-        case " $CONTENT_FILES " in
-            *" $rel "*) ;;
-            *) rm -f "$f"; log "content removed: $rel" ;;
-        esac
-    done
+    #
+    # 匹配必须按**整行**：CONTENT_FILES 是换行分隔的，若写成 `case " $CONTENT_FILES "`
+    # 再配 `*" $rel "*`，两头补的空格与条目间的换行对不上，**每一项都会被判成
+    # 「不在清单里」**，于是每次推送都把服务器上的文案全删掉。2026-11-15 演练时真的
+    # 这么删过一次（四个页齐删，站点 500 约一分钟），故改用 grep -qxF 整行精确匹配。
+    # 清单为空（目录被移走、ls-tree 失败）时一律不删：宁可留一页旧文案，不可误删全站。
+    if [ -n "$CONTENT_FILES" ]; then
+        find "$APP_DIR/content" -type f -name '*.html' 2>/dev/null | while read -r f; do
+            rel=${f#"$APP_DIR/content/"}
+            printf '%s\n' "$CONTENT_FILES" | grep -qxF "$rel" \
+                || { rm -f "$f"; log "content removed: $rel"; }
+        done
+    else
+        log "content list empty — 跳过删页（防误删）"
+    fi
     if [ "$content_changed" = 1 ]; then
         log "content synced (app 热加载，未重建)"
     fi
