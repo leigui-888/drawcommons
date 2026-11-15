@@ -293,7 +293,8 @@ WELCOME_CSS = """
   /* 竖屏：图片改居中圆角卡片（contain，不裁切），背后一团品牌色光晕；
      点击面仍是整屏 .whit——卡片之外点下去照样翻页，与「点任意处」的口径一致。 */
   @media (max-width: 900px) and (orientation: portrait) {
-    .ws { display: flex; align-items: center; justify-content: center;
+    /* border-box：高度 100svh 把内边距算进去，否则底部按钮会被挤出屏（实测可整层不画）。 */
+    .ws { box-sizing: border-box; display: flex; align-items: center; justify-content: center;
           padding: 0 1.1rem 7.6rem;
           background: linear-gradient(160deg, #eef2f1 0%, #f2f1f8 46%, #fdf6ee 100%); }
     .ws::before { content: ""; position: absolute; width: 82vw; height: 82vw;
@@ -303,8 +304,9 @@ WELCOME_CSS = """
           pointer-events: none; }
     /* .whit 是 absolute 铺满全屏，.ws 的 flex 对它无效——居中要在它自己身上做。 */
     .whit { display: flex; align-items: center; justify-content: center; }
-    .whit picture { width: 100%; max-width: 480px; border-radius: 1rem; overflow: hidden;
-          background: #e9efec;
+    /* height:auto 必须盖掉基础规则的 100%：否则卡片拉满全屏高、图贴在顶上。 */
+    .whit picture { width: 100%; max-width: 480px; height: auto; border-radius: 1rem;
+          overflow: hidden; background: #e9efec;
           box-shadow: 0 18px 44px -18px rgba(16, 22, 20, .42), 0 2px 10px rgba(16, 22, 20, .08); }
     /* 高度跟随图的原始比例，不锁 aspect-ratio——原图怎么画就怎么显示。 */
     .whit img { width: 100%; height: auto; }
