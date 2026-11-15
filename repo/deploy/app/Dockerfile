@@ -8,6 +8,10 @@ COPY ledger_hash.py ledger_store.py app.py legal.py agent.md ./
 # 白名单里点名；换图要连白名单一起换，表外名字一律 404。
 COPY images/ ./images/
 COPY data/ ./data/
+# 页面文案（2026-11-15）。镜像里带一份，是为了「没有挂载也能起来」：
+# 线上 compose 会把 ./app/content 只读挂到 /srv/content 并置 CONTENT_DIR，
+# 此时镜像内这份被遮蔽，改文案只需同步文件、热加载生效，不必重建镜像。
+COPY content/ ./content/
 ENV PORT=8000
 EXPOSE 8000
 # 容器内也只读运行（非 root）。

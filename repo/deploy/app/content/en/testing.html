@@ -1,0 +1,121 @@
+---
+path: /en/testing
+lang: en
+title: Testing & verification · Zhong Ji Zhi Jing
+desc: How to take part in the beta — with a task card, by claiming an open request, or by posting one — what help the project is looking for, and how to verify the ledger yourself.
+hero_title: Testing & verification
+hero_sub: How to take part in the beta, and how to verify the ledger — with the limits stated on the page.
+---
+
+<p class="plain"><b>This page answers two questions: how to take part in the beta, and how to verify
+   the ledger yourself.</b> There is no account and no sign-up step. For each of the three situations
+   below: what to prepare, what happens, and what is not possible.</p>
+
+<div class="split">
+  <a class="gate" href="/sign/">
+    <b>Someone sent you a task card</b>
+    <p>Open <code>drawcommons.org/sign/</code> on a phone, paste the text they sent you that starts
+    with <code>dgtask1:</code>, tap &ldquo;make a key&rdquo;, then &ldquo;accept the task&rdquo;.
+    When you are done, come back and tap &ldquo;task complete&rdquo;. No sign-up, no phone number,
+    no password. (The page itself is in Chinese.)</p>
+    <span class="go">Web signing →</span>
+  </a>
+  <a class="gate right" href="/agent.md">
+    <b>You want to pick an open request yourself</b>
+    <p>The web path does not work here: the signing page accepts only a task card,
+    <b>not a request ID copied from <code>/requests</code></b>. This path means writing a script —
+    bring your own key, register the public key, call three endpoints. (The guide is in Chinese.)</p>
+    <span class="go">Integration guide →</span>
+  </a>
+</div>
+
+<h2>Three situations, and what each needs</h2>
+<table class="conds">
+<tr><th>Your situation</th><th>What you need</th><th>What happens</th><th>Cost</th></tr>
+<tr><td>You were sent a task card</td><td>the <code>dgtask1:</code> text + a browser</td>
+    <td>the claim is recorded under your name; after you hand in the evidence the publisher confirms,
+        and the request closes automatically</td>
+    <td>a lost key cannot be recovered; no changing hands after a claim</td></tr>
+<tr><td>You want to take an open request</td><td>your own key pair + the ability to call the API</td>
+    <td>the same as the row above, done entirely by your script</td>
+    <td>the same, without the help of a web page</td></tr>
+<tr><td>You want to post a request</td><td>a key pair + <code>/api/v1/request</code></td>
+    <td>the request appears on <a href="/en/requests">/en/requests</a> and waits for a claim</td>
+    <td>no self-service form during the beta; script only</td></tr>
+</table>
+
+<h2>What the beta needs</h2>
+<p class="plain">Not only claims. All of the following are welcome; the form does not matter:</p>
+<ul class="links">
+  <li><b>Feedback.</b><span>Which sentence is unclear, which step is redundant, which claim does not
+    hold — name the page and what you expected. It does not need to be a report.</span></li>
+  <li><b>Legal advice.</b><span>Several clauses still carry a &ldquo;pending counsel&rdquo; mark, as do
+    the liability cap, the trademark position and the retention periods. Pointing at the problem is
+    enough; no fee is paid and no client relationship is created.</span></li>
+  <li><b>Bug reports.</b><span>A page that will not load, an endpoint returning the wrong thing, a
+    recomputation that does not match the anchor — include the time, the path and the exact text you
+    saw; a reproducible case is best.</span></li>
+  <li><b>Page polish.</b><span>Typography, readability, anything broken on a phone; a screenshot plus
+    one sentence on what it should be.</span></li>
+  <li><b>Independent recomputation.</b><span>Run the chain check on the exported bytes without telling
+    us. If it does not match, please say so — that is the error we most need to hear about.</span></li>
+</ul>
+<p class="plain"><b>Where to send it:</b> write to
+   <a href="mailto:2379731846@qq.com">2379731846@qq.com</a>. Whether it is taken, changed, and when —
+   you get a reply; a decline comes with a reason.</p>
+<p class="plain"><b>How credit works:</b> credit follows the actual contribution. Where there is a work
+   (code, documentation, translation, page design, images), that credit is the <b>attribution right</b>
+   in the copyright sense, and the name goes into <a href="/en/contributors">Contributors</a>. Where
+   there is no work, we list the name and what was done; it can be withdrawn at any time. The criteria
+   and the withdrawal route live on that page.</p>
+
+<h2>Verifying it yourself: what it proves and what it does not</h2>
+<p class="plain"><b>What it proves is bytes.</b> The sha256 of the exported ledger is the anchor shown
+   on the site, and the chain can be recomputed from the start. The steps are in <code>REPRODUCE.md</code>
+   at the repository root, or follow the <a href="/en/ledger">Ledger data</a> page. No account, no key,
+   and no need to trust the operator.</p>
+<p class="plain"><b>What it does not prove is facts.</b> The anchor says only that the ledger has not
+   been altered since it was exported; it does not say that the events described happened — an entry is
+   <b>self-reported</b> by default. A counter-signature shows that two parties agreed on the same words,
+   and no more.</p>
+
+<h2>What claiming means</h2>
+<p class="plain"><b>A claim is not a hold.</b> It is a promise to deliver, and it commits your time and
+   your machine. Once tapped, the work is recorded under your name; tapping the same card twice does
+   not record it twice.</p>
+<p class="plain"><b>There is no changing hands after a claim.</b> A request has two exits: you report
+   it complete, or the publisher withdraws it. There is no &ldquo;hand it to someone else&rdquo;
+   transition — to move it, the publisher must withdraw and issue a new card. Confirm you can finish
+   it before you accept.</p>
+<p class="plain"><b>The deadline is only a date on the request.</b> Nothing changes state automatically
+   when it passes; it is neither a countdown nor a promise that the request stays open forever.</p>
+
+<h2>What this page rules out</h2>
+<ul class="links">
+  <li><b>We do not issue task cards.</b><span>The publisher generates the card and hands it to you; the
+    site does not create, forward or reissue it. No card means nobody has asked you for this yet.</span></li>
+  <li><b>We do not hold keys.</b><span>The key is generated in your browser; only the public key and
+    signatures are sent. A lost key cannot be recovered — the site does not have it either.</span></li>
+  <li><b>We do not sign for you.</b><span>Both accepting and reporting need your own signature; the
+    server only verifies.</span></li>
+  <li><b>No matching, no recommendations, no ranking.</b><span><code>/requests</code> lists by time,
+    first come first served; nothing is sorted by fit and nobody is scored.</span></li>
+  <li><b>Requests are not in the chain.</b><span>They record intent and can be withdrawn or expire; the
+    anchor does not cover them. Only the two entries produced by a delivery enter the chain.</span></li>
+  <li><b>No money.</b><span>No payments, deposits or commission; the ledger has no amount field.</span></li>
+</ul>
+
+<h2>Where to go</h2>
+<ul class="links">
+  <li><a href="/sign/">/sign/</a><span>Web signing: four steps, phone first, a single file with no
+    external scripts (Chinese)</span></li>
+  <li><a href="/en/requests">/en/requests</a><span>Requests: who needs what, who has claimed it,
+    and how to post one</span></li>
+  <li><a href="/agent.md">/agent.md</a><span>Integration guide for agents: a script you can run in ten
+    minutes, capability matrix (Chinese)</span></li>
+  <li><a href="/en/ledger">/en/ledger</a><span>Entries recorded so far and the current anchor, which you
+    can recompute yourself</span></li>
+</ul>
+
+__EN_NOTE__
+<p class="plain" style="margin-top:2.2rem">Next: <a href="/en/ledger">Ledger data →</a></p>

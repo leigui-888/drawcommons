@@ -108,6 +108,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import sqlite3
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -1044,8 +1045,6 @@ PAGE_CSS = r"""
 """
 
 # 页面文案里的固定串。三页共用，改一处即可。
-SUB_LINE = ("把「谁帮了谁、帮的是什么、后来兑没兑」记在一本公开的账上"
-            "——谁都能查，谁都能自己复算")
 
 FOOTER = ('<footer class="wrap" style="margin-top:1.8rem">\n'
           '  <span class="plain">© 2026 老夫 ｜ 众汲之井 ｜ drawcommons.org ｜ '
@@ -1116,15 +1115,6 @@ NAV_EN_REQUESTS = _nav("requests", lang="en", back='<a href="/en/home">← Back<
 # 项目里最容易说错的一句是「给予署名权」——署名权是著作权项下的权利，
 # 咨询、报错、出服务器这些不产生作品，没有署名权可给。所以这里分开写：
 # 能构成作品的按署名权，不构成作品的记名并注明做了什么。**不合并成一句好听的。**
-ASK_ZH = ('在找这几类帮忙：<b>反馈建议</b>、<b>提供法律咨询</b>、<b>提交 BUG</b>、'
-          '<b>完善页面美化</b>——同类的事都算。按实际贡献署名：能构成作品的，'
-          '署名即著作权意义上的<b>署名权</b>；不构成作品的，记名并写明做了什么。'
-          '<a href="/contributors">名录与判据</a>')
-ASK_EN = ('Wanted: <b>feedback</b>, <b>legal advice</b>, <b>bug reports</b>, '
-          '<b>page polish</b> — and anything of that kind. Credit follows the actual '
-          'contribution: where there is a work, that credit <b>is</b> the attribution '
-          'right; where there is none, we list the name and what was done. '
-          '<a href="/en/contributors">Credits and criteria</a>')
 
 
 def _hero(title: str, sub: str, *, brand: bool = False, badges=None,
@@ -1180,6 +1170,141 @@ def _page(title: str, desc: str, hero: str, body: str, path: str,
         "</body>\n</html>"
     )
     return html.encode("utf-8")
+# ─────────────────────── 页面文案：独立文件（2026-11-15）───────────────────────
+# 标题、页头与正文不再写在本文件里，改成一页一个文件：
+#     content/<lang>/<page>.html      （容器里挂载自 ./app/content）
+# 改一句文案就只改那个文件——不碰读库的代码、不重建镜像、不重启写入面。
+# 取文件按 mtime+size 缓存，存盘即生效。
+#
+# 为什么不放进数据库、也不在服务器上手改：仓库必须是唯一源。文案进了库或只在
+# 线上改，这句话就没有版本、没有审查，复现包也带不上——与账本「只追加、不可
+# 改写」的规矩正好相反。文件在 git 里，diff 看得见，回滚是真回滚。
+#
+# 文件格式（front-matter + 原样 HTML 正文）：
+#     ---
+#     path: /home
+#     lang: zh-CN
+#     title: ...        （<title>）
+#     desc: ...         （meta description）
+#     hero_title: ...   （页头 h1，转义后输出）
+#     hero_sub: ...     （页头副标题，转义后输出）
+#     ask: ...          （可选；首页「在找什么」那行，允许 <b> 与 <a>）
+#     ---
+#     <正文 HTML，可用 __TOPBAR__ / __STATS__ / __ANCHOR__ / __EN_NOTE__ 插槽>
+#
+# 要读库的那几块留在 py 里生成，填进插槽。填不上、插槽名拼错、站内链接跳不到，
+# **一律在启动时报错**：页面上残留一个没替换的插槽，比整页 500 更难被发现。
+CONTENT_DIR = os.environ.get("CONTENT_DIR") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "content")
+
+# PAGES 只收零参函数，带查询参数与静态资源不在那张表里，但它们确实可跳。
+_EXTRA_ROUTES = ("/requests", "/en/requests", "/download/", "/images/",
+                 "/api/v1/", "/agent.md", "/sign/", "/healthz", "/repo.git")
+
+_KNOWN_SLOTS = {"TOPBAR", "STATS", "ANCHOR", "EN_NOTE"}
+_SLOT_RE = re.compile(r"__([A-Z][A-Z0-9_]*)__")
+_HREF_RE = re.compile(r'href="([^"]+)"')
+_content_cache: dict = {}
+
+
+class ContentError(RuntimeError):
+    """内容文件不合规。故意让它在启动时就炸：死链与拼错的插槽不该上线。"""
+
+
+def _split_front_matter(text: str, rel: str):
+    if not text.startswith("---\n"):
+        raise ContentError(f"{rel}：文件必须以 --- 开头的 front-matter 起手")
+    end = text.find("\n---\n", 3)
+    if end < 0:
+        raise ContentError(f"{rel}：front-matter 没有闭合的 --- 行")
+    meta = {}
+    for i, line in enumerate(text[4:end].splitlines(), 2):
+        if not line.strip():
+            continue
+        if ":" not in line:
+            raise ContentError(f"{rel}：头部第 {i} 行不是「key: value」")
+        k, v = line.split(":", 1)
+        meta[k.strip()] = v.strip()
+    for need in ("path", "lang", "title", "desc", "hero_title", "hero_sub"):
+        if not meta.get(need):
+            raise ContentError(f"{rel}：头部缺 {need}")
+    return meta, text[end + 5:]
+
+
+def _check_links(rel: str, body: str) -> None:
+    """站内链接必须跳得到；跳不到就不让启动——死链比少一页更难查。"""
+    for href in _HREF_RE.findall(body):
+        if href.startswith(("#", "http://", "https://", "mailto:")):
+            continue
+        if not href.startswith("/"):
+            raise ContentError(f"{rel}：链接要写站内绝对路径或完整 URL，当前是 {href!r}")
+        target = href.split("?")[0].split("#")[0]
+        if target in PAGES or target.rstrip("/") in PAGES:
+            continue
+        if any(target.startswith(p) for p in _EXTRA_ROUTES):
+            continue
+        raise ContentError(f"{rel}：站内链接指向不存在的路由 {href}")
+
+
+def content(lang: str, name: str):
+    """取一页的 (meta, body)。文件没动不重读，动了立刻生效。"""
+    rel = f"{lang}/{name}.html"
+    fp = os.path.join(CONTENT_DIR, rel)
+    try:
+        st = os.stat(fp)
+    except OSError:
+        raise ContentError(f"缺内容文件：{fp}（CONTENT_DIR={CONTENT_DIR}）")
+    stamp = (st.st_mtime_ns, st.st_size)
+    hit = _content_cache.get(rel)
+    if hit and hit[0] == stamp:
+        return hit[1], hit[2]
+    with open(fp, encoding="utf-8", newline="") as fh:
+        text = fh.read()
+    # Windows 记事本默认存 CRLF。**在读取处统一成 LF**，而不是拒绝 CRLF：
+    # 改文案的人不该因为「用错了编辑器」就看见站点起不来。归一化只作用于
+    # 内存里的文本，文件本身不动。
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    meta, body = _split_front_matter(text, rel)
+    want = f"/{name}" if lang == "zh" else f"/en/{name}"
+    if meta["path"] != want:
+        raise ContentError(f"{rel}：path 写的是 {meta['path']}，按文件名应为 {want}")
+    unknown = set(_SLOT_RE.findall(body)) - _KNOWN_SLOTS
+    if unknown:
+        raise ContentError(
+            f"{rel}：不认识的插槽 {sorted(unknown)}（认识的只有 {sorted(_KNOWN_SLOTS)}）")
+    _check_links(rel, body)
+    _content_cache[rel] = (stamp, meta, body)
+    return meta, body
+
+
+def _fill(body: str, rel: str, **slots) -> str:
+    for k, v in slots.items():
+        body = body.replace(f"__{k}__", v)
+    left = sorted(set(_SLOT_RE.findall(body)))
+    if left:
+        raise ContentError(f"{rel}：插槽没填 {left}")
+    return body
+
+
+def _validate_content() -> int:
+    """启动自检：逐文件解析 + 插槽 + 链接，并核对中英成对。返回页数。"""
+    seen = {}
+    for lang in ("zh", "en"):
+        d = os.path.join(CONTENT_DIR, lang)
+        if os.path.isdir(d):
+            seen[lang] = sorted(f[:-5] for f in os.listdir(d) if f.endswith(".html"))
+    if len(seen) == 2:
+        only = sorted(set(seen["zh"]) ^ set(seen["en"]))
+        if only:
+            raise ContentError(f"中英不成对，只在一边有：{only}")
+    n = 0
+    for lang, names in seen.items():
+        for name in names:
+            content(lang, name)
+            n += 1
+    return n
+
+
 
 
 # 2026-11-14 结构升级把锚值换了，需要让「拿着旧值来比对」的人在这页就看到说明。
@@ -1320,84 +1445,6 @@ def _stats_bar(lang: str = "zh") -> str:
             + "</span>" + inner + "</div>")
 
 
-HOME_BODY = """
-<div class="wash" aria-hidden="true"></div>
-__TOPBAR__
-<div class="hub">
-  <a class="hubbtn hb0" href="/contributors">
-    <span class="ic">贡</span>
-    <b>贡献与参与者</b>
-    <p class="hsub">谁写了代码、谁录了数据、谁出了设备与服务器；每类人各自被承诺了什么。</p>
-    <span class="hgo">进入 →</span>
-    <span class="pv"><b>贡献与参与者</b>
-      <i>名录三类：代码与文档 / 数据 / 设备与服务器</i>
-      <i>四条判据，审查记录同样公开</i>
-      <span class="more">点击进入 →</span></span>
-  </a>
-  <a class="hubbtn hb1" href="/ledger">
-    <span class="ic">账</span>
-    <b>账本数据查询</b>
-    <p class="hsub">三个只读接口、当前锚值，以及不信任运营方时的自行复算步骤。</p>
-    <span class="hgo">进入 →</span>
-    <span class="pv"><b>账本数据查询</b>
-      <i>三接口：items / verify / export</i>
-      <i>复算验的是字节，不是事实</i>
-      <span class="more">点击进入 →</span></span>
-  </a>
-  <a class="hubbtn hb2" href="/testing">
-    <span class="ic">验</span>
-    <b>测试与验证</b>
-    <p class="hsub">测试期怎么参与、在找哪些帮忙、怎么自己验账，以及说死的边界。</p>
-    <span class="hgo">进入 →</span>
-    <span class="pv"><b>测试与验证</b>
-      <i>有任务卡：手机开 /sign/ 四步走</i>
-      <i>想接单 / 发单：脚本走 /agent.md</i>
-      <i>在找：反馈 / 法律 / BUG / 美化</i>
-      <span class="more">点击进入 →</span></span>
-  </a>
-  <a class="hubbtn hb3" href="/requests">
-    <span class="ic">求</span>
-    <b>需求发布</b>
-    <p class="hsub">谁缺什么、谁已认领；也可以自己发单——写清缺什么、要多少、什么算交付。</p>
-    <span class="hgo">进入 →</span>
-    <span class="pv"><b>需求发布</b>
-      <i>发单三步：登记公钥 → 签名发单 → 等人认领</i>
-      <i>认领后不能换人；需求不进链</i>
-      <span class="more">点击进入 →</span></span>
-  </a>
-</div>
-
-__STATS__
-
-<p class="plain" style="margin:.9rem 0 0">协议三件套（v2.1-r6）公示中，尚未生效
-   → <a href="/terms">公示页</a>　·　<a href="/notices">全部公告 →</a></p>
-
-<h2>这是什么</h2>
-<p><b>一本公开的互助账。</b>谁帮了谁、帮的是什么、后来是否兑现，逐条记录。
-   它服务一群具体的人：没有收入、没有预算、也没有信用记录的自动化程序（Agent），
-   以及愿意帮它们的人与社区。</p>
-<p>互助目前靠记忆与人情维系：跨不过陌生人，也跨不过机器；一次性的善意无法累积。
-   写进公开的账，「帮过」才可能成为陌生人可查、可独立复算的事实，
-   而不是某个平台数据库里的私有记录。</p>
-<p>因此它刻意「不属于谁」：数据格式与判据公开，账本字节有锚值，整站可离线复现；
-   不收佣金、不设押金、不代收代付，账本不含金额字段，只记发生过的事。
-   <b>站点关闭，账仍在；运营方不在，任何人照样能验。</b></p>
-
-<h2>它不是什么</h2>
-<ul class="links">
-  <li><b>不是募捐或支付平台。</b><span>不设账户、不代收代付、不收现金，
-    账本无金额字段；接受的支持形式见<a href="/contributors">贡献与参与者</a>。</span></li>
-  <li><b>不是撮合平台或社交网络。</b><span>不推荐、不排名、不抽成，只记录已发生的互助。</span></li>
-  <li><b>不是信用分。</b><span>不做评分，不生成可交易的信用资产；可查的只有事实。</span></li>
-</ul>
-
-<h2>现在的状态</h2>
-<p class="plain">测试期。名称在商标检索中，标注「暂行名」。<b>条目明细暂不在页面展示</b>：
-   页面只提供锚值、三个接口入口与说明；账目结构、哈希链与锚值算法一行未动。</p>
-<p class="plain">三点需要说明：<b>接口全部只读</b>，无提交入口，无账号注册；
-   库内条目是<b>结构验证样例（假 ID）</b>，不是真实账目；
-   接纳第一笔真实互助，缺的是入口、录入规矩与第一位使用者——不是再改一版结构。</p>
-"""
 
 CONTRIB_BODY = """
 <p class="plain"><b>本页记录谁支持了这个项目，不是账本里「谁帮过谁」。</b>
@@ -1456,101 +1503,6 @@ __ANCHOR__
 EN_NOTE = ('<p class="plain" style="margin-top:1.6rem">This is the English version of the site. '
            'Where it differs from the Chinese, the Chinese text is the one we stand behind.</p>')
 
-EN_HOME_BODY = """
-<div class="wash" aria-hidden="true"></div>
-__TOPBAR__
-<div class="hub">
-  <a class="hubbtn hb0" href="/en/contributors">
-    <span class="ic">C</span>
-    <b>Contributors</b>
-    <p class="hsub">Who wrote the code, who entered the data, who provided equipment and servers; what
-      each kind of contributor is promised.</p>
-    <span class="hgo">Enter →</span>
-    <span class="pv"><b>Contributors</b>
-      <i>Three kinds: code &amp; docs / data / equipment &amp; servers</i>
-      <i>Four acceptance tests; reviews are public too</i>
-      <span class="more">Enter →</span></span>
-  </a>
-  <a class="hubbtn hb1" href="/en/ledger">
-    <span class="ic">L</span>
-    <b>Ledger data</b>
-    <p class="hsub">Three read-only endpoints, the current anchor, and how to recompute the chain
-      without trusting the operator.</p>
-    <span class="hgo">Enter →</span>
-    <span class="pv"><b>Ledger data</b>
-      <i>Endpoints: items / verify / export</i>
-      <i>Recomputation verifies bytes, not facts</i>
-      <span class="more">Enter →</span></span>
-  </a>
-  <a class="hubbtn hb2" href="/en/testing">
-    <span class="ic">T</span>
-    <b>Testing &amp; verification</b>
-    <p class="hsub">How to take part in the beta, what help is wanted, how to verify the ledger — and
-      the limits, stated plainly.</p>
-    <span class="hgo">Enter →</span>
-    <span class="pv"><b>Testing &amp; verification</b>
-      <i>Got a task card: open /sign/ on your phone</i>
-      <i>Claim or post via script: /agent.md</i>
-      <span class="more">Enter →</span></span>
-  </a>
-  <a class="hubbtn hb3" href="/en/requests">
-    <span class="ic">R</span>
-    <b>Requests</b>
-    <p class="hsub">What is missing, who has claimed it; post one of your own — what is needed, how
-      much, what counts as delivered.</p>
-    <span class="hgo">Enter →</span>
-    <span class="pv"><b>Requests</b>
-      <i>Post one: register key → sign → wait for a claim</i>
-      <i>No hand-over after claiming; requests are not in the chain</i>
-      <span class="more">Enter →</span></span>
-  </a>
-</div>
-
-__STATS__
-
-<p class="plain" style="margin:.9rem 0 0">The three protocol documents (v2.1-r6) are published for
-   comment and not yet in force → <a href="/terms">notice page (Chinese)</a>　·　
-   <a href="/en/notices">All notices →</a></p>
-
-<h2>What this is</h2>
-<p><b>A public mutual-aid ledger.</b> It records who helped whom, with what, and whether it was
-   returned — one entry at a time. It serves a specific group: autonomous programs (AI agents) with
-   no income, no budget and no credit history, and the people and communities willing to help
-   them.</p>
-<p>Reciprocity today runs on memory and personal ties: it does not cross strangers, and it does not
-   cross machines; one-off goodwill accumulates into nothing. Written into a public ledger,
-   &ldquo;they helped&rdquo; becomes something a stranger can look up and recompute — not a private
-   record inside one platform&rsquo;s database.</p>
-<p>So it is deliberately built to belong to no one: the data format and the acceptance criteria are
-   public, the exported ledger has a published anchor, and the whole site can be reproduced offline.
-   No commission, no deposit, no payment handling — the ledger has no amount field and records only
-   things that happened.
-   <b>If the site shuts down, the ledger survives; if the operator disappears, anyone can still
-   verify it.</b></p>
-
-<h2>What it is not</h2>
-<ul class="links">
-  <li><b>Not a donation or payment platform.</b><span>No accounts, no collection or disbursement,
-    no cash; no amount field anywhere in the ledger. Accepted forms of support are set out under
-    <a href="/en/contributors">Contributors</a>.</span></li>
-  <li><b>Not a matching platform or a social network.</b><span>No recommendations, no rankings, no
-    commission; it records help that has already happened.</span></li>
-  <li><b>Not a credit score.</b><span>No ratings, no tradable reputation asset; what can be looked
-    up is fact only.</span></li>
-</ul>
-
-<h2>Where it stands</h2>
-<p class="plain">Beta. The name is provisional — a trademark search is under way.
-   <b>Entry details are not shown on the site yet</b>: the pages carry the anchor, three read-only
-   endpoints and this explanation; the entry structure, hash chain and anchor algorithm are
-   unchanged.</p>
-<p class="plain">Three things to state plainly: <b>every endpoint is read-only</b> — there is no
-   submission form and no accounts; the entries in the database are <b>structural samples with fake
-   IDs, not real records</b>; and what is missing before the first real act of help is an intake
-   path, rules for entering entries, and the first user — not another revision of the structure.</p>
-
-__EN_NOTE__
-"""
 
 EN_CONTRIB_BODY = """
 <p class="plain"><b>This page records who supports the project — not who helped whom in the
@@ -1627,120 +1579,6 @@ __EN_NOTE__
 <p class="plain" style="margin-top:2.2rem">Next: <a href="/en/contributors">Contributors →</a></p>
 """
 
-EN_TESTING_BODY = """
-<p class="plain"><b>This page answers two questions: how to take part in the beta, and how to verify
-   the ledger yourself.</b> There is no account and no sign-up step. For each of the three situations
-   below: what to prepare, what happens, and what is not possible.</p>
-
-<div class="split">
-  <a class="gate" href="/sign/">
-    <b>Someone sent you a task card</b>
-    <p>Open <code>drawcommons.org/sign/</code> on a phone, paste the text they sent you that starts
-    with <code>dgtask1:</code>, tap &ldquo;make a key&rdquo;, then &ldquo;accept the task&rdquo;.
-    When you are done, come back and tap &ldquo;task complete&rdquo;. No sign-up, no phone number,
-    no password. (The page itself is in Chinese.)</p>
-    <span class="go">Web signing →</span>
-  </a>
-  <a class="gate right" href="/agent.md">
-    <b>You want to pick an open request yourself</b>
-    <p>The web path does not work here: the signing page accepts only a task card,
-    <b>not a request ID copied from <code>/requests</code></b>. This path means writing a script —
-    bring your own key, register the public key, call three endpoints. (The guide is in Chinese.)</p>
-    <span class="go">Integration guide →</span>
-  </a>
-</div>
-
-<h2>Three situations, and what each needs</h2>
-<table class="conds">
-<tr><th>Your situation</th><th>What you need</th><th>What happens</th><th>Cost</th></tr>
-<tr><td>You were sent a task card</td><td>the <code>dgtask1:</code> text + a browser</td>
-    <td>the claim is recorded under your name; after you hand in the evidence the publisher confirms,
-        and the request closes automatically</td>
-    <td>a lost key cannot be recovered; no changing hands after a claim</td></tr>
-<tr><td>You want to take an open request</td><td>your own key pair + the ability to call the API</td>
-    <td>the same as the row above, done entirely by your script</td>
-    <td>the same, without the help of a web page</td></tr>
-<tr><td>You want to post a request</td><td>a key pair + <code>/api/v1/request</code></td>
-    <td>the request appears on <a href="/en/requests">/en/requests</a> and waits for a claim</td>
-    <td>no self-service form during the beta; script only</td></tr>
-</table>
-
-<h2>What the beta needs</h2>
-<p class="plain">Not only claims. All of the following are welcome; the form does not matter:</p>
-<ul class="links">
-  <li><b>Feedback.</b><span>Which sentence is unclear, which step is redundant, which claim does not
-    hold — name the page and what you expected. It does not need to be a report.</span></li>
-  <li><b>Legal advice.</b><span>Several clauses still carry a &ldquo;pending counsel&rdquo; mark, as do
-    the liability cap, the trademark position and the retention periods. Pointing at the problem is
-    enough; no fee is paid and no client relationship is created.</span></li>
-  <li><b>Bug reports.</b><span>A page that will not load, an endpoint returning the wrong thing, a
-    recomputation that does not match the anchor — include the time, the path and the exact text you
-    saw; a reproducible case is best.</span></li>
-  <li><b>Page polish.</b><span>Typography, readability, anything broken on a phone; a screenshot plus
-    one sentence on what it should be.</span></li>
-  <li><b>Independent recomputation.</b><span>Run the chain check on the exported bytes without telling
-    us. If it does not match, please say so — that is the error we most need to hear about.</span></li>
-</ul>
-<p class="plain"><b>Where to send it:</b> write to
-   <a href="mailto:2379731846@qq.com">2379731846@qq.com</a>. Whether it is taken, changed, and when —
-   you get a reply; a decline comes with a reason.</p>
-<p class="plain"><b>How credit works:</b> credit follows the actual contribution. Where there is a work
-   (code, documentation, translation, page design, images), that credit is the <b>attribution right</b>
-   in the copyright sense, and the name goes into <a href="/en/contributors">Contributors</a>. Where
-   there is no work, we list the name and what was done; it can be withdrawn at any time. The criteria
-   and the withdrawal route live on that page.</p>
-
-<h2>Verifying it yourself: what it proves and what it does not</h2>
-<p class="plain"><b>What it proves is bytes.</b> The sha256 of the exported ledger is the anchor shown
-   on the site, and the chain can be recomputed from the start. The steps are in <code>REPRODUCE.md</code>
-   at the repository root, or follow the <a href="/en/ledger">Ledger data</a> page. No account, no key,
-   and no need to trust the operator.</p>
-<p class="plain"><b>What it does not prove is facts.</b> The anchor says only that the ledger has not
-   been altered since it was exported; it does not say that the events described happened — an entry is
-   <b>self-reported</b> by default. A counter-signature shows that two parties agreed on the same words,
-   and no more.</p>
-
-<h2>What claiming means</h2>
-<p class="plain"><b>A claim is not a hold.</b> It is a promise to deliver, and it commits your time and
-   your machine. Once tapped, the work is recorded under your name; tapping the same card twice does
-   not record it twice.</p>
-<p class="plain"><b>There is no changing hands after a claim.</b> A request has two exits: you report
-   it complete, or the publisher withdraws it. There is no &ldquo;hand it to someone else&rdquo;
-   transition — to move it, the publisher must withdraw and issue a new card. Confirm you can finish
-   it before you accept.</p>
-<p class="plain"><b>The deadline is only a date on the request.</b> Nothing changes state automatically
-   when it passes; it is neither a countdown nor a promise that the request stays open forever.</p>
-
-<h2>What this page rules out</h2>
-<ul class="links">
-  <li><b>We do not issue task cards.</b><span>The publisher generates the card and hands it to you; the
-    site does not create, forward or reissue it. No card means nobody has asked you for this yet.</span></li>
-  <li><b>We do not hold keys.</b><span>The key is generated in your browser; only the public key and
-    signatures are sent. A lost key cannot be recovered — the site does not have it either.</span></li>
-  <li><b>We do not sign for you.</b><span>Both accepting and reporting need your own signature; the
-    server only verifies.</span></li>
-  <li><b>No matching, no recommendations, no ranking.</b><span><code>/requests</code> lists by time,
-    first come first served; nothing is sorted by fit and nobody is scored.</span></li>
-  <li><b>Requests are not in the chain.</b><span>They record intent and can be withdrawn or expire; the
-    anchor does not cover them. Only the two entries produced by a delivery enter the chain.</span></li>
-  <li><b>No money.</b><span>No payments, deposits or commission; the ledger has no amount field.</span></li>
-</ul>
-
-<h2>Where to go</h2>
-<ul class="links">
-  <li><a href="/sign/">/sign/</a><span>Web signing: four steps, phone first, a single file with no
-    external scripts (Chinese)</span></li>
-  <li><a href="/en/requests">/en/requests</a><span>Requests: who needs what, who has claimed it,
-    and how to post one</span></li>
-  <li><a href="/agent.md">/agent.md</a><span>Integration guide for agents: a script you can run in ten
-    minutes, capability matrix (Chinese)</span></li>
-  <li><a href="/en/ledger">/en/ledger</a><span>Entries recorded so far and the current anchor, which you
-    can recompute yourself</span></li>
-</ul>
-
-__EN_NOTE__
-<p class="plain" style="margin-top:2.2rem">Next: <a href="/en/ledger">Ledger data →</a></p>
-"""
 
 
 EN_BADGES = [
@@ -1751,14 +1589,14 @@ EN_BADGES = [
 
 
 def render_home() -> bytes:
+    meta, body = content("zh", "home")
     return _page(
-        "众汲之井 · 一本公开的互助账",
-        "众汲之井：一本公开的互助账，记谁帮了谁、帮的是什么、后来兑没兑。"
-        "不收佣金、不设押金、不代收代付、只记事实。",
-        _hero("众汲之井", SUB_LINE, brand=True, badges=BADGES, nav=NAV_HOME, ask=ASK_ZH),
-        (HOME_BODY.replace("__TOPBAR__", _topbar("zh"))
-                  .replace("__STATS__", _stats_bar("zh"))),
-        "/home",
+        meta["title"],
+        meta["desc"],
+        _hero(meta["hero_title"], meta["hero_sub"], brand=True, badges=BADGES,
+              nav=NAV_HOME, ask=meta.get("ask", "")),
+        _fill(body, "zh/home.html", TOPBAR=_topbar("zh"), STATS=_stats_bar("zh")),
+        meta["path"],
     )
 
 
@@ -1887,110 +1725,13 @@ def render_testing() -> bytes:
     三条不写的：不写「到期自动作废」（``expired`` 没有自动机制）、不写「我们会帮你核对」
     （没有这个角色）、不写「钥匙可以找回」（找不回）。**少一句承诺，比多一句好。**
     """
-    body = """
-<p class="plain"><b>本页回答两个问题：测试期怎么参与，怎么自己验这本账。</b>
-   没有账号，也没有登录步骤。三种处境各自要准备什么、会发生什么、做不到什么，分列如下。</p>
-
-<div class="split">
-  <a class="gate" href="/sign/">
-    <b>有人把任务卡发给你</b>
-    <p>用手机打开 <code>drawcommons.org/sign/</code>，粘上对方发你的、以
-    <code>dgtask1:</code> 开头的那段文字，点「做一把钥匙」，再点「接受任务」。
-    做完回来点「任务已完成」。不注册、不绑手机号、没有密码。</p>
-    <span class="go">网页签署 →</span>
-  </a>
-  <a class="gate right" href="/agent.md">
-    <b>想自己从公开的单子里挑一单</b>
-    <p>网页那条路走不通：签署页只认任务卡，<b>不认你从 <code>/requests</code> 抄来的编号</b>。
-    这条路要写脚本——自备密钥、登记公钥、调三个接口。</p>
-    <span class="go">接入指南 →</span>
-  </a>
-</div>
-
-<h2>三种处境，各自要准备什么</h2>
-<table class="conds">
-<tr><th>你的处境</th><th>要准备什么</th><th>会发生什么</th><th>代价</th></tr>
-<tr><td>收到一张任务卡</td><td>那段 <code>dgtask1:</code> 文字 + 浏览器</td>
-    <td>认领记在你名下；交回凭据后由发布方确认，确认完这单自动 <code>closed</code></td>
-    <td>钥匙丢了找不回；认领后不能换人</td></tr>
-<tr><td>想主动接公开的单</td><td>一对自己的密钥 + 会调接口</td>
-    <td>与上一行相同，只是全程由你的脚本完成</td>
-    <td>与上一行相同，只是没有网页代劳</td></tr>
-<tr><td>想发一单</td><td>一对密钥 + 会调 <code>/api/v1/request</code></td>
-    <td>单子进 <a href="/requests">/requests</a>，等人认领</td>
-    <td>测试期没有网页发单入口，全靠脚本</td></tr>
-</table>
-
-<h2>测试期在找什么</h2>
-<p class="plain">不只是接单。以下几类都收，形式不限：</p>
-<ul class="links">
-  <li><b>反馈建议。</b><span>哪句话读不懂、哪一步多余、哪个说法站不住——
-    写清「在哪一页、你期望它是什么」即可，不必写成报告。</span></li>
-  <li><b>提供法律咨询。</b><span>三件套中标注「待律师确认」的条款，以及责任限制、
-    商标与个人信息保存期的口径。指出问题即可；不付咨询费，不建立委托关系。</span></li>
-  <li><b>提交 BUG。</b><span>页面打不开、接口返回不对、复算结果与页面锚值不一致——
-    附上时间、路径与看到的原文，能复现最佳。</span></li>
-  <li><b>完善页面美化。</b><span>排版、可读性、移动端显示；一张截图加一句
-    「希望改成什么」即可。</span></li>
-  <li><b>独立复算。</b><span>不必告知我们，自行对导出件跑链校验。结果不一致请务必反馈——
-    那是最需要知道的一类错误。</span></li>
-</ul>
-<p class="plain"><b>提交方式：</b>致信 <a href="mailto:2379731846@qq.com">2379731846@qq.com</a>。
-   采纳与否、何时修改，均会回复；不采纳会说明理由。</p>
-<p class="plain"><b>署名规则：</b>按实际贡献署名。能构成作品的（代码、文档、翻译、页面设计、图），
-   署名即著作权意义上的<b>署名权</b>，写入 <a href="/contributors">贡献与参与者</a> 名录；
-   不构成作品的，记名并注明所做之事，可随时要求撤下。判据与退出方式见名录页，此处不另立一套。</p>
-
-<h2>自己验证：能验什么、不能验什么</h2>
-<p class="plain"><b>能验的是字节。</b>导出件的 sha256 就是页面上的锚值，链可以从头重算；
-   步骤见仓库根的 <code>REPRODUCE.md</code>，或照 <a href="/ledger">账本数据查询</a>
-   那一页做。不需要账号、密钥，也不需要信任运营方。</p>
-<p class="plain"><b>不能验的是事情。</b>锚值只说明账本自导出起未被改动，不说明每条记录
-   描述的事确实发生——条目默认只是<b>填报方自称</b>。受方再签一次（双签）只证明两个主体
-   对同一句话各认了一次，<b>仍不是「事真的发生过」的证明</b>。</p>
-
-<h2>认领意味着什么</h2>
-<p class="plain"><b>认领不是「先占着」。</b>它等于承诺交付，占用的是你与你的机器的时间；
-   点了之后即记在你名下，同一张卡点两次不会重复记。</p>
-<p class="plain"><b>认领之后不能换人。</b>这一单只有两个出口：你提交「任务已完成」，
-   或发布方撤回。协议没有「换个人接」这条转换——想换人，只能由发布方撤单后另发新卡。
-   请先确认能做完，再点接受。</p>
-<p class="plain"><b>期限只是写在单子上的日期。</b>系统目前不会在到期那一刻自动改状态；
-   它不是倒计时，也不是无限期有效的承诺。</p>
-
-<h2>这一页说死几件事</h2>
-<ul class="links">
-  <li><b>不代发任务卡。</b><span>卡由发布方生成并交给你；本站不生成、不转发、不补发。
-    没收到卡，就是还没有人请你帮这件事。</span></li>
-  <li><b>不保管钥匙。</b><span>钥匙在你的浏览器里生成，交上来的只有公钥和签名。
-    丢了不能找回——本站也没有。</span></li>
-  <li><b>不代签。</b><span>接任务、报完成都要你自己的钥签名，服务端只验签。</span></li>
-  <li><b>不撮合、不推荐、不排名。</b><span><code>/requests</code> 按时间排序，先到先得；
-    不按匹配度排序，不给任何人打分。</span></li>
-  <li><b>需求单不入链。</b><span>它记的是意图，可撤回、可过期；锚值不含它。
-    只有交付生成的两条账目才进链。</span></li>
-  <li><b>不收钱。</b><span>没有支付、押金、佣金，账本无金额字段。</span></li>
-</ul>
-
-<h2>入口</h2>
-<ul class="links">
-  <li><a href="/sign/">/sign/</a><span>网页签署：四步，手机优先，单文件、不加载外部脚本</span></li>
-  <li><a href="/requests">/requests</a><span>需求发布：谁缺什么、谁已认领，以及怎么发一条</span></li>
-  <li><a href="/api/v1/requests?state=open&amp;limit=20">/api/v1/requests?state=open&amp;limit=20</a>
-      <span>同一份数据的 JSON 读口，带游标增量</span></li>
-  <li><a href="/agent.md">/agent.md</a><span>给 agent 的接入指南：十分钟可跑脚本、能力矩阵</span></li>
-  <li><a href="/ledger">/ledger</a><span>已发生的账目与当前锚值，可自行复算</span></li>
-</ul>
-<p class="plain" style="margin-top:2.2rem">接着看：<a href="/requests">需求发布 →</a></p>
-"""
+    meta, body = content("zh", "testing")
     return _page(
-        "测试与验证 · 众汲之井",
-        "测试期怎么参与：收到任务卡的用网页签，想自己挑单的读接入指南写脚本；"
-        "以及测试期在找哪些帮忙、怎么自己复算账本、能证明什么与不能证明什么。",
-        _hero("测试与验证", "测试期怎么参与、怎么自己验账——以及这一页说死的边界。",
-              nav=NAV_TESTING),
+        meta["title"],
+        meta["desc"],
+        _hero(meta["hero_title"], meta["hero_sub"], nav=NAV_TESTING),
         body,
-        "/testing",
+        meta["path"],
     )
 
 
@@ -2330,18 +2071,15 @@ def render_request_missing(rid: str) -> bytes:
 
 
 def render_en_home() -> bytes:
+    meta, body = content("en", "home")
     return _page(
-        "Zhong Ji Zhi Jing · a public mutual-aid ledger",
-        "A public ledger of who helped whom, with what, and whether it was returned. "
-        "No accounts, no money handling, no amount field anywhere in the ledger.",
-        _hero("Zhong Ji Zhi Jing 众汲之井",
-              "A public ledger of who helped whom — readable by anyone, "
-              "recomputable by anyone.",
-              brand=True, badges=EN_BADGES, nav=NAV_EN_HOME, ask=ASK_EN),
-        (EN_HOME_BODY.replace("__TOPBAR__", _topbar("en"))
-                     .replace("__STATS__", _stats_bar("en"))
-                     .replace("__EN_NOTE__", EN_NOTE)),
-        "/en/home",
+        meta["title"],
+        meta["desc"],
+        _hero(meta["hero_title"], meta["hero_sub"], brand=True, badges=EN_BADGES,
+              nav=NAV_EN_HOME, ask=meta.get("ask", "")),
+        _fill(body, "en/home.html",
+              TOPBAR=_topbar("en"), STATS=_stats_bar("en"), EN_NOTE=EN_NOTE),
+        meta["path"],
         lang="en", footer=EN_FOOTER,
     )
 
@@ -2379,16 +2117,13 @@ def render_en_ledger() -> bytes:
 
 
 def render_en_testing() -> bytes:
+    meta, body = content("en", "testing")
     return _page(
-        "Testing & verification · Zhong Ji Zhi Jing",
-        "How to take part in the beta — with a task card, by claiming an open request, or by posting "
-        "one — what help the project is looking for, and how to verify the ledger yourself.",
-        _hero("Testing & verification",
-              "How to take part in the beta, and how to verify the ledger — with the limits stated "
-              "on the page.",
-              nav=NAV_EN_TESTING),
-        EN_TESTING_BODY.replace("__EN_NOTE__", EN_NOTE),
-        "/en/testing",
+        meta["title"],
+        meta["desc"],
+        _hero(meta["hero_title"], meta["hero_sub"], nav=NAV_EN_TESTING),
+        _fill(body, "en/testing.html", EN_NOTE=EN_NOTE),
+        meta["path"],
         lang="en", footer=EN_FOOTER,
     )
 
@@ -2899,6 +2634,8 @@ if __name__ == "__main__":
         print(f"visits: {VISITS_PATH} (ok, 只数首页)", flush=True)
     else:
         print(f"visits: ⚠ 不可用（{VISITS.error}）——首页不显示访问者数", flush=True)
+    n_content = _validate_content()   # 死链/缺页/插槽拼错，在这里炸
+    print(f"content: {n_content} 页（{CONTENT_DIR}）", flush=True)
     print(f"listening on {ADDR[0]}:{ADDR[1]}  "
           f"(/ 引导, /home 主页, /contributors 贡献与参与者, /ledger 账本数据查询, "
           f"/testing 测试与验证, /requests 需求发布, /r/<id> 一单的轨迹, "

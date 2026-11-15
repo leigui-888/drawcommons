@@ -38,8 +38,14 @@ services:
       # 账本字节与锚值一个字符都不受影响（见 app.py 的 Visits 类）。
       # 宿主目录须 chown 999:999（容器内 appuser 的 uid），否则静默写不进去。
       - ./app/visits:/srv/visits
+      # 页面文案（2026-11-15）：只读挂入，改文案只需同步文件——app 按 mtime
+      # 热加载，不重建镜像、不重启容器，写库的 ingest 更不受影响。
+      # 挂载遮蔽镜像内那份 COPY content/，故「改仓库里的文件」与「线上生效」
+      # 是同一件事，不会分叉。
+      - ./app/content:/srv/content:ro
     environment:
       - VISITS_DB=/srv/visits/visits.db
+      - CONTENT_DIR=/srv/content
     # 注意：Docker 不会因为 unhealthy 自动重启容器，这条的作用是让状态
     # 可读（docker ps 显示 healthy/unhealthy），供外部监控或人工判断。
     healthcheck:

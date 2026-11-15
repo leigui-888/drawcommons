@@ -16,6 +16,8 @@
 #      它们只活在裸仓对象库里，对浏览器就是不存在。这里摊到 /download/。
 #   6. 应用层部署 —— 镜像构建时才 COPY app.py，钩子若不碰它，「仓库改了页面、
 #      线上还是旧代码」可以静默很久（2026-11-12 实测四小时未上线）。字节真变了才重建。
+#      2026-11-15 起页面文案在 repo/deploy/app/content/：那部分**只同步文件、
+#      不重建**（app 按 mtime 热加载），改一句文案不再连带重启写库的 ingest。
 # 有 github remote 时顺带镜像；失败只记日志，不让镜像问题回滚本地推送。
 
 set -e
@@ -142,6 +144,40 @@ if [ -d "$APP_DIR" ] && command -v docker >/dev/null 2>&1; then
         else
             rm -f "$COMPOSE_FILE.new"
         fi
+    fi
+    # 页面文案目录（2026-11-15 起）。文案与代码**分开走**：文案是从挂载目录
+    # 热加载的，同步文件即生效，所以这里**不置 app_changed**——改一句文案不该
+    # 把写库的 ingest 一起重启，这正是这次改造要消掉的成本。
+    # 反过来，漏掉这一段会让「仓库改了文案、线上还是旧的」，与 11-12 那次
+    # 四小时未上线是同一类错，故与 app.py 同段维护。
+    CONTENT_FILES=$(git ls-tree -r --name-only HEAD -- repo/deploy/app/content/ 2>/dev/null \
+                    | sed -n 's|^repo/deploy/app/content/||p')
+    mkdir -p "$APP_DIR/content"
+    content_changed=0
+    for rel in $CONTENT_FILES; do
+        mkdir -p "$APP_DIR/content/$(dirname "$rel")"
+        if head_file "repo/deploy/app/content/$rel" > "$APP_DIR/content/$rel.new" 2>/dev/null \
+           && [ -s "$APP_DIR/content/$rel.new" ]; then
+            if cmp -s "$APP_DIR/content/$rel.new" "$APP_DIR/content/$rel"; then
+                rm -f "$APP_DIR/content/$rel.new"
+            else
+                mv -f "$APP_DIR/content/$rel.new" "$APP_DIR/content/$rel"
+                content_changed=1
+            fi
+        else
+            rm -f "$APP_DIR/content/$rel.new"
+        fi
+    done
+    # 仓库里删掉的文案页，服务器上也要删——否则线上留着一页没人认领的旧文案。
+    find "$APP_DIR/content" -type f -name '*.html' 2>/dev/null | while read -r f; do
+        rel=${f#"$APP_DIR/content/"}
+        case " $CONTENT_FILES " in
+            *" $rel "*) ;;
+            *) rm -f "$f"; log "content removed: $rel" ;;
+        esac
+    done
+    if [ "$content_changed" = 1 ]; then
+        log "content synced (app 热加载，未重建)"
     fi
     if [ "$app_changed" = 1 ]; then
         # 重建失败只记日志、让推送照常成功：站点旧代码比"推不上去"好排查，
