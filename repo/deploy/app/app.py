@@ -239,6 +239,12 @@ IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
 # 不带站点导航、页脚、提示条，也不依赖站点那套 token。没有「未生效」标注，
 # 所以整页就是完整的 100svh，不需要折减。
 #
+# v1.9.2（2026-11-16 凌晨）：口径改为「完整放原图，不裁切」。
+#   v1.9.1 的 cover 在桌面横屏会按屏幕比例裁掉上下——图不是原图了。
+#   现在 object-fit: contain：任何屏幕都完整显示 1440×894 的原始画面，
+#   多出的地方用底色补（竖屏仍是居中圆角卡片）。缓放动画一并撤掉：
+#   scale(1.06) 起手就是裁切，与「放原图」矛盾。
+#
 # v1.9.1（2026-11-15 夜，按「一页一屏」重做）：三处与 v1.9 的根本差别——
 #   ① 不再有 scroll-snap 与 `:target`：每页都是刚载入，缓放直接挂在 `.whit img` 上；
 #   ② `overflow: hidden` 把「下滑看下一张」这条路物理封死，翻页只能点；
@@ -254,11 +260,8 @@ WELCOME_CSS = """
   .ws { position: relative; height: 100vh; height: 100svh; overflow: hidden;
         background: #101614; }
   .whit { position: absolute; inset: 0; z-index: 1; display: block; cursor: pointer; }
-  .whit picture, .whit img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  @media (prefers-reduced-motion: no-preference) {
-    .whit img { animation: kb 5.5s cubic-bezier(.22, 1, .36, 1) both; }
-    @keyframes kb { from { transform: scale(1.06); } to { transform: scale(1); } }
-  }
+  /* contain：完整放原图，不裁切；屏幕比图宽/高的部分由底色补齐。 */
+  .whit picture, .whit img { width: 100%; height: 100%; object-fit: contain; display: block; }
   /* 叠层：底部压暗（按钮与指示点可读）+ 品牌色斜向轻染（站色，不是原型那个蓝） */
   .whit::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
     background:
@@ -298,11 +301,11 @@ WELCOME_CSS = """
           background: radial-gradient(circle, rgba(15, 118, 110, .15),
             rgba(109, 90, 224, .10) 46%, rgba(255, 255, 255, 0) 72%);
           pointer-events: none; }
-    .whit picture { width: 100%; max-width: 480px; aspect-ratio: 1440 / 894;
-          border-radius: 1rem; overflow: hidden; background: #e9efec;
+    .whit picture { width: 100%; max-width: 480px; border-radius: 1rem; overflow: hidden;
+          background: #e9efec;
           box-shadow: 0 18px 44px -18px rgba(16, 22, 20, .42), 0 2px 10px rgba(16, 22, 20, .08); }
-    .whit img { width: 100%; height: 100%; object-fit: cover; transform: none;
-          animation: none; }
+    /* 高度跟随图的原始比例，不锁 aspect-ratio——原图怎么画就怎么显示。 */
+    .whit img { width: 100%; height: auto; }
     .whit::after { display: none; }
     .wdot { background: rgba(16, 22, 20, .16); box-shadow: none; }
     .wdot.on { background: #0b5a54; }
