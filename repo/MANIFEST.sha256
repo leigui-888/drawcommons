@@ -2,7 +2,7 @@
 # 生成：cd repo && python ../evidence/regen_repo_manifest.py
 # 校验：sha256sum -c MANIFEST.sha256
 # 口径：git ls-files --cached --others --exclude-standard（与 repo_lint 的 tracked_files 同源）
-# 生成时点：2026-11-15　条目：73
+# 生成时点：2026-11-16　条目：73
 #
 # 本清单只固定字节，不解释内容；条款与规范的含义以各文件正文为准。
 eb2a9bfb80d726dd2d2de8781f90607b47bb6b24e4af69863c6320954b9ab8fa  CONTRIBUTING.md
@@ -24,7 +24,7 @@ b18ae5c06cebb4359a963e717d59973d857c4af9affaa9eb61d57cd11cc61431  credits.json.l
 60bb8f33133ec9da7ad96a5f4e6e32a3272dc9b60aa6bcaea4fe8a8ead5858f2  deploy/app/Dockerfile
 c57da7345e605b7724166f85e71724fb7e022d91ee54b68f93f720628db6afd9  deploy/app/Dockerfile.ingest
 9ac8749e49a02c7e8174446c6b0129ad16762140a4acd1a18037ea7a4b402401  deploy/app/agent.md
-041ba01129aa28a2f2a3de30c6f43c3ccd3fe2b6c23db2663e82ccbca24b3a60  deploy/app/app.py
+004e980e859fa92bea9400abfaae2a1e1e56e4636552f58154c5a10162dd1978  deploy/app/app.py
 789970319577025468284b51790fd9c29a9fabea769c2b4d175aaecac65e3061  deploy/app/audit.md
 dfd02951a3958670087529e96cebdd7707a71b9a8b6ba6331cafc999ae8799e6  deploy/app/content/README.md
 7d0eae299f281d35c0a594836747df293d50f5f2e1b256ed19c40342da2dc140  deploy/app/content/en/home.html
