@@ -2555,6 +2555,12 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/en"):
             self._redirect("/welcome" if path == "/" else "/en/welcome", code=302)
             return
+        # 引导第 1 屏的地址是 `/welcome`（不是 `/welcome/1`）。手输 `/welcome/1`
+        # 的人不该看到 404——301 归位；**只认这一个**，`/welcome/9` 仍旧 404，
+        # 免得把「第几屏」写成任意数字也能进。
+        if path in ("/welcome/1", "/en/welcome/1"):
+            self._redirect("/welcome" if path == "/welcome/1" else "/en/welcome", code=301)
+            return
         # 2026-11-15 改名：「怎么参与」→「测试与验证」，路径 /join → /testing。
         # 旧地址 301 过去而不是 404——这一页上线不到一天就改了名，抄了旧地址的笔记还在，
         # 链接坏了是我的事，不是读者的事。英文同理。
