@@ -180,9 +180,29 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <div class="anchor">
     <b>当前线上锚值</b>
-    <code>bd2af6a0 …（全 64 位见 /llms.txt）</code>
+    <code id="anchorVal">见 <a href="/llms.txt">/llms.txt</a>（每次请求现算）</code>
     <p>结构升级后锚值已变更，此前公布的值作废——见 <a href="/notices">公告</a>，可逐字段对照。</p>
   </div>
+
+  <script>
+  /* 锚值不写死：/llms.txt 每次请求现算（那条也是在服务端现算的）。
+     写死的后果不是「旧」，是「06 首单进链后变成错值」——而这一格是数据核的信任根。
+     取不到时不留空白，把读者直接送去 /llms.txt 自己看。 */
+  (function () {
+    var el = document.getElementById('anchorVal');
+    if (!el || !window.fetch) return;
+    fetch('/llms.txt', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (t) {
+        var m = t.match(/[0-9a-f]{64}/);
+        if (!m) throw new Error('no anchor');
+        el.innerHTML = '<a href="/llms.txt">' + m[0].slice(0, 8) + '</a> …（全 64 位见 /llms.txt）';
+      })
+      .catch(function () {
+        el.innerHTML = '取不到，直接看 <a href="/llms.txt">/llms.txt</a>';
+      });
+  })();
+  </script>
 
   <h2>自行核验</h2>
   <div class="card">

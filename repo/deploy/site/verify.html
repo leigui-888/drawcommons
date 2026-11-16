@@ -175,9 +175,28 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <div class="anchor">
     <b>当前线上锚值</b>
-    <code>bd2af6a0 … 90611（前缀示意，全 64 位见 /llms.txt）</code>
+    <code id="anchorVal">见 <a href="/llms.txt">/llms.txt</a>（每次请求现算）</code>
     <p>锚值 = 账本导出件的 sha256。拿到导出件自己算一遍，对上即账本未被改动。</p>
   </div>
+
+  <script>
+  /* 锚值不写死：/llms.txt 每次请求现算（那条也是在服务端现算的）。
+     写死的后果不是「旧」，是「06 首单进链后变成错值」——而这一格是数据核的信任根。 */
+  (function () {
+    var el = document.getElementById('anchorVal');
+    if (!el || !window.fetch) return;
+    fetch('/llms.txt', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (t) {
+        var m = t.match(/[0-9a-f]{64}/);
+        if (!m) throw new Error('no anchor');
+        el.innerHTML = '<a href="/llms.txt">' + m[0].slice(0, 8) + '</a> …（全 64 位见 /llms.txt）';
+      })
+      .catch(function () {
+        el.innerHTML = '取不到，直接看 <a href="/llms.txt">/llms.txt</a>';
+      });
+  })();
+  </script>
 
   <h2>核验</h2>
   <a class="linkcard" href="/ledger">账本数据查询<span class="go">现网 ↗</span><p>逐条目、逐哈希地翻账本</p></a>
