@@ -23,8 +23,28 @@ drawcommons.org, www.drawcommons.org {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
+		# 2026-11-17 加。此前 noindex 是 app 逐页发的（app.py 的 Handler 里），
+		# 人类页面换成 Caddy 直出后就没人发了——15 页会变成可被搜索引擎收录，
+		# 而「测试期不收录」是刻意的（站点里还是结构样例）。这一条不能漏。
+		X-Robots-Tag "noindex, nofollow"
 		-Server
 	}
+
+	# ============ 重定向（静态兜底之前） ============
+	# `/` 到引导第一屏：这一步原先是 app 做的（do_GET 里 path in ("/","/en") → 302）。
+	# 人类页面换成静态后 app 不再碰 `/`，不写这条首页就是 404。
+	# 用 302 不用 301：这是产品决策不是地址变更，301 会被浏览器长期缓存。
+	redir / /welcome 302
+	redir /en /en/welcome 302
+
+	# 旧入口改道。301 而不是 302：这是永久搬家，让搜索引擎与外部链接自己更新。
+	# `{?query}` 而不是裸路径：`/needs?state=open` 里的筛选必须跟着走。丢掉它
+	# **不会报错**——屏幕上看像「筛选生效了」，实际回到了全量，比 404 更像谎话。
+	# app 里原本那条 301 特意拼过查询串，换到 Caddy 不能把它丢掉。
+	redir /requests /tasks{?query} 301
+	redir /testing /feedback{?query} 301
+	redir /join /feedback{?query} 301
+	redir /needs /tasks{?query} 301
 
 	# 公开仓库（哑协议，只读）：第三方 clone 下来自己复现，不需要任何账号。
 	# 用哑协议而非 git-http-backend（Caddy 无 CGI），代价是不支持 push/PR——
@@ -41,6 +61,20 @@ drawcommons.org, www.drawcommons.org {
 		file_server
 	}
 
+	# 06 的签署页（乙那侧）：单文件、无外部脚本、与站点同源直接提交。
+	# 不塞进 /download——那里是「证据与复现包」，这是一个应用入口。
+	# 2026-11-14 加。
+	# 少写一个斜杠就 404 会让扫码的人以为坏了（catch-all 会把它交给 app）。
+	redir /sign /sign/ permanent
+
+	handle_path /sign/* {
+		root * /srv/git/sign
+		# 这是某个人正在签的一单，不该被搜索引擎收进去
+		header X-Robots-Tag "noindex, nofollow"
+		file_server
+	}
+
+	# ============ 写面 / 读口（次序由匹配器具体性决定，不靠书写顺序） ============
 	# 需求单发现口是**读**，所以归 app 而不是 ingest。
 	# `/api/v1/*` 那条通配把整个前缀给了写入面，但 `GET /api/v1/requests` 不写库、
 	# 不验签、读的是需求单而不是账目——放进写面会让「ingest 只做写」这条部署口径
@@ -56,9 +90,6 @@ drawcommons.org, www.drawcommons.org {
 	}
 
 	# 写入面（r6）：三条受控 POST。与公开页是两个容器、两条路径。
-	# 放在 catch-all 之前：Caddy 的 handle 组按匹配长度排序，`handle { ... }`
-	# 无匹配器，永远最后兜底——所以「/api/v1/* 走 ingest、其余走 app」不需要
-	# 任何显式优先级，顺序由匹配器本身决定。
 	handle /api/v1/* {
 		reverse_proxy ingest:8001 {
 			header_up X-Forwarded-For {remote_host}
@@ -67,14 +98,71 @@ drawcommons.org, www.drawcommons.org {
 		}
 	}
 
-	handle {
+	# 账本读口（/api/ledger/items|verify|export）。2026-11-17 加：
+	# 加了静态兜底之后，不显式写这段，这些接口会去 /srv/site 找文件而全部 404。
+	# 比上面的 /api/v1/* 短，按具体性排序永远在后，吃不掉写面。
+	handle /api/* {
 		reverse_proxy app:8000 {
-			# 覆写而非追加：Caddy 默认会把客户端自带的 X-Forwarded-For 追加进链条，
-			# 那样客户端能伪造来源 IP，日志就不可信。这里固定成真实对端。
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
-			# 上游 Server 头带出 Python 版本号，去掉
 			header_down -Server
 		}
+	}
+
+	# ============ app 渲染的页面 ============
+	# 协议三份文本与纯文本原文：需要注入 sha256 指纹与版本串，只能 app 渲染。
+	# 只放行**带斜杠的子路径**——/terms 本身已换成静态公示页，不能让这里吃掉。
+	handle /terms/* {
+		reverse_proxy app:8000 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_down -Server
+		}
+	}
+
+	# 欢迎三屏（一页一屏：/welcome、/welcome/2、/welcome/3）与英文站，都还是 app 渲染。
+	handle /welcome* {
+		reverse_proxy app:8000 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_down -Server
+		}
+	}
+
+	handle /en/* {
+		reverse_proxy app:8000 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_down -Server
+		}
+	}
+
+	# 需求单详情 /r/<id>：动态路径，静态目录里没有对应文件。漏了这条就是 404。
+	handle /r/* {
+		reverse_proxy app:8000 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_down -Server
+		}
+	}
+
+	# 机器面三个文本件 + 健康检查。
+	@machine path /agent.md /audit.md /llms.txt /healthz
+	handle @machine {
+		reverse_proxy app:8000 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_down -Server
+		}
+	}
+
+	# ============ 静态兜底（必须最后：无匹配器，永远垫底） ============
+	# 15 个人类页面（repo/deploy/site/ → /opt/drawcommons/site/，compose 只读挂入）。
+	# 为什么不走 app：这批页面要跑 JS（生成密钥、签名、取单、发单），而公开页的 CSP
+	# 是 `script-src 'none'`——那不是疏漏，是「公开页物理上不能写」的一半。
+	handle {
+		root * /srv/site
+		try_files {path} {path}.html {path}/index.html
+		file_server
 	}
 }
