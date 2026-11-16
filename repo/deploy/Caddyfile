@@ -120,7 +120,7 @@ drawcommons.org, www.drawcommons.org {
 		}
 	}
 
-	# 欢迎三屏（一页一屏：/welcome、/welcome/2、/welcome/3）与英文站，都还是 app 渲染。
+	# 欢迎三屏（一页一屏：/welcome、/welcome/2、/welcome/3 与英文同名三屏），仍是 app 渲染。
 	handle /welcome* {
 		reverse_proxy app:8000 {
 			header_up X-Forwarded-For {remote_host}
@@ -129,7 +129,12 @@ drawcommons.org, www.drawcommons.org {
 		}
 	}
 
-	handle /en/* {
+	# 英文引导三屏（/en/welcome、/en/welcome/2、/en/welcome/3）：只有这三条还是 app 渲染。
+	# `handle /en/welcome*` 比下面那条静态兜底更具体，Caddy 的 handle 组按匹配器具体性
+	# 排序，无匹配器的 `handle {}` 永远垫底——所以"更具体"不是靠书写顺序，是靠匹配器。
+	# 英文站其余 14 页（/en/home、/en/terms、/en/ledger …）已出静态件，走末尾兜底。
+	# 不做 `handle /en/*` 显式静态块：兜底已经是同一件事，多一条只是多一个会走偏的地方。
+	handle /en/welcome* {
 		reverse_proxy app:8000 {
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
@@ -157,9 +162,11 @@ drawcommons.org, www.drawcommons.org {
 	}
 
 	# ============ 静态兜底（必须最后：无匹配器，永远垫底） ============
-	# 15 个人类页面（repo/deploy/site/ → /opt/drawcommons/site/，compose 只读挂入）。
+	# 15 个人类页面 + 英文 15 页（site/ 与 site/en/ → /opt/drawcommons/site/，compose 只读挂入）。
+	# try_files 靠 `{path}.html` 命中：/home → /srv/site/home.html，/en/home → /srv/site/en/home.html。
 	# 为什么不走 app：这批页面要跑 JS（生成密钥、签名、取单、发单），而公开页的 CSP
 	# 是 `script-src 'none'`——那不是疏漏，是「公开页物理上不能写」的一半。
+	# 代价：静态目录里没有的文件就是 404，没有 app 的兜底渲染。新增页必须同时加文件与路由。
 	handle {
 		root * /srv/site
 		try_files {path} {path}.html {path}/index.html
