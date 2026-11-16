@@ -141,13 +141,15 @@ html { -webkit-text-size-adjust: 100%; }
    （大厅是「站名 + 一句话」，内页是「← 回大厅」，账本页是「← 返回查账与下载」），
    塞进去要一页一页调对齐，改一次十几处。单独一行就只有一个位置要维护。
    不做 position:fixed：它要盖在内容上，滚起来还挡字，而这一格只需要「一眼看见」。 */
+/* 底色用浅蓝、不用白：白底小胶囊在米色页面上几乎化进背景，只看得见一圈细边。
+   也不做成实心蓝——那是主键（.btn.primary）的份量，语言切换是次要动作。 */
 .langrow { display: flex; justify-content: flex-end; margin: -4px 0 6px; }
 .lang {
   display: inline-flex; align-items: center; min-height: 30px; padding: 4px 12px;
-  font-size: 12px; line-height: 1; color: var(--blue); background: var(--paper);
-  border: 1px solid var(--line); border-radius: 999px; text-decoration: none;
+  font-size: 12px; line-height: 1; color: var(--blue); background: var(--blue-bg);
+  border: 1px solid var(--blue-l); border-radius: 999px; text-decoration: none;
 }
-.lang:hover { border-color: var(--blue); background: var(--blue-bg); }
+.lang:hover { border-color: var(--blue); background: #dbeaf9; }
 
 /* ---- 键盘可见的焦点环：鼠标点击不出现，Tab 一定出现 ---- */
 a:focus-visible, button:focus-visible, summary:focus-visible,
