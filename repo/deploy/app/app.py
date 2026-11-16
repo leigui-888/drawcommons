@@ -2577,7 +2577,8 @@ class Handler(BaseHTTPRequestHandler):
             return xff.split(",")[0].strip()
         return self.client_address[0]
 
-    def _send(self, code: int, body: bytes, ctype: str) -> None:
+    def _send(self, code: int, body: bytes, ctype: str,
+              cache: str = "no-cache") -> None:
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
@@ -2587,7 +2588,7 @@ class Handler(BaseHTTPRequestHandler):
         # 页面与接口内容随发布变：不许浏览器启发式缓存（无 Cache-Control 时浏览器
         # 自行猜缓存时长，改版后访客看到的还是旧页）。no-cache 不是「不缓存」，
         # 是「用前必回源核对」；图片不受此影响（_serve_image 自带一年 immutable）。
-        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Cache-Control", cache)
         self.end_headers()
         if not getattr(self, "_head_only", False):
             self.wfile.write(body)
@@ -2872,6 +2873,45 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_audit_md()
         else:
             self._send(404, b'{"error":"not found"}', "application/json")
+
+    def _count_home_visit(self) -> None:
+        """主页那个数字：记一次，再把累计数回给页面。
+
+        为什么要有这个口：主页自 2026-11-17 起由 Caddy 直出静态文件，`/home`
+        不再经过本进程，原先服务端渲染的那一行就没了着落。数还是要数，于是
+        改成页内 JS 打一次——只打在中文主页，英文首页与其余页面一概不记，
+        口径与 ``Visits`` 类里写的四条约束一致。
+
+        为什么是 POST：GET 会被预取、被链接预览、被爬虫顺手打一遍，那不是
+        「有人来看」，是「有人在数自己」。POST 不会，也不进浏览器历史。
+
+        为什么可能回 null：库不可用时不回 0——0 会被读成「没人来」，而真实
+        情况是「没在数」。页面拿到 null 就整行不显示。
+        """
+        VISITS.hit()
+        body = json.dumps({"ok": True, "total": VISITS.total()},
+                          ensure_ascii=False).encode("utf-8")
+        # no-store 而不是 no-cache：这一条没有「核对一下再用」的意义，
+        # 缓存下来就永远是那个旧数字。
+        self._send(200, body, "application/json; charset=utf-8", cache="no-store")
+
+    def do_POST(self) -> None:  # noqa: N802（基类命名）
+        # 本进程只接一个写动作：数主页。其余写面全在 ingest（`/api/v1/*`），
+        # 那边由签名与账本约束，这里没有第二条写路径。
+        path = self.path.split("?", 1)[0].rstrip("/") or "/"
+        if path == "/api/visits":
+            self._count_home_visit()
+            return
+        if path.startswith("/api/v1/"):
+            # 写口路径在**本端口**不实现，但它在站点上确实存在（在 ingest 那边）。
+            # 回 501 而不是 404：404 说的是「没有这个东西」，会让照着 agent.md 调试
+            # 的人以为自己抄错了地址。这条口径被 discovery 判据钉着（读口对写路径
+            # 必须 501），改之前先看那条判据为什么这么写。
+            self._send(501, b'{"error":"not implemented on this port"}',
+                       "application/json; charset=utf-8")
+            return
+        # 其余路径确实不存在：这里没有这个口。
+        self._send(404, b'{"error":"not found"}', "application/json; charset=utf-8")
 
     def do_HEAD(self) -> None:  # noqa: N802
         # 复用 GET 的路由与头部，只是不写 body（监控探活会用 HEAD）

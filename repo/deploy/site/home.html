@@ -151,6 +151,16 @@ html { -webkit-text-size-adjust: 100%; }
 }
 .lang:hover { border-color: var(--blue); background: #dbeaf9; }
 
+/* ---- 访问量：一行字。它是次数，不是指标 ---- */
+/* 不做卡片、不做分页分布、不做图表——口径与 app.py 的 Visits 类一致：
+   只回答「首页被打开过多少次」。数字用等宽 + tabular-nums，位数变了不跳。
+   `[hidden]` 要显式压一下：下面 .visits 设了 margin，否则取不到数时那条
+   空行仍然占位，页脚会莫名其妙地偏低。 */
+.visits { margin: 2rem 0 0; text-align: center; font-size: 13px; color: var(--muted); letter-spacing: .02em; }
+.visits[hidden] { display: none; }
+.visits b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
 /* ---- 键盘可见的焦点环：鼠标点击不出现，Tab 一定出现 ---- */
 a:focus-visible, button:focus-visible, summary:focus-visible,
 input:focus-visible, textarea:focus-visible, select:focus-visible {
@@ -208,6 +218,27 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
     <a class="door" href="/verify"><b>查账与下载</b><span class="go">复现 · 审计 · 下载 ↗</span><p>账本核验、工具与导出文件都在这</p></a>
   </div>
 
+
+  <!-- visits:begin -->
+  <div class="visits" id="visits" hidden>已有 <b></b> 名访问者</div>
+  <script>
+  /* 访问量。主页是静态页，服务端不再经手它，所以数字要靠这里问一次。
+     只数这一个页面：英文首页与其余页面都不打这个接口（口径见 app.py 的 Visits 类）。
+     取不到就把整行留着不显示——显示 0 会被读成「没人来」，而真实情况是「没在数」。 */
+  (function () {
+    var el = document.getElementById('visits');
+    if (!el || !window.fetch) return;
+    fetch('/api/visits', { method: 'POST', cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (d) {
+        if (typeof d.total !== 'number') throw new Error('no total');
+        el.querySelector('b').textContent = d.total.toLocaleString();
+        el.hidden = false;
+      })
+      .catch(function () { /* 取不到就不显示 */ });
+  })();
+  </script>
+  <!-- visits:end -->
 
   <footer><p><a href="mailto:2379731846@qq.com">唯一联系邮箱：2379731846@qq.com</a></p></footer>
 </div>

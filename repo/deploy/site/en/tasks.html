@@ -147,6 +147,16 @@ html { -webkit-text-size-adjust: 100%; }
 }
 .lang:hover { border-color: var(--blue); background: #dbeaf9; }
 
+/* ---- 访问量：一行字。它是次数，不是指标 ---- */
+/* 不做卡片、不做分页分布、不做图表——口径与 app.py 的 Visits 类一致：
+   只回答「首页被打开过多少次」。数字用等宽 + tabular-nums，位数变了不跳。
+   `[hidden]` 要显式压一下：下面 .visits 设了 margin，否则取不到数时那条
+   空行仍然占位，页脚会莫名其妙地偏低。 */
+.visits { margin: 2rem 0 0; text-align: center; font-size: 13px; color: var(--muted); letter-spacing: .02em; }
+.visits[hidden] { display: none; }
+.visits b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
 /* ---- 键盘可见的焦点环：鼠标点击不出现，Tab 一定出现 ---- */
 a:focus-visible, button:focus-visible, summary:focus-visible,
 input:focus-visible, textarea:focus-visible, select:focus-visible {
