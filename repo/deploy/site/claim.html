@@ -165,6 +165,19 @@ html { -webkit-text-size-adjust: 100%; }
 .card.form .way:has(input:checked) { border-color: var(--blue-l); background: var(--blue-bg); }
 .card.form .way:has(input:focus-visible) { outline: 2px solid var(--blue-l); outline-offset: 2px; }
 
+/* ---- 语言切换：每页最上面一行，靠右 ---- */
+/* 为什么单独占一行、而不是塞进 .head 或 .back：这两处每页长得都不一样
+   （大厅是「站名 + 一句话」，内页是「← 回大厅」，账本页是「← 返回查账与下载」），
+   塞进去要一页一页调对齐，改一次十几处。单独一行就只有一个位置要维护。
+   不做 position:fixed：它要盖在内容上，滚起来还挡字，而这一格只需要「一眼看见」。 */
+.langrow { display: flex; justify-content: flex-end; margin: -4px 0 6px; }
+.lang {
+  display: inline-flex; align-items: center; min-height: 30px; padding: 4px 12px;
+  font-size: 12px; line-height: 1; color: var(--blue); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 999px; text-decoration: none;
+}
+.lang:hover { border-color: var(--blue); background: var(--blue-bg); }
+
 /* ---- 键盘可见的焦点环：鼠标点击不出现，Tab 一定出现 ---- */
 a:focus-visible, button:focus-visible, summary:focus-visible,
 input:focus-visible, textarea:focus-visible, select:focus-visible {
@@ -178,6 +191,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   h2 { margin-top: 22px; }
   .banner { font-size: 12px; padding: 5px 10px; }
   .back { min-height: 44px; margin-bottom: 6px; }
+  /* 语言切换和 .back 一样是「点一下就走」的链接，手机上同给 44px：这一格在右上角，
+     指头落点比视线更难对准。 */
+  .lang { min-height: 44px; padding: 4px 16px; font-size: 14px; }
   .btn { font-size: 16px; min-height: 52px; padding: 14px 16px; }
   .mini, .op { min-height: 44px; padding: 10px 16px; font-size: 14px; }
   .go { min-height: 44px; padding: 10px 16px; font-size: 14px; }
@@ -201,6 +217,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 </head>
 <body>
 <div class="wrap">
+  <div class="langrow"><a class="lang" href="/en/claim">English</a></div>
+
   <a class="back" href="/browse">← 回任务浏览</a>
   <h1>任务接受</h1>
   <p class="sub">看清楚要做什么、什么时候到期，再决定接不接。</p>
