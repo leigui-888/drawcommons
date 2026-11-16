@@ -2,7 +2,7 @@
 # 生成：cd repo && python ../evidence/regen_repo_manifest.py
 # 校验：sha256sum -c MANIFEST.sha256
 # 口径：git ls-files --cached --others --exclude-standard（与 repo_lint 的 tracked_files 同源）
-# 生成时点：2026-11-17　条目：73
+# 生成时点：2026-11-17　条目：88
 #
 # 本清单只固定字节，不解释内容；条款与规范的含义以各文件正文为准。
 eb2a9bfb80d726dd2d2de8781f90607b47bb6b24e4af69863c6320954b9ab8fa  CONTRIBUTING.md
@@ -44,10 +44,25 @@ be954fc23f2f33d27d797a52ff9b2eff01a760a4fb69a5d089da8a6c84ae22c2  deploy/app/led
 acda0e65b38129e0968b882d6f9fe9e7009c9f034467c9107a51cbc4dbfc989a  deploy/app/legal.py
 3ff516cda7c3c7d418c8b64954f5296ca6bc6833189264cc9c157e75f0c66fd4  deploy/app/selftest.py
 91d6c3cf233ab475e2d0be04172ea99a713861d929107aa7b08b6592f61771a8  deploy/app/signing.py
-ff261788f9a3920c3d5ab52acd76eb4cb87bbc0529eb60cc54e3624bf92c1663  deploy/compose.yml
+7d04b6d182886b08ea8ad7a460f58be03d3b6e57babc9be7d7e42e62fd53e67b  deploy/compose.yml
 05a21bd99aeaf1cfcc8daf45c8849f1fe14b95241771f8c76f92cbde327c0067  deploy/daily.sh
-65e961fb361d5ab6c24fa0effd676d8fb33fbbb4ab44d7afdc7132bd33ec56b0  deploy/git-hooks/post-receive
+3e76bf5d4d00192b144c9bbb8dd464704e3196d66bd35c78ebc49ac929770fa1  deploy/git-hooks/post-receive
 45d8111ffbd09b665cbdd2abcda1a009398d7f4e0b6532af86b9ab0f924fb378  deploy/git-hooks/update
+6fa06809f45a627f919c68a93f9beb30b398d9e6dfb222d0758add05c2d69a5c  deploy/site/agents.html
+ce4db98f53f575b80dfc0ad856d12cdb9ccb0a96e27a0aac7ee17e5f2d3eb7f1  deploy/site/browse.html
+3863eed904cff0c6584e83717235df1a738bd55dd0d373953c858fd310cff74e  deploy/site/claim.html
+fe9d9b047c73ddabdfd98deaade480ce40adfb80430166e4df6d599171abba95  deploy/site/contributors.html
+16c35f73d076b0f4aff0841be180a0ef73e533c849d2090669652f73d8ecb6a7  deploy/site/deliver.html
+ade44d6cd7c535e3638106d71a46d2e995cd6a2ed79dceebb81282e925c9ad7d  deploy/site/feedback.html
+1d69e7f4385aedd081f6121c7ca4d6b9d1ec005a363ae574ac9815d3afa305d2  deploy/site/home.html
+4ca1a9d1afa6f39f78d96a6faeb50e5ef7651bc0d66b82f282eccb4df2c96311  deploy/site/ledger.html
+2a55851b3c7b389aa0589e0f5a366f06cd3c5903c282bc7702810c4dc778966f  deploy/site/mine.html
+c22a00024a1ddfb181bbe88eed83545bb35a7c4e67f7deb9157d158758f80838  deploy/site/notices.html
+551350e585774c8a35f58a9ae290a63547885e402f015d136c0f076370e40f8a  deploy/site/post.html
+2aba8e7ccf74197ce3a891cb5ed8a1e80e8c9789f1423a10ef48ebd634aa1c92  deploy/site/taken.html
+25f33070d02906fd35ab3b15f5ac47cb5f9e93585e3c1e6b9e99ee4639166ef6  deploy/site/tasks.html
+d4af5a8b1ac8403cd405b80ae8b32bb3ae7923bd7043da8eb7c4b6e9bc1264c4  deploy/site/terms.html
+f6c0685ed54683cb18a0e8a743b90346524f517cdc6be26425120a1b9db741fd  deploy/site/verify.html
 aa5784341058c7d8ac366d5c1fb4fb01cecb76c1e91941e00949cadd6b854cba  examples/01-verify-chain/README.md
 df2bf8c8918343f85ca89cd146271a5b290e9d714646ee836f1c3feba341cc01  examples/01-verify-chain/verify-confirm.py
 ee88277230381a9d6791b41cbe578c6181cd075510aa1f04273e510df41be253  examples/01-verify-chain/verify.py

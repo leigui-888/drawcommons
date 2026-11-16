@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>接任务</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #f4f3ef; color: #2c2c2a; line-height: 1.6; }
+  .banner { background: #ba7517; color: #fff; text-align: center; padding: 6px 12px; font-size: 13px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+  .back { display: inline-block; font-size: 13px; color: #5f5e5a; text-decoration: none; margin-bottom: 12px; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 4px; }
+  .sub { font-size: 13px; color: #5f5e5a; margin: 0 0 20px; }
+  /* 三个入口一路竖排：一行一个，指头点得到，也不会因为字数不同挤成歪的。 */
+  .ways { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 8px; }
+  .dcard { display: block; background: #fff; border: 1px solid #d3d1c7; border-radius: 12px; padding: 16px 16px; text-decoration: none; color: inherit; }
+  .dcard:hover { border-color: #2c2c2a; }
+  .dcard b { font-size: 16px; font-weight: 500; display: block; }
+  .dcard span { font-size: 12px; color: #888780; }
+  .dcard p { margin: 6px 0 0; font-size: 12px; color: #5f5e5a; }
+  .dcard.pub { background: #e6f1fb; border-color: #85b7eb; }
+  .dcard.browse { background: #faece7; border-color: #f0997b; }
+  .dcard.taken { background: #eaf3de; border-color: #c0dd97; }
+  footer { border-top: 1px solid #e5e3db; margin-top: 28px; padding: 14px 0 6px; text-align: center; font-size: 12px; color: #888780; }
+  footer a { color: #5f5e5a; text-decoration: none; margin: 0 8px; }
+/* ==== DG-UI BEGIN ==== */
+/* 整站单源样式。由 _theme.py 写进每一页 <style> 的末尾。
+   页内同名规则会被这一段覆盖（同选择器、后者胜）——改样式改这里，别改页内副本。
+   三档按键：.btn 一栏一个主动作 / .mini .op 行内小键 / .go 卡片里那一个入口。
+   两个断点：≤560px 触控（按键不低于 44px）、≥900px 桌面留白。 */
+
+:root {
+  --bg: #f4f3ef; --paper: #fff;
+  --ink: #2c2c2a; --sub: #5f5e5a; --muted: #888780; --faint: #a8a69d;
+  --line: #d3d1c7; --hair: #e5e3db; --hair2: #f0eee7;
+  --blue: #185fa5; --blue-h: #134a80; --blue-a: #0f3d6b; --blue-l: #85b7eb; --blue-bg: #e6f1fb;
+  --amber: #ba7517;
+  --green: #27500a;
+  --red: #a32a2a;
+  --r-lg: 12px; --r-sm: 8px;
+  --press: 0 0 0 3px rgba(24, 95, 165, .14);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+/* ---- 主键：一栏一个，50px 高，实心蓝 ---- */
+.btn {
+  display: block; width: 100%; min-height: 50px; margin: 0;
+  padding: 13px 18px;
+  font: inherit; font-size: 16px; font-weight: 500; line-height: 1.4;
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  text-align: center; text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s;
+}
+.btn:hover { border-color: var(--muted); }
+.btn:active { background: #faf9f5; }
+.btn.primary {
+  color: #fff; background: var(--blue); border-color: var(--blue);
+  box-shadow: 0 1px 2px rgba(24, 95, 165, .18);
+}
+.btn.primary:hover { background: var(--blue-h); border-color: var(--blue-h); box-shadow: 0 2px 6px rgba(24, 95, 165, .22); }
+.btn.primary:active { background: var(--blue-a); border-color: var(--blue-a); box-shadow: none; }
+.btn[disabled], .btn[aria-disabled="true"] {
+  opacity: .45; cursor: not-allowed;
+  background: #f1efe8; border-color: var(--line); color: var(--sub); box-shadow: none;
+}
+.btn.center { text-align: center; }
+.btn small { display: block; font-size: 12px; font-weight: 400; color: var(--sub); margin-top: 3px; }
+/* 只能由本人按、且一按就收不回来的那一类（撤回、拒收）：红字白底，鼠标移上去才转实。
+   不做成实心红——那是「马上要发生」，而这几个键按下去之前还有一次确认。 */
+.btn.danger { color: var(--red); background: var(--paper); border-color: #e4b4b4; }
+.btn.danger:hover { background: #fdf4f4; border-color: var(--red); }
+.btn.danger:active { background: #fcebeb; border-color: var(--red); }
+
+/* ---- 行内小键 ---- */
+.mini, .op {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 38px; margin: 0; padding: 8px 14px;
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.mini:hover, .op:hover { border-color: var(--muted); background: #faf9f5; }
+.mini:active, .op:active { background: #f1efe8; }
+.mini.primary { color: var(--blue); background: var(--blue-bg); border-color: var(--blue-l); }
+.mini.primary:hover { background: #dbeaf9; border-color: var(--blue); }
+.mini[disabled], .op[disabled] { opacity: .45; cursor: not-allowed; background: var(--paper); border-color: var(--hair); }
+
+/* ---- 卡片里那一个入口（「打开」「去交付」「继续交付」） ---- */
+.go {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 38px; margin: 0; padding: 6px 14px;
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--blue); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.go:hover { border-color: var(--blue); background: var(--blue-bg); }
+.go:active { background: #dbeaf9; }
+.go[disabled] { color: var(--faint); border-color: var(--hair); background: var(--paper); cursor: not-allowed; }
+
+/* ---- 导航卡：大厅的门、接任务的三张、接入与查账的条目 ---- */
+.dcard, .door, .linkcard {
+  display: block; margin-bottom: 10px; padding: 15px 17px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg);
+  color: inherit; text-decoration: none;
+  transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.dcard:hover, .door:hover, .linkcard:hover { border-color: var(--muted); box-shadow: 0 1px 3px rgba(44, 44, 42, .06); }
+.dcard:active, .door:active, .linkcard:active { background: #faf9f5; box-shadow: none; }
+/* 有底色的那几张（发布/浏览/已接、大厅的「热门门」）把描边换成同色系的深一号，
+   否则一 hover 就变成灰边，看着像掉了色。 */
+.dcard.pub:hover { border-color: var(--blue); }
+.dcard.browse:hover, .door.hot:hover { border-color: #993c1d; }
+.dcard.taken:hover { border-color: var(--green); }
+.dcard b, .door b, .linkcard b { font-size: 15px; font-weight: 500; }
+/* 导航卡右上角那枚「↗」是说明，不是第二个按键：退回成纯文字。 */
+.dcard .go, .door .go, .linkcard .go {
+  float: right; min-height: 0; padding: 0; margin-left: 10px;
+  font-size: 12px; color: var(--muted);
+  background: none; border: 0; border-radius: 0;
+}
+.dcard .go:hover, .door .go:hover, .linkcard .go:hover { background: none; color: var(--sub); }
+
+/* 选中的那一档整块跟着变色：只靠一个小圆点，手机上不容易看出选了哪个。
+   选择器要带上 .card.form，否则压不过页内 `.card.form .way`（三个类）。 */
+.card.form .way:has(input:checked) { border-color: var(--blue-l); background: var(--blue-bg); }
+.card.form .way:has(input:focus-visible) { outline: 2px solid var(--blue-l); outline-offset: 2px; }
+
+/* ---- 键盘可见的焦点环：鼠标点击不出现，Tab 一定出现 ---- */
+a:focus-visible, button:focus-visible, summary:focus-visible,
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--blue-l); outline-offset: 2px;
+}
+
+/* ---- 手机：触控目标不低于 44px，正文不缩到看不清 ---- */
+@media (max-width: 560px) {
+  .wrap { padding: 14px 14px 26px; }
+  h1 { font-size: 19px; }
+  h2 { margin-top: 22px; }
+  .banner { font-size: 12px; padding: 5px 10px; }
+  .back { min-height: 44px; margin-bottom: 6px; }
+  .btn { font-size: 16px; min-height: 52px; padding: 14px 16px; }
+  .mini, .op { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  .go { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  /* 页内 `.req .go`、`.mine .row button.op` 比上面两条更具体，字号得单独抬一档。 */
+  .req .go, .mine .row button.op { font-size: 14px; }
+  .bar .mini { font-size: 14px; }
+  .dcard .go, .door .go, .linkcard .go { min-height: 0; padding: 0; font-size: 12px; }
+  /* 卡片底栏：手机上一行放不下「期限 + 按键」，就让按键独占一行，整行可点。 */
+  .req .foot .go { width: 100%; }
+  /* iOS 在 < 16px 的输入框上会强制放大页面：这一处必须压过页内的 14px。 */
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* ---- 桌面：一栏还是那一栏，留白多一点，别把内容拉成一条长线 ---- */
+@media (min-width: 900px) {
+  .wrap { max-width: 680px; padding: 24px 20px 40px; }
+  .btn { min-height: 48px; }
+}
+/* ==== DG-UI END ==== */
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/home">← 回大厅</a>
+  <h1>接任务</h1>
+  <p class="sub">两个角色，同一条需求：你缺人帮忙就发布需求，你有空出力就浏览需求</p>
+
+  <div class="ways">
+    <a class="dcard pub" href="/post"><b>发布需求</b><span>我需要人帮忙 ↗</span><p>写清需求描述与认领截止，发布后等人认领</p></a>
+    <a class="dcard browse" href="/browse"><b>浏览需求</b><span>我想找活干 ↗</span><p>挑一条合适的，进到接受页看清条款再认领</p></a>
+    <a class="dcard taken" href="/taken"><b>已接的需求</b><span>我在做的事 ↗</span><p>本机钥匙名下认领的需求，按交付的紧迫程度排</p></a>
+  </div>
+
+  <footer><p><a href="/home">回大厅</a>·<a href="mailto:2379731846@qq.com">唯一联系邮箱：2379731846@qq.com</a></p></footer>
+</div>
+</body>
+</html>

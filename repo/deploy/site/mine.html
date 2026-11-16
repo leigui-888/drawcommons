@@ -1,0 +1,719 @@
+<!doctype html>
+<!-- 生成物：由 _inline.py 从 mine.src.html + dg-time.js + mine.js 合成，别手改这份；改完源文件重跑 python _inline.py -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>已发布的需求管理</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #f4f3ef; color: #2c2c2a; line-height: 1.6; }
+  .banner { background: #ba7517; color: #fff; text-align: center; padding: 6px 12px; font-size: 13px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+  .back { display: inline-block; font-size: 13px; color: #5f5e5a; text-decoration: none; margin-bottom: 12px; }
+  h1 { font-size: 20px; font-weight: 500; margin: 0 0 6px; }
+  .sub { font-size: 13px; color: #888780; margin: 4px 0 18px; }
+  h2 { font-size: 14px; font-weight: 500; color: #5f5e5a; margin: 26px 0 8px; }
+  label { display: block; font-size: 13px; color: #5f5e5a; margin-bottom: 6px; }
+  textarea { display: block; width: 100%; min-height: 110px; padding: 10px 12px; font: inherit; font-size: 12px; color: #2c2c2a; background: #fff; border: 1px solid #d3d1c7; border-radius: 8px; resize: vertical; }
+  textarea:focus { outline: none; border-color: #2c2c2a; }
+  .keys { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  /* 小键只比大键小一档，不做成「苍蝇键」：13px 字、9/16 内边距，指头点得住。 */
+  .mini { font: inherit; font-size: 13px; padding: 9px 16px; background: #fff; border: 1px solid #d3d1c7; border-radius: 8px; cursor: pointer; }
+  .mini.primary { background: #e6f1fb; border-color: #85b7eb; }
+  /* 与发布页「发布」键同一套尺寸：整栏宽、15px 内边距、16px 字、12px 圆角。 */
+  .btn { display: block; width: 100%; padding: 15px 18px; font: inherit; font-size: 16px; font-weight: 500; color: #2c2c2a; background: #fff; border: 1px solid #d3d1c7; border-radius: 12px; cursor: pointer; text-align: left; text-decoration: none; }
+  .btn:hover { border-color: #2c2c2a; }
+  .btn.primary { background: #e6f1fb; border-color: #85b7eb; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+  /* 禁用态：灰掉但仍占位。 */
+  .mini[disabled] { opacity: .5; cursor: default; }
+  .btn.center { text-align: center; }
+  .stage { background: #fff; border: 1px solid #e5e3db; border-radius: 12px; padding: 12px 16px; margin-top: 14px; font-size: 13px; color: #5f5e5a; }
+  .stage p { margin: 0 0 10px; }
+  .stage p:last-child { margin: 0; }
+  .stage b { color: #2c2c2a; font-weight: 500; }
+  .stage code { font-size: 12px; color: #185fa5; background: #f0f4f8; padding: 1px 5px; border-radius: 3px; }
+  .stage .keys { flex-direction: column; gap: 8px; }
+  .stage .demo { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e5e3db; font-size: 12px; color: #888780; }
+  .stage .demo .keys { margin-top: 10px; flex-direction: row; }
+  .stage .demo .mini { color: #888780; }
+  .msg { margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 10px 14px; background: #f1efe8; border: 1px solid #d3d1c7; color: #444441; }
+  .msg.bad { background: #fcebeb; border-color: #f09595; color: #791f1f; }
+  .msg.ok { background: #eaf3de; border-color: #c0dd97; color: #27500a; }
+  .who { background: #fff; border: 1px solid #e5e3db; border-radius: 12px; padding: 8px 16px 14px; margin-top: 14px; }
+  .who .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 12px; color: #5f5e5a; }
+  .who code, .mine code { font-size: 13px; color: #185fa5; background: #f0f4f8; padding: 1px 5px; border-radius: 3px; word-break: break-all; }
+  /* 高度按「整行」取：当前行高 53px × 7 行 ≈ 380，留 6px 余量。
+     切在行边界上，末行不会只露半截（半截看着像「又被挤掉了」）；再多就滚动。 */
+  .mine { background: #fff; border: 1px solid #e5e3db; border-radius: 12px; padding: 2px 16px; max-height: 386px; overflow-y: auto; }
+  .mine .empty { margin: 12px 0; font-size: 13px; color: #888780; }
+  /* 列表为空时的占位框：先把「这里是一个列表窗口」画出来，位置和高度先占住。 */
+  .slot { display: flex; align-items: center; justify-content: center; min-height: 132px; margin: 14px 0; border: 1px dashed #d3d1c7; border-radius: 10px; background: #faf9f5; font-size: 13px; color: #a8a69d; }
+  .mine .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-top: 1px solid #f0eee7; padding: 9px 0; font-size: 13px; color: #5f5e5a; }
+  .mine .row:first-child { border-top: 0; }
+  .mine .row b { font-weight: 500; color: #2c2c2a; }
+  .mine .row a { color: #185fa5; text-decoration: none; }
+  /* 每行右侧那枚「管理」：小键，和行内的编号/日期/状态分开，一眼看出是列表的一行。 */
+  .mine .row button.op { margin-left: auto; font: inherit; font-size: 13px; padding: 6px 14px; color: #2c2c2a; background: #fff; border: 1px solid #d3d1c7; border-radius: 8px; cursor: pointer; }
+  .mine .row button.op:hover { border-color: #2c2c2a; }
+  /* 选中的那一行：状态栏在下面，万一没看到下面，至少这一行有变化。 */
+  .mine .row.sel { background: #f4f8fd; }
+  .sev { color: #888780; }
+  /* 状态标签：六种状态各一色，扫一眼就知道这一行走到哪一步。
+     色只用来分档，不表示好坏——「已撤回」「已过期」也只是一个终局，不是错误。 */
+  .tag { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; line-height: 18px; border: 1px solid #d3d1c7; white-space: nowrap; }
+  .tag.s-open { color: #185fa5; background: #e6f1fb; border-color: #85b7eb; }
+  .tag.s-claimed { color: #0f6b62; background: #e2f2ef; border-color: #8fc9c0; }
+  .tag.s-delivered { color: #8a5310; background: #fbf0dd; border-color: #e8c48b; }
+  .tag.s-closed { color: #27500a; background: #eaf3de; border-color: #c0dd97; }
+  .tag.s-withdrawn { color: #6b6a65; background: #eeece4; border-color: #d3d1c7; }
+  .tag.s-expired { color: #a32a2a; background: #fcebeb; border-color: #f0a8a8; }
+  footer { border-top: 1px solid #e5e3db; margin-top: 28px; padding: 14px 0 6px; text-align: center; font-size: 12px; color: #888780; }
+  footer a { color: #5f5e5a; text-decoration: none; margin: 0 8px; }
+/* ==== DG-UI BEGIN ==== */
+/* 整站单源样式。由 _theme.py 写进每一页 <style> 的末尾。
+   页内同名规则会被这一段覆盖（同选择器、后者胜）——改样式改这里，别改页内副本。
+   三档按键：.btn 一栏一个主动作 / .mini .op 行内小键 / .go 卡片里那一个入口。
+   两个断点：≤560px 触控（按键不低于 44px）、≥900px 桌面留白。 */
+
+:root {
+  --bg: #f4f3ef; --paper: #fff;
+  --ink: #2c2c2a; --sub: #5f5e5a; --muted: #888780; --faint: #a8a69d;
+  --line: #d3d1c7; --hair: #e5e3db; --hair2: #f0eee7;
+  --blue: #185fa5; --blue-h: #134a80; --blue-a: #0f3d6b; --blue-l: #85b7eb; --blue-bg: #e6f1fb;
+  --amber: #ba7517;
+  --green: #27500a;
+  --red: #a32a2a;
+  --r-lg: 12px; --r-sm: 8px;
+  --press: 0 0 0 3px rgba(24, 95, 165, .14);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+/* ---- 主键：一栏一个，50px 高，实心蓝 ---- */
+.btn {
+  display: block; width: 100%; min-height: 50px; margin: 0;
+  padding: 13px 18px;
+  font: inherit; font-size: 16px; font-weight: 500; line-height: 1.4;
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  text-align: center; text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s;
+}
+.btn:hover { border-color: var(--muted); }
+.btn:active { background: #faf9f5; }
+.btn.primary {
+  color: #fff; background: var(--blue); border-color: var(--blue);
+  box-shadow: 0 1px 2px rgba(24, 95, 165, .18);
+}
+.btn.primary:hover { background: var(--blue-h); border-color: var(--blue-h); box-shadow: 0 2px 6px rgba(24, 95, 165, .22); }
+.btn.primary:active { background: var(--blue-a); border-color: var(--blue-a); box-shadow: none; }
+.btn[disabled], .btn[aria-disabled="true"] {
+  opacity: .45; cursor: not-allowed;
+  background: #f1efe8; border-color: var(--line); color: var(--sub); box-shadow: none;
+}
+.btn.center { text-align: center; }
+.btn small { display: block; font-size: 12px; font-weight: 400; color: var(--sub); margin-top: 3px; }
+/* 只能由本人按、且一按就收不回来的那一类（撤回、拒收）：红字白底，鼠标移上去才转实。
+   不做成实心红——那是「马上要发生」，而这几个键按下去之前还有一次确认。 */
+.btn.danger { color: var(--red); background: var(--paper); border-color: #e4b4b4; }
+.btn.danger:hover { background: #fdf4f4; border-color: var(--red); }
+.btn.danger:active { background: #fcebeb; border-color: var(--red); }
+
+/* ---- 行内小键 ---- */
+.mini, .op {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 38px; margin: 0; padding: 8px 14px;
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.mini:hover, .op:hover { border-color: var(--muted); background: #faf9f5; }
+.mini:active, .op:active { background: #f1efe8; }
+.mini.primary { color: var(--blue); background: var(--blue-bg); border-color: var(--blue-l); }
+.mini.primary:hover { background: #dbeaf9; border-color: var(--blue); }
+.mini[disabled], .op[disabled] { opacity: .45; cursor: not-allowed; background: var(--paper); border-color: var(--hair); }
+
+/* ---- 卡片里那一个入口（「打开」「去交付」「继续交付」） ---- */
+.go {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 38px; margin: 0; padding: 6px 14px;
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--blue); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.go:hover { border-color: var(--blue); background: var(--blue-bg); }
+.go:active { background: #dbeaf9; }
+.go[disabled] { color: var(--faint); border-color: var(--hair); background: var(--paper); cursor: not-allowed; }
+
+/* ---- 导航卡：大厅的门、接任务的三张、接入与查账的条目 ---- */
+.dcard, .door, .linkcard {
+  display: block; margin-bottom: 10px; padding: 15px 17px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg);
+  color: inherit; text-decoration: none;
+  transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.dcard:hover, .door:hover, .linkcard:hover { border-color: var(--muted); box-shadow: 0 1px 3px rgba(44, 44, 42, .06); }
+.dcard:active, .door:active, .linkcard:active { background: #faf9f5; box-shadow: none; }
+/* 有底色的那几张（发布/浏览/已接、大厅的「热门门」）把描边换成同色系的深一号，
+   否则一 hover 就变成灰边，看着像掉了色。 */
+.dcard.pub:hover { border-color: var(--blue); }
+.dcard.browse:hover, .door.hot:hover { border-color: #993c1d; }
+.dcard.taken:hover { border-color: var(--green); }
+.dcard b, .door b, .linkcard b { font-size: 15px; font-weight: 500; }
+/* 导航卡右上角那枚「↗」是说明，不是第二个按键：退回成纯文字。 */
+.dcard .go, .door .go, .linkcard .go {
+  float: right; min-height: 0; padding: 0; margin-left: 10px;
+  font-size: 12px; color: var(--muted);
+  background: none; border: 0; border-radius: 0;
+}
+.dcard .go:hover, .door .go:hover, .linkcard .go:hover { background: none; color: var(--sub); }
+
+/* 选中的那一档整块跟着变色：只靠一个小圆点，手机上不容易看出选了哪个。
+   选择器要带上 .card.form，否则压不过页内 `.card.form .way`（三个类）。 */
+.card.form .way:has(input:checked) { border-color: var(--blue-l); background: var(--blue-bg); }
+.card.form .way:has(input:focus-visible) { outline: 2px solid var(--blue-l); outline-offset: 2px; }
+
+/* ---- 键盘可见的焦点环：鼠标点击不出现，Tab 一定出现 ---- */
+a:focus-visible, button:focus-visible, summary:focus-visible,
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--blue-l); outline-offset: 2px;
+}
+
+/* ---- 手机：触控目标不低于 44px，正文不缩到看不清 ---- */
+@media (max-width: 560px) {
+  .wrap { padding: 14px 14px 26px; }
+  h1 { font-size: 19px; }
+  h2 { margin-top: 22px; }
+  .banner { font-size: 12px; padding: 5px 10px; }
+  .back { min-height: 44px; margin-bottom: 6px; }
+  .btn { font-size: 16px; min-height: 52px; padding: 14px 16px; }
+  .mini, .op { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  .go { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  /* 页内 `.req .go`、`.mine .row button.op` 比上面两条更具体，字号得单独抬一档。 */
+  .req .go, .mine .row button.op { font-size: 14px; }
+  .bar .mini { font-size: 14px; }
+  .dcard .go, .door .go, .linkcard .go { min-height: 0; padding: 0; font-size: 12px; }
+  /* 卡片底栏：手机上一行放不下「期限 + 按键」，就让按键独占一行，整行可点。 */
+  .req .foot .go { width: 100%; }
+  /* iOS 在 < 16px 的输入框上会强制放大页面：这一处必须压过页内的 14px。 */
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* ---- 桌面：一栏还是那一栏，留白多一点，别把内容拉成一条长线 ---- */
+@media (min-width: 900px) {
+  .wrap { max-width: 680px; padding: 24px 20px 40px; }
+  .btn { min-height: 48px; }
+}
+/* ==== DG-UI END ==== */
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/post">← 回发布需求</a>
+  <h1>已发布的需求管理</h1>
+  <p class="sub">把「导出备份」得到的 .json 内容整段粘进来；换了浏览器，就靠它认回自己发布的需求。</p>
+
+  <label for="paste">钥匙备份内容</label>
+  <textarea id="paste" spellcheck="false" placeholder='{"party":"pt_...","pkcs8":"...","pub":"...","made":"..."}'></textarea>
+  <div class="keys">
+    <button class="mini" id="clip">粘贴</button>
+    <button class="mini primary" id="load">载入</button>
+    <button class="mini" id="restore" hidden>恢复钥匙到这台浏览器</button>
+  </div>
+  <div id="msg" class="msg" hidden></div>
+
+  <div id="who" class="who" hidden>
+    <div class="row"><span>编号</span><code id="party">…</code></div>
+    <div class="row"><span>指纹</span><code id="fp">…</code></div>
+  </div>
+
+  <h2>已发布的需求</h2>
+  <div id="list" class="mine"><div class="slot">还没载入编号。</div></div>
+  <div id="stage" class="stage" hidden></div>
+
+  <footer><p><a href="/home">回大厅</a>·<a href="mailto:2379731846@qq.com">唯一联系邮箱：2379731846@qq.com</a></p></footer>
+</div>
+<script>
+/* 协议 2.2 的两个时限：认领后 10 天内交付、交付后 10 天内确认。
+   一律固定，不随发布时选——发布页表单因此不用多一个字段，条款比对也少一维。
+
+   为什么按「10×24 小时」而不是「第 10 个自然日」：
+   服务端比较的是 UTC 时刻，用户看的是本地日期，UTC+8 在傍晚之后跨日——
+   按自然日取整会出现「页面说 27 日、服务端 26 日就到期」。按毫秒加，两边指同一个瞬间，
+   页面显示时再转本地时区，写出来的日期就是用户以为的那一天。
+
+   起算点一律是服务端写下的那一刻（claimed / delivered 行的 created_at），不用客户端时间：
+   客户端时钟偏了，期限就偏了，而这个期限是要判死的。 */
+'use strict';
+const CLAIM_DELIVERY_DAYS = 10;
+const CONFIRM_WINDOW_DAYS = 10;
+/* 催告的下限：交付后满 7 天才开放。太早催没有意义——对方可能只是还没看到，
+   账上却先落一条「催了也白催」的签名事实。上限不设：过了确认期反而更该催。 */
+const REMIND_AFTER_DAYS = 7;
+const DAY_MS = 86400000;
+
+/* iso → 到期时刻（毫秒）。取不到时间就返回 null，让调用方如实显示「取不到」，不猜。 */
+function deadlineMs(iso, days) {
+  const t = Date.parse(String(iso || ''));
+  return Number.isFinite(t) ? t + days * DAY_MS : null;
+}
+
+/* 「11 月 27 日 14:20」。写到分钟是必要的：只写日期会让人以为当天 23:59 前都行。 */
+function fmtDeadline(ms) {
+  if (!Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  const p = (n) => String(n).padStart(2, '0');
+  return (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日 ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+/* 从某个时刻到现在过了几天（向下取整）。用来算「等确认 N 天」，不参与判死。 */
+function daysSince(iso, nowMs) {
+  const t = Date.parse(String(iso || ''));
+  if (!Number.isFinite(t)) return null;
+  return Math.max(0, Math.floor(((nowMs || Date.now()) - t) / DAY_MS));
+}
+
+</script>
+<script>
+/* 已发布的需求管理
+   三件事：认人（编号 + 指纹）、认需求发布（按 requested_by 查）、换机器（把备份写回本机）。
+   不复制状态：需求发布的状态以服务端为准，本地清单只补「服务端已经看不见」的那部分
+   （终态 90 天后退出公开视图，那种需求发布只剩本地这一份记录）。 */
+'use strict';
+
+const $ = (s) => document.querySelector(s);
+const KEY_STORE = 'dg_post_key_v1';
+const MINE_STORE = 'dg_post_mine_v1';
+const MINE_MAX = 200;
+const REAL_HOST = /(^|\.)drawcommons\.org$/;
+const FILE_MODE = location.protocol === 'file:' || !REAL_HOST.test(location.hostname);
+const STATE_CN = { open: '待认领', claimed: '已认领', delivered: '交付中',
+                   closed: '已结', withdrawn: '已撤回', expired: '已过期' };
+
+const enc = new TextEncoder();
+const cat = (...a) => { const n = a.reduce((s, x) => s + x.length, 0); const o = new Uint8Array(n); let p = 0; for (const x of a) { o.set(x, p); p += x.length; } return o; };
+const u32 = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n); return b; };
+const str = (s) => { const b = typeof s === 'string' ? enc.encode(s) : s; return cat(u32(b.length), b); };
+const b64 = (u8) => { let s = ''; const CH = 0x8000; for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH)); return btoa(s); };
+const unb64 = (t) => { const s = atob(t); const o = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) o[i] = s.charCodeAt(i); return o; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let cur = null;
+
+/* 预览面板把页面放在沙箱 iframe 里，那里的 localStorage 一碰就抛 SecurityError（不是返回 null）。
+   这种情况下退回内存里的一份：页面照样能列出、能点、能改状态，只是刷新即丢。
+   先探一次再决定用哪个——探不通就别再碰它，免得每处调用都各自 try 一遍。 */
+const store = (() => {
+  try {
+    const probe = '__dg_probe__';
+    localStorage.setItem(probe, '1');
+    localStorage.removeItem(probe);
+    return {
+      real: true,
+      get: (k) => localStorage.getItem(k),
+      set: (k, v) => localStorage.setItem(k, v),
+    };
+  } catch {
+    const mem = new Map();
+    return {
+      real: false,
+      get: (k) => (mem.has(k) ? mem.get(k) : null),
+      set: (k, v) => { mem.set(k, String(v)); },
+    };
+  }
+})();
+
+function msg(html, kind) {
+  const m = $('#msg');
+  m.hidden = false;
+  m.className = 'msg ' + (kind || '');
+  m.innerHTML = html;
+}
+function loadMine() {
+  try { const a = JSON.parse(store.get(MINE_STORE) || '[]'); return Array.isArray(a) ? a : []; }
+  catch { return []; }
+}
+
+/* 备份里 pub 是 32 字节公钥的 base64。指纹与发布页同一个算法：SHA256(ssh-ed25519 的公钥 blob)。
+   只粘编号时算不出来——那不是错，是不完整，如实说。 */
+async function fpOf(pubB64) {
+  try {
+    const raw = unb64(pubB64);
+    const d = new Uint8Array(await crypto.subtle.digest('SHA-256', cat(str('ssh-ed25519'), str(raw))));
+    return 'SHA256:' + b64(d).replace(/=+$/, '');
+  } catch { return '备份里没有可用的公钥，算不出指纹'; }
+}
+
+/* 两种粘贴都收：整段 .json（有私钥，能恢复），或者只粘编号（只能查）。
+   认不出就抛，不猜。 */
+function parseBackup(text) {
+  const t = String(text || '').trim();
+  if (!t) return null;
+  try {
+    const o = JSON.parse(t);
+    if (o && typeof o.party === 'string') {
+      if (!/^pt_[0-9a-z]{8,32}$/.test(o.party)) throw new Error('编号形状不对：应以 pt_ 开头，后接 8–32 位小写字母或数字。');
+      return { party: o.party, pkcs8: o.pkcs8 || '', pub: o.pub || '', made: o.made || '' };
+    }
+  } catch (e) {
+    if (e instanceof SyntaxError) { /* 不是 JSON，往下试纯编号 */ }
+    else throw e;
+  }
+  const m = t.match(/pt_[0-9a-z]{8,32}/);
+  return m ? { party: m[0], pkcs8: '', pub: '', made: '' } : null;
+}
+
+/* 状态统一画成一枚色标：列表行与状态栏共用，同一个状态在哪儿都是同一个颜色。
+   认不出的状态名原样显示、不加色——不替服务端猜。 */
+const tagOf = (s) => {
+  const cls = STATE_CN[s] ? ' s-' + s : '';
+  return '<span class="tag' + cls + '">' + esc(STATE_CN[s] || s || '—') + '</span>';
+};
+
+function rowHtml(x) {
+  const at = String(x.at || '').slice(0, 10);
+  const open = FILE_MODE ? '' : ' <a href="https://drawcommons.org/r/' + encodeURIComponent(x.id) + '">打开</a>';
+  const sel = stage && stage.id === x.id ? ' sel' : '';
+  /* 「管理」用 button 而不是 <a href="#">：锚点在没有脚本或脚本出错时会跳一下空锚，
+     看起来就是「点了没反应」；button 不会，且点它等于点这一行。 */
+  return '<div class="row' + sel + '" data-id="' + esc(x.id) + '"><code>' + esc(x.id) + '</code>' +
+         (at ? ' <span class="sev">' + esc(at) + '</span>' : '') +
+         ' · ' + tagOf(x.state) + open +
+         ' <button type="button" class="op" data-manage="' + esc(x.id) + '">管理</button></div>';
+}
+
+/* 空态一律画成同一个占位框：先让人看见「这里是一个列表窗口」，别只剩一行灰字。 */
+const emptySlot = (text) => '<div class="slot">' + esc(text) + '</div>';
+
+/* 终态沉底（与「已接的需求」那一页同一档）。已结 / 已撤回 / 已过期仍然留在列表里——
+   历史要能查，但别再占前排。同一档内仍按发布时刻倒序：刚结的单排在旧的前面。 */
+const SETTLED = { closed: 1, withdrawn: 1, expired: 1 };
+const byTimeDesc = (a, b) => String(b.at).localeCompare(String(a.at));
+const settledLast = (rows) => rows.slice().sort((a, b) =>
+  ((SETTLED[a.state] ? 1 : 0) - (SETTLED[b.state] ? 1 : 0)) || byTimeDesc(a, b));
+
+async function renderList() {
+  const el = $('#list');
+  if (!cur) {
+    /* 还没载入编号也要有列表：本机记下的就是这个浏览器的全部，
+       不该因为没粘钥匙而空着——那样看着像「这一页没有列表」。 */
+    rowsCache = settledLast(loadMine());
+    el.innerHTML = rowsCache.length
+      ? rowsCache.map(rowHtml).join('')
+      : emptySlot('还没载入编号。');
+    /* 没有编号也要有状态栏：这一页管的始终是本机记下的那几条。 */
+    ensureStage();
+    syncSel();
+    renderStage();
+    return;
+  }
+  const local = loadMine().filter((x) => !x.by || x.by === cur.party);
+  let rows = local;
+  let note = '';
+  if (FILE_MODE) {
+    note = '预览里没有服务端，只显示这台浏览器记下的需求发布；真站上会按编号向服务端查。';
+  } else {
+    try {
+      const r = await fetch('/api/v1/requests?limit=' + MINE_MAX, { headers: { Accept: 'application/json' } });
+      const j = await r.json();
+      const byId = new Map(local.map((x) => [x.id, x]));
+      for (const it of (j.items || [])) {
+        if (it.requested_by !== cur.party) continue;
+        /* 服务端状态覆盖本地：本地记的是「我发过什么」，状态是服务端的事实。
+           claimer_email / reminders 目前读口还没有这两列（v2.2 待加），
+           有就带上，没有就不带——绝不拿空串冒充「他没留邮箱」。 */
+        byId.set(it.request_id, {
+          ...(byId.get(it.request_id) || {}),
+          id: it.request_id, at: it.created_at || '', state: it.state,
+          ...(it.claimer_email ? { claimer_email: it.claimer_email } : {}),
+          ...(Number(it.reminders) ? { reminders: it.reminders, last_remind_at: it.last_remind_at || '' } : {}),
+          ...(it.rejected ? { rejected: true } : {}),
+        });
+      }
+      rows = [...byId.values()];
+    } catch { note = '没连上服务端，先显示这台浏览器记下的需求发布。'; }
+  }
+  rows = settledLast(rows);
+  rowsCache = rows;
+  el.innerHTML = rows.length
+    ? rows.map(rowHtml).join('') + (note ? '<div class="row sev">' + note + '</div>' : '')
+    : emptySlot('这个编号下还没有需求发布。' + (note ? ' ' + note : ''));
+  /* 状态栏跟着「选中的那张」；没选中、或选中的已经不在列表里，就落到第一张。
+     跟上面没有编号那一路同一套逻辑：一页只有一种「谁是当前这张」的答案。 */
+  ensureStage();
+  syncSel();
+  renderStage();
+}
+
+/* ---------- 现在的状态（整栏从发布页搬过来） ----------
+   七项终局：open / claimed / delivered / closed / withdrawn / expired，
+   外加「认领后退回」回到 open。键跟着**当前状态**走，不跟着「这次发布曾经到过哪」走：
+   一条已过期的需求发布不会再长出撤回键。
+   认领、交付、到期是另一端与时钟的事，发布方在这一侧按不了，只能替对面按（标「演示：」）。
+   催告是**接单方**的动作（他在「已接的需求」那一页按），这一侧不摆催告键——
+   发布方在这里只有「确认完成」与「拒收」两件事。
+   预览里所有键只改这一页和本地清单，不发请求；真站的撤回/确认要签名，尚未接。 */
+const KEYS = {
+  open: [['撤回这次需求发布', 'withdraw', 'danger']],
+  claimed: [['撤回这次需求发布', 'withdraw', 'danger']],
+  delivered: [['确认完成', 'confirm', 'primary'], ['拒收这次交付', 'reject', 'danger']],
+  closed: [], withdrawn: [], expired: [],
+};
+const DEMO_KEYS = {
+  open: [['演示：有人认领', 'claim'], ['演示：到期作废', 'expire']],
+  claimed: [['演示：交付', 'deliver'], ['演示：认领方退回', 'back']],
+  delivered: [], closed: [], withdrawn: [], expired: [],
+};
+let rowsCache = [];
+let stage = null;   /* { id, state, rejected, dv, reminded } */
+
+/* 从清单行造一个「正在看的状态」。dv 是交付那一刻，用来算等确认几天；
+   没有就当取不到，不编日期。
+   mail / reminds / lastRemind 是单上的事实：认领方留的地址、催过几次、最近哪一天催的。
+   取不到就留空，页面那边整行不出现。 */
+function mkStage(r) {
+  return {
+    id: r.id, state: r.state || 'open', rejected: !!r.rejected, dv: r.dv || '',
+    mail: r.claimer_email || '',
+    reminds: Number(r.reminders || 0) || 0,
+    lastRemind: r.last_remind_at || '',
+  };
+}
+
+/* 「11 月 16 日」只要月日：催告是这一周内的事，年份是噪声。 */
+const mdOf = (iso) => {
+  const t = String(iso || '').slice(5, 10);
+  return /^\d\d-\d\d$/.test(t) ? t : '';
+};
+
+function renderStage() {
+  const el = $('#stage');
+  if (!el) return;
+  if (!stage) { el.hidden = true; return; }
+  const s = stage.state;
+  const big = (k) => '<button class="btn' + (k[2] ? ' ' + k[2] : '') + '" data-act="' + k[1] + '">' + k[0] + '</button>';
+  const small = (k) => '<button class="mini" data-act="' + k[1] + '">' + k[0] + '</button>';
+  /* 拒收过就不再给「拒收」——一单一条，不可改（DGB_LED_012/013）；
+     「确认完成」仍在：确认与拒收是两层并列断言，签过拒收不等于放弃确认。 */
+  const keys = (KEYS[s] || []).filter((k) => !(k[1] === 'reject' && stage.rejected));
+  const demo = (DEMO_KEYS[s] || []).slice();
+
+  /* 等确认那行只写「对面交付了多久、还没结」——发布方在这一页能做的只有确认或拒收，
+     催告是接单方那边的动作（他在「已接的需求」页按），这一侧不替他写「该催了」。 */
+  const waited = s === 'delivered' && stage.dv ? daysSince(stage.dv) : null;
+  const dline = waited === null ? ''
+    : '认领方交付已 ' + waited + ' 天，等你确认' +
+      (waited >= CONFIRM_WINDOW_DAYS
+        ? '（已过 ' + CONFIRM_WINDOW_DAYS + ' 天确认期，这一单只有你能结）。'
+        : '（确认期 ' + CONFIRM_WINDOW_DAYS + ' 天）。');
+
+  /* 认领方留的地址：只有这一单被认领之后才可能有，且只在发布方这一侧出现。
+     没有就整行不出现——「他没留」不是页面该替他说的话。 */
+  const mailLine = (s === 'claimed' || s === 'delivered' || s === 'closed') && stage.mail
+    ? '<p>认领方邮箱 <code>' + esc(stage.mail) + '</code></p>' : '';
+  /* 催告是认领方按的，记在单上。这一侧只看得到次数与最近一次，没有已读、也没有回复。 */
+  const rLine = s === 'delivered' && stage.reminds
+    ? '<p>认领方已催告 <b>' + stage.reminds + '</b> 次' +
+      (mdOf(stage.lastRemind) ? '（最近 ' + mdOf(stage.lastRemind) + '）' : '') + '。</p>' : '';
+  /* 拒收不结单：单子仍停在「交付中」，而交付中只有一个出口——发布方确认。
+     这句必须写出来，否则拒收看起来像把单子结束了。 */
+  const rjLine = s === 'delivered' && stage.rejected
+    ? '<p>拒收不结单：这一单仍在「交付中」，结单只有「确认完成」一条路。</p>' : '';
+
+  el.innerHTML =
+    '<p>需求编号 <code>' + esc(stage.id) + '</code> · 现在的状态：' + tagOf(s) +
+      (stage.rejected ? ' · 你已拒收这次交付' : '') + '</p>' +
+    (dline ? '<p>' + dline + '</p>' : '') +
+    mailLine + rLine + rjLine +
+    (keys.length ? '<div class="keys">' + keys.map(big).join('') + '</div>' : '') +
+    (demo.length
+      ? '<div class="demo">预览里没有另一端，这几个键替对面与时钟按：<div class="keys">' + demo.map(small).join('') + '</div></div>'
+      : '');
+  el.hidden = false;
+}
+
+/* 选中哪一行，只有一处改：state 变动后的重画也得让底色跟着走，否则高亮会留在旧行上。 */
+function syncSel() {
+  document.querySelectorAll('#list .row[data-id]').forEach((row) => {
+    row.classList.toggle('sel', !!stage && row.dataset.id === stage.id);
+  });
+}
+
+/* 状态栏默认就要有主：列表里只要有行，就选中第一行。
+   否则这一整栏要等用户点了「管理」才出现，看着像没搬过来。 */
+function ensureStage() {
+  if (!rowsCache.length) { stage = null; return; }
+  if (!stage || !rowsCache.some((r) => r.id === stage.id)) {
+    stage = mkStage(rowsCache[0]);
+  }
+}
+
+function selectStage(id, scroll) {
+  const r = rowsCache.find((x) => x.id === id);
+  if (!r) return;
+  stage = mkStage(r);
+  /* 行上给个选中的底色：状态栏在列表下面，万一看不到下面，至少这一行会变。 */
+  syncSel();
+  renderStage();
+  if (scroll && $('#stage').scrollIntoView) $('#stage').scrollIntoView({ block: 'center' });
+}
+
+/* 状态变了就写回本地清单：这一页刷新后还要认得；另外让列表那行的字跟着改。 */
+function saveMineState(id, state) {
+  const row = rowsCache.find((r) => r.id === id);
+  if (row) row.state = state;
+  const list = loadMine();
+  const i = list.findIndex((r) => r.id === id);
+  if (i >= 0) list[i].state = state;
+  else list.unshift({ id, at: new Date().toISOString(), state, by: cur ? cur.party : '' });
+  try { store.set(MINE_STORE, JSON.stringify(list.slice(0, MINE_MAX))); } catch { /* 写不进就只改这一屏 */ }
+  renderList();
+}
+
+/* 拒收不改状态，但它是单上的一条事实：换一行再回来，那一行还得是「你已拒收」。
+   只补字段、不动 state，所以不复用 saveMineState（那个会连带重画整张列表）。 */
+function saveMineFlag(id, patch) {
+  const row = rowsCache.find((r) => r.id === id);
+  if (row) Object.assign(row, patch);
+  const list = loadMine();
+  const i = list.findIndex((r) => r.id === id);
+  if (i >= 0) Object.assign(list[i], patch);
+  try { store.set(MINE_STORE, JSON.stringify(list.slice(0, MINE_MAX))); } catch { /* 写不进就只改这一屏 */ }
+}
+
+function act(a) {
+  if (!stage) return;
+  const s = stage.state;
+  const before = stage.state;
+  if (a === 'withdraw' && (s === 'open' || s === 'claimed')) stage.state = 'withdrawn';
+  else if (a === 'confirm' && s === 'delivered') stage.state = 'closed';
+  else if (a === 'reject' && s === 'delivered') { stage.rejected = true; saveMineFlag(stage.id, { rejected: true }); }
+  else if (a === 'claim' && s === 'open') stage.state = 'claimed';
+  else if (a === 'back' && s === 'claimed') stage.state = 'open';
+  else if (a === 'deliver' && s === 'claimed') {
+    stage.state = 'delivered';
+    stage.dv = new Date().toISOString();   /* 交付那一刻起算 10 天确认期 */
+  }
+  else if (a === 'expire' && s === 'open') stage.state = 'expired';
+  renderStage();
+  /* 按状态有没有变来决定写不写：拒收不改状态，本来就不该动清单；
+     但「拒收过之后再确认」是真的改了状态，不能被同一个标记挡住（否则列表还停在交付中）。 */
+  if (stage.state !== before) saveMineState(stage.id, stage.state);
+}
+
+async function use(o) {
+  if (!o) { msg('认不出这段内容：粘整份 .json 备份，或只粘编号（pt_ 开头）。', 'bad'); return; }
+  cur = o;
+  $('#who').hidden = false;
+  $('#party').textContent = o.party;
+  $('#fp').textContent = o.pub ? await fpOf(o.pub) : '备份里没有公钥，算不出指纹';
+  let localParty = '';
+  try { localParty = JSON.parse(store.get(KEY_STORE) || '{}').party || ''; } catch { /* 没有就没有 */ }
+  /* 只在「这份备份能恢复」且「本机不是这个编号」时给恢复键；同一个人点它没有意义。 */
+  $('#restore').hidden = !(o.pkcs8 && o.pub) || localParty === o.party;
+  await renderList();
+}
+
+/* 点「管理」或点整行都选中；「打开」这类真链接放行，不拦。 */
+$('#list').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-manage]');
+  if (b) { e.preventDefault(); selectStage(b.dataset.manage, true); return; }
+  if (e.target.closest('a')) return;
+  const row = e.target.closest('.row[data-id]');
+  if (row) selectStage(row.dataset.id, true);
+});
+
+$('#stage').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-act]');
+  if (b) act(b.dataset.act);
+});
+
+$('#clip').addEventListener('click', async () => {
+  try {
+    /* 读剪贴板要权限，且可能既不成功也不报错——设上限，别把按钮按死。 */
+    const t = await Promise.race([
+      navigator.clipboard.readText(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 600)),
+    ]);
+    if (!t) { $('#paste').focus(); msg('剪贴板是空的，请手动粘。', ''); return; }
+    $('#paste').value = t;
+    msg('已粘到上面，点「载入」。', '');
+  } catch {
+    $('#paste').focus();
+    msg('这台浏览器不给读剪贴板，请在上面按 Ctrl+V。', '');
+  }
+});
+
+$('#load').addEventListener('click', async () => {
+  try { await use(parseBackup($('#paste').value)); }
+  catch (e) { msg('这段内容用不了：' + esc(e.message || e), 'bad'); }
+});
+
+$('#restore').addEventListener('click', () => {
+  if (!cur || !cur.pkcs8 || !cur.pub) return;
+  try {
+    store.set(KEY_STORE, JSON.stringify({
+      party: cur.party, pkcs8: cur.pkcs8, pub: cur.pub, made: cur.made || new Date().toISOString(),
+    }));
+    msg('已恢复：这台浏览器现在能用这个编号发布需求、撤回和确认。', 'ok');
+    $('#restore').hidden = true;
+  } catch {
+    msg('这台浏览器不让自己写本地存储（隐私模式？），恢复不了。', 'bad');
+  }
+});
+
+/* 演示数据：只在预览里（file:// 或非 drawcommons.org）才有，六种状态各一条，好把每一档的键都点一遍。
+   真站一条都不加——假单混进真单是灾难。
+   注意不能用「清单空才种」：本机只要留过一条旧演示，清单就永远不空，那几条便只剩那一行，
+   看着像列表没做出来。所以每次加载都把 rq_demo 开头的行重铺一遍，其余真实记录原样保留。 */
+(function seedDemo() {
+  if (!FILE_MODE) return;
+  try {
+    const day = 86400000;
+    const now = Date.now();
+    /* 每行按需带三类字段，各档都要在页面上看得见：
+       claimer_email —— 认领方留的地址（认领之后才可能有，只有发布方这一侧显示）；
+       reminders / last_remind_at —— 认领方催过几次、最近一次催在什么时候；
+       rejected —— 发布方拒收过这次交付（不改变状态，单子仍在交付中）。
+       3 号催过两次、7 号拒收过、2 号刚认领还没催过、4 号已结——四种形态一次看全。 */
+    const demo = [
+      { id: 'rq_demo00000001', d: 0, state: 'open' },
+      { id: 'rq_demo00000002', d: 1, state: 'claimed', claimer: 'worker-b@example.com' },
+      { id: 'rq_demo00000003', d: 13, state: 'delivered', dv: 11, claimer: 'worker-b@example.com',
+        reminders: 2, last_remind_at: new Date(now - 30 * 3600000).toISOString() },
+      { id: 'rq_demo00000004', d: 4, state: 'closed', dv: 3, claimer: 'worker-b@example.com' },
+      { id: 'rq_demo00000005', d: 6, state: 'withdrawn' },
+      { id: 'rq_demo00000006', d: 9, state: 'expired' },
+      { id: 'rq_demo00000007', d: 3, state: 'delivered', dv: 2, claimer: 'worker-b@example.com', rejected: true },
+    ].map((x) => ({
+      id: x.id,
+      at: new Date(now - x.d * day).toISOString(),
+      state: x.state,
+      by: '',
+      ...(x.dv ? { dv: new Date(now - x.dv * day).toISOString() } : {}),
+      ...(x.claimer ? { claimer_email: x.claimer } : {}),
+      ...(x.reminders ? { reminders: x.reminders, last_remind_at: x.last_remind_at } : {}),
+      ...(x.rejected ? { rejected: true } : {}),
+    }));
+    const real = loadMine().filter((x) => !/^rq_demo/.test(String(x.id)));
+    store.set(MINE_STORE, JSON.stringify(real.concat(demo)));
+  } catch { /* 写不进就算了，页面照样能用 */ }
+})();
+
+/* 本机已经有钥匙就直接显示，不必先粘一遍；没有钥匙也照样把本机清单列出来。 */
+(async function boot() {
+  let mine = null;
+  try { mine = JSON.parse(store.get(KEY_STORE) || 'null'); } catch { /* 坏钥匙当没有 */ }
+  if (mine && mine.party) await use(mine);
+  else await renderList();
+})();
+
+</script>
+</body>
+</html>

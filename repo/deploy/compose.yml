@@ -15,6 +15,12 @@ services:
       - ./backup:/config
       # 公开仓库裸仓与复现包（只读挂入，由 Caddy 静态服务；见 Caddyfile 的 /repo.git 路由）
       - ./git:/srv/git:ro
+      # 人类页面（2026-11-17 起）：15 个自包含 HTML，由 Caddy 直接 serve。
+      # 为什么不走 app 容器：那批页面要跑 JS（签名、取单、发单），而公开页的 CSP
+      # 是 `script-src 'none'`——那不是疏漏，是「公开页物理上不能写」的一半，
+      # 所以脚本页一律走静态路径（与 /sign/ 同一条路）。
+      # 只读：静态页由推送钩子同步，容器不需要写。
+      - ./site:/srv/site:ro
     depends_on:
       - app
       - ingest

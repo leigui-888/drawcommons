@@ -187,6 +187,43 @@ if [ -d "$APP_DIR" ] && command -v docker >/dev/null 2>&1; then
     if [ "$content_changed" = 1 ]; then
         log "content synced (app 热加载，未重建)"
     fi
+    # 人类页面（2026-11-17 起）：repo/deploy/site/ 的 15 个自包含 HTML 落到
+    # caddy 的只读挂载点。与 content 同理——同步文件即生效，不重建、不重启。
+    # 区别只在挂给谁：content 挂给 app（按 mtime 热加载），site 挂给 caddy（每次请求直读）。
+    # 这段漏掉的后果与 content 那次一样：「仓库改了页、线上还是旧的」，而日志一切正常。
+    SITE_DIR=${DRAWCOMMONS_SITE_DIR:-/opt/drawcommons/site}
+    SITE_FILES=$(git ls-tree -r --name-only HEAD -- repo/deploy/site/ 2>/dev/null \
+                 | sed -n 's|^repo/deploy/site/||p')
+    mkdir -p "$SITE_DIR"
+    site_changed=0
+    for rel in $SITE_FILES; do
+        mkdir -p "$SITE_DIR/$(dirname "$rel")"
+        if head_file "repo/deploy/site/$rel" > "$SITE_DIR/$rel.new" 2>/dev/null \
+           && [ -s "$SITE_DIR/$rel.new" ]; then
+            if cmp -s "$SITE_DIR/$rel.new" "$SITE_DIR/$rel"; then
+                rm -f "$SITE_DIR/$rel.new"
+            else
+                mv -f "$SITE_DIR/$rel.new" "$SITE_DIR/$rel"
+                site_changed=1
+            fi
+        else
+            rm -f "$SITE_DIR/$rel.new"
+        fi
+    done
+    # 仓库里已经删掉的页，服务器上也要删：静态目录没有「插槽没填就报错」那种自检，
+    # 多留一页就是多一个旧口径的入口，而且不会有人喊。清单一律非空才删（防误删全站）。
+    if [ -n "$SITE_FILES" ]; then
+        find "$SITE_DIR" -type f -name '*.html' 2>/dev/null | while read -r f; do
+            rel=${f#"$SITE_DIR/"}
+            printf '%s\n' "$SITE_FILES" | grep -qxF "$rel" \
+                || { rm -f "$f"; log "site removed: $rel"; }
+        done
+    else
+        log "site list empty — 跳过删页（防误删）"
+    fi
+    if [ "$site_changed" = 1 ]; then
+        log "site synced (caddy 直读，未重建)"
+    fi
     if [ "$app_changed" = 1 ]; then
         # 重建失败只记日志、让推送照常成功：站点旧代码比"推不上去"好排查，
         # 且回滚推送不是这里该做的事（违反不可改写）。

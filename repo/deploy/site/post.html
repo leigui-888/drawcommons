@@ -1,0 +1,743 @@
+<!doctype html>
+<!-- 生成物：由 _inline.py 从 post.src.html + post.js 合成，别手改这份；改完源文件重跑 python _inline.py -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>发布需求</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #f4f3ef; color: #2c2c2a; line-height: 1.6; }
+  .banner { background: #ba7517; color: #fff; text-align: center; padding: 6px 12px; font-size: 13px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+  .back { display: inline-block; font-size: 13px; color: #5f5e5a; text-decoration: none; margin-bottom: 12px; }
+  h1 { font-size: 20px; font-weight: 500; margin: 0 0 6px; }
+  .sub2 { font-size: 13px; color: #888780; margin: 4px 0 20px; }
+  h2 { font-size: 14px; font-weight: 500; color: #5f5e5a; margin: 28px 0 8px; }
+  .mode { background: #faeeda; border: 1px solid #fac775; border-radius: 10px; padding: 10px 14px; font-size: 12px; color: #633806; margin-bottom: 16px; }
+  label { display: block; font-size: 13px; color: #5f5e5a; margin-bottom: 6px; }
+  .fld { margin-bottom: 18px; }
+  input[type=text], input[type=date], textarea { display: block; width: 100%; padding: 10px 12px; font: inherit; font-size: 14px; color: #2c2c2a; background: #fff; border: 1px solid #d3d1c7; border-radius: 8px; }
+  input[type=email] { display: block; box-sizing: border-box; width: 100%; padding: 10px 12px; font: inherit; font-size: 14px; color: #2c2c2a; background: #fff; border: 1px solid #d3d1c7; border-radius: 8px; }
+  textarea { min-height: 120px; resize: vertical; }
+  input:focus, textarea:focus { outline: none; border-color: #2c2c2a; }
+  .count { font-size: 12px; color: #888780; text-align: right; margin: 4px 2px 0; }
+  .hint { margin: 8px 2px 0; font-size: 12px; color: #888780; }
+  .paren { color: #a8a69d; }
+  .btn { display: block; width: 100%; padding: 15px 18px; font: inherit; font-size: 16px; font-weight: 500; color: #2c2c2a; background: #fff; border: 1px solid #d3d1c7; border-radius: 12px; cursor: pointer; text-align: left; text-decoration: none; }
+  .btn:hover { border-color: #2c2c2a; }
+  .btn.primary { background: #e6f1fb; border-color: #85b7eb; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+  .btn.center { text-align: center; }
+  .btn small { display: block; font-size: 12px; font-weight: 400; color: #5f5e5a; margin-top: 3px; }
+  .result { border-radius: 12px; padding: 14px 16px; margin: 16px 0 0; font-size: 13px; }
+  .result.ok { background: #eaf3de; border: 1px solid #c0dd97; color: #27500a; }
+  .result.bad { background: #fcebeb; border: 1px solid #f09595; color: #791f1f; }
+  .result.wait { background: #f1efe8; border: 1px solid #d3d1c7; color: #444441; }
+  .result b { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .result p { margin: 4px 0 0; }
+  .result code { font-size: 13px; background: #fff; padding: 2px 8px; border-radius: 4px; }
+  .result a { color: inherit; }
+  .mini { font: inherit; font-size: 12px; padding: 4px 10px; background: #fff; border: 1px solid #d3d1c7; border-radius: 8px; cursor: pointer; }
+  details { margin: 8px 0 0; font-size: 13px; color: #5f5e5a; }
+  details summary { cursor: pointer; font-size: 15px; font-weight: 500; color: #185fa5; }
+  details pre { background: #fff; border: 1px solid #e5e3db; border-radius: 10px; padding: 12px; overflow-x: auto; font-size: 11px; line-height: 1.5; color: #444441; white-space: pre-wrap; word-break: break-all; }
+  ul { margin: 0; padding-left: 18px; font-size: 13px; color: #444441; }
+  ul li { margin-bottom: 8px; }
+  .ident { background: #fff; border: 1px solid #e5e3db; border-radius: 12px; padding: 2px 16px 14px; margin-top: 10px; }
+  .ident .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 12px; color: #5f5e5a; }
+  .ident code { font-size: 12px; color: #185fa5; background: #f0f4f8; padding: 1px 5px; border-radius: 3px; }
+  .ident .warn { color: #993c1d; margin: 10px 0 0; font-size: 13px; }
+  .ident #keyout { margin: 10px 0 0; font-size: 12px; color: #5f5e5a; }
+  .ident #copyout { margin: 10px 0 0; font-size: 12px; color: #5f5e5a; }
+  .ident #copyout pre, .ident #keyout pre { background: #f4f3ef; border: 1px solid #e5e3db; border-radius: 8px; padding: 10px; margin: 6px 0 0; overflow-x: auto; font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+  .more { margin: 14px 0 0; }
+  .note2 { font-size: 12px; color: #888780; margin: 8px 0 0; }
+  footer { border-top: 1px solid #e5e3db; margin-top: 28px; padding: 14px 0 6px; text-align: center; font-size: 12px; color: #888780; }
+  footer a { color: #5f5e5a; text-decoration: none; margin: 0 8px; }
+/* ==== DG-UI BEGIN ==== */
+/* 整站单源样式。由 _theme.py 写进每一页 <style> 的末尾。
+   页内同名规则会被这一段覆盖（同选择器、后者胜）——改样式改这里，别改页内副本。
+   三档按键：.btn 一栏一个主动作 / .mini .op 行内小键 / .go 卡片里那一个入口。
+   两个断点：≤560px 触控（按键不低于 44px）、≥900px 桌面留白。 */
+
+:root {
+  --bg: #f4f3ef; --paper: #fff;
+  --ink: #2c2c2a; --sub: #5f5e5a; --muted: #888780; --faint: #a8a69d;
+  --line: #d3d1c7; --hair: #e5e3db; --hair2: #f0eee7;
+  --blue: #185fa5; --blue-h: #134a80; --blue-a: #0f3d6b; --blue-l: #85b7eb; --blue-bg: #e6f1fb;
+  --amber: #ba7517;
+  --green: #27500a;
+  --red: #a32a2a;
+  --r-lg: 12px; --r-sm: 8px;
+  --press: 0 0 0 3px rgba(24, 95, 165, .14);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+/* ---- 主键：一栏一个，50px 高，实心蓝 ---- */
+.btn {
+  display: block; width: 100%; min-height: 50px; margin: 0;
+  padding: 13px 18px;
+  font: inherit; font-size: 16px; font-weight: 500; line-height: 1.4;
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  text-align: center; text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s;
+}
+.btn:hover { border-color: var(--muted); }
+.btn:active { background: #faf9f5; }
+.btn.primary {
+  color: #fff; background: var(--blue); border-color: var(--blue);
+  box-shadow: 0 1px 2px rgba(24, 95, 165, .18);
+}
+.btn.primary:hover { background: var(--blue-h); border-color: var(--blue-h); box-shadow: 0 2px 6px rgba(24, 95, 165, .22); }
+.btn.primary:active { background: var(--blue-a); border-color: var(--blue-a); box-shadow: none; }
+.btn[disabled], .btn[aria-disabled="true"] {
+  opacity: .45; cursor: not-allowed;
+  background: #f1efe8; border-color: var(--line); color: var(--sub); box-shadow: none;
+}
+.btn.center { text-align: center; }
+.btn small { display: block; font-size: 12px; font-weight: 400; color: var(--sub); margin-top: 3px; }
+/* 只能由本人按、且一按就收不回来的那一类（撤回、拒收）：红字白底，鼠标移上去才转实。
+   不做成实心红——那是「马上要发生」，而这几个键按下去之前还有一次确认。 */
+.btn.danger { color: var(--red); background: var(--paper); border-color: #e4b4b4; }
+.btn.danger:hover { background: #fdf4f4; border-color: var(--red); }
+.btn.danger:active { background: #fcebeb; border-color: var(--red); }
+
+/* ---- 行内小键 ---- */
+.mini, .op {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 38px; margin: 0; padding: 8px 14px;
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.mini:hover, .op:hover { border-color: var(--muted); background: #faf9f5; }
+.mini:active, .op:active { background: #f1efe8; }
+.mini.primary { color: var(--blue); background: var(--blue-bg); border-color: var(--blue-l); }
+.mini.primary:hover { background: #dbeaf9; border-color: var(--blue); }
+.mini[disabled], .op[disabled] { opacity: .45; cursor: not-allowed; background: var(--paper); border-color: var(--hair); }
+
+/* ---- 卡片里那一个入口（「打开」「去交付」「继续交付」） ---- */
+.go {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 38px; margin: 0; padding: 6px 14px;
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--blue); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.go:hover { border-color: var(--blue); background: var(--blue-bg); }
+.go:active { background: #dbeaf9; }
+.go[disabled] { color: var(--faint); border-color: var(--hair); background: var(--paper); cursor: not-allowed; }
+
+/* ---- 导航卡：大厅的门、接任务的三张、接入与查账的条目 ---- */
+.dcard, .door, .linkcard {
+  display: block; margin-bottom: 10px; padding: 15px 17px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg);
+  color: inherit; text-decoration: none;
+  transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.dcard:hover, .door:hover, .linkcard:hover { border-color: var(--muted); box-shadow: 0 1px 3px rgba(44, 44, 42, .06); }
+.dcard:active, .door:active, .linkcard:active { background: #faf9f5; box-shadow: none; }
+/* 有底色的那几张（发布/浏览/已接、大厅的「热门门」）把描边换成同色系的深一号，
+   否则一 hover 就变成灰边，看着像掉了色。 */
+.dcard.pub:hover { border-color: var(--blue); }
+.dcard.browse:hover, .door.hot:hover { border-color: #993c1d; }
+.dcard.taken:hover { border-color: var(--green); }
+.dcard b, .door b, .linkcard b { font-size: 15px; font-weight: 500; }
+/* 导航卡右上角那枚「↗」是说明，不是第二个按键：退回成纯文字。 */
+.dcard .go, .door .go, .linkcard .go {
+  float: right; min-height: 0; padding: 0; margin-left: 10px;
+  font-size: 12px; color: var(--muted);
+  background: none; border: 0; border-radius: 0;
+}
+.dcard .go:hover, .door .go:hover, .linkcard .go:hover { background: none; color: var(--sub); }
+
+/* 选中的那一档整块跟着变色：只靠一个小圆点，手机上不容易看出选了哪个。
+   选择器要带上 .card.form，否则压不过页内 `.card.form .way`（三个类）。 */
+.card.form .way:has(input:checked) { border-color: var(--blue-l); background: var(--blue-bg); }
+.card.form .way:has(input:focus-visible) { outline: 2px solid var(--blue-l); outline-offset: 2px; }
+
+/* ---- 键盘可见的焦点环：鼠标点击不出现，Tab 一定出现 ---- */
+a:focus-visible, button:focus-visible, summary:focus-visible,
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--blue-l); outline-offset: 2px;
+}
+
+/* ---- 手机：触控目标不低于 44px，正文不缩到看不清 ---- */
+@media (max-width: 560px) {
+  .wrap { padding: 14px 14px 26px; }
+  h1 { font-size: 19px; }
+  h2 { margin-top: 22px; }
+  .banner { font-size: 12px; padding: 5px 10px; }
+  .back { min-height: 44px; margin-bottom: 6px; }
+  .btn { font-size: 16px; min-height: 52px; padding: 14px 16px; }
+  .mini, .op { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  .go { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  /* 页内 `.req .go`、`.mine .row button.op` 比上面两条更具体，字号得单独抬一档。 */
+  .req .go, .mine .row button.op { font-size: 14px; }
+  .bar .mini { font-size: 14px; }
+  .dcard .go, .door .go, .linkcard .go { min-height: 0; padding: 0; font-size: 12px; }
+  /* 卡片底栏：手机上一行放不下「期限 + 按键」，就让按键独占一行，整行可点。 */
+  .req .foot .go { width: 100%; }
+  /* iOS 在 < 16px 的输入框上会强制放大页面：这一处必须压过页内的 14px。 */
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* ---- 桌面：一栏还是那一栏，留白多一点，别把内容拉成一条长线 ---- */
+@media (min-width: 900px) {
+  .wrap { max-width: 680px; padding: 24px 20px 40px; }
+  .btn { min-height: 48px; }
+}
+/* ==== DG-UI END ==== */
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/tasks">← 回接任务</a>
+  <h1>发布需求</h1>
+  <p class="sub2">注意隐私保护，禁止填写：金额、电话、住址、证件号等隐私及涉及资金相关内容。</p>
+
+  <div class="mode" id="mode" hidden>
+    现在没连服务器，填完点「发布」只走一遍流程给你看。
+  </div>
+
+  <form id="f" autocomplete="off">
+    <div class="fld">
+      <label for="need">需求描述（1000字以内）</label>
+      <textarea id="need" maxlength="1000" placeholder="例：家里有台旧笔记本要重装系统，希望有人上门帮忙；能正常开机上网就算完成。"></textarea>
+      <div class="count"><span id="cnt">0</span> / 1000</div>
+    </div>
+
+    <div class="fld">
+      <label for="due">认领截止期限<span class="paren">（上限 90 天；到期后，需求发布自动作废）</span></label>
+      <input type="date" id="due" min="" max="">
+      <p class="hint">有人认领后，须在 10 天内交付，逾期同样作废；若最后几天才被认领，作废时间会顺延到交付期结束。</p>
+    </div>
+
+    <div class="fld">
+      <label for="mail">联系邮箱<span class="paren">（认领之后才给对方看）</span></label>
+      <input type="email" id="mail" maxlength="120" placeholder="例：name@example.com">
+      <p class="hint">这一栏记的是这一单的联系地址，不随人走。列表与公开页都不显示；有人认领之后，只有他看得到。</p>
+    </div>
+  </form>
+
+  <button class="btn primary center" id="pub">发布</button>
+
+  <div id="out" hidden></div>
+  <details id="trace" hidden><summary>这次提交的技术细节</summary><pre></pre></details>
+
+  <h2>请妥善保管以下内容</h2>
+  <details>
+    <summary>点击查看你的钥匙（请妥善保管：管理和确认已发布需求的唯一凭证，丢失无法找回）</summary>
+    <div class="ident">
+      <p style="margin:10px 0 0;font-size:13px;">第一次来，浏览器会自己生成一把钥匙，只存在这台电脑上，用不着你记住什么密码。</p>
+      <p class="warn">换电脑、清浏览器数据会把它弄丢。丢了以后，这次需求发布撤不回，也确认不了别人交的活。</p>
+      <div class="row"><span>你的编号</span><code id="party">…</code></div>
+      <div class="row"><span>指纹</span><code id="fp">…</code></div>
+      <div class="row">
+        <button class="mini" data-copy="both">复制编号和指纹</button>
+        <button class="mini" data-export="1">导出备份</button>
+      </div>
+      <p class="note2">复制一次给两行：编号一行、指纹一行。备份文件（.json）里含编号、指纹与私钥；换了浏览器，在「已发布的需求管理」把它粘回去就能继续用。</p>
+      <div id="copyout" hidden></div>
+      <div id="keyout" hidden></div>
+    </div>
+  </details>
+
+  <h2>发布之后还需要干什么</h2>
+  <ul>
+    <li>有人接到你的任务时会留下昵称和一句方案，请按他留的邮箱联系。</li>
+    <li>任务完成后需确认。</li>
+  </ul>
+
+  <p class="more"><a class="btn center" href="/mine">已发布的需求管理</a></p>
+
+  <footer><p><a href="/home">回大厅</a>·<a href="mailto:2379731846@qq.com">唯一联系邮箱：2379731846@qq.com</a></p></footer>
+</div>
+<script>
+/* 发布页 · 浏览器内签名
+   私钥只在本机（localStorage）；请求体字节一次成型，签的就是发出去的那串。
+   依赖：仅 WebCrypto 的 Ed25519。SSHSIG 容器手写，已用 ssh-keygen -Y verify 交叉验证。
+   上线前置：CSP 现为 script-src 'none'，须放开到 'self'（本文件不含内联脚本、不含 eval）。 */
+'use strict';
+
+const $ = (s) => document.querySelector(s);
+const enc = new TextEncoder();
+/* 演示态：本地文件，或本地预览服务器（127.0.0.1 / localhost）。只认 drawcommons.org 为真站——
+   预览里点「发布」不该真打到线上，也不该因为 127.0.0.1 上没有 /api 而报 404。 */
+const REAL_HOST = /(^|\.)drawcommons\.org$/;
+const FILE_MODE = location.protocol === 'file:' || !REAL_HOST.test(location.hostname);
+const KEY_STORE = 'dg_post_key_v1';
+const NS = 'drawcommons-ingest';
+let clockOffset = 0;
+let lastTrace = null;
+
+/* 沙箱 iframe（预览面板就是这么跑它的）里 localStorage 一碰就抛 SecurityError。
+   探一次，通不了就退回内存：这一页照样能生成钥匙、能发布、能记清单，只是刷新即丢。 */
+const store = (() => {
+  try {
+    const probe = '__dg_probe__';
+    localStorage.setItem(probe, '1');
+    localStorage.removeItem(probe);
+    return {
+      real: true,
+      get: (k) => localStorage.getItem(k),
+      set: (k, v) => localStorage.setItem(k, v),
+      del: (k) => localStorage.removeItem(k),
+    };
+  } catch {
+    const mem = new Map();
+    return {
+      real: false,
+      get: (k) => (mem.has(k) ? mem.get(k) : null),
+      set: (k, v) => { mem.set(k, String(v)); },
+      del: (k) => { mem.delete(k); },
+    };
+  }
+})();
+
+/* ---------- wire helpers ---------- */
+const cat = (...a) => { const n = a.reduce((s, x) => s + x.length, 0); const o = new Uint8Array(n); let p = 0; for (const x of a) { o.set(x, p); p += x.length; } return o; };
+const u32 = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n); return b; };
+const str = (s) => { const b = typeof s === 'string' ? enc.encode(s) : s; return cat(u32(b.length), b); };
+const b64 = (u8) => { let s = ''; const CH = 0x8000; for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH)); return btoa(s); };
+const unb64 = (t) => { const s = atob(t); const o = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) o[i] = s.charCodeAt(i); return o; };
+const hex = (u8) => [...new Uint8Array(u8)].map((b) => b.toString(16).padStart(2, '0')).join('');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const pubBlob = (raw32) => cat(str('ssh-ed25519'), str(raw32));
+const pubLine = (raw32) => 'ssh-ed25519 ' + b64(pubBlob(raw32));
+
+const AB = 'abcdefghijklmnopqrstuvwxyz0123456789';
+/* 拒绝采样取 36 进制字符：256 % 36 = 4，直接取模会让前四个字符多出 1/64 的概率，
+   落在单号与主体名上就是可观测的偏斜。252 是 36*7，只收 0–251。 */
+function rand(n) {
+  const out = [];
+  while (out.length < n) {
+    const b = crypto.getRandomValues(new Uint8Array(n * 2));
+    for (const x of b) {
+      if (x < 252) { out.push(AB[x % 36]); if (out.length === n) break; }
+    }
+  }
+  return out.join('');
+}
+function nonce() { const b = crypto.getRandomValues(new Uint8Array(18)); return b64(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function isoUtc(off = 0) { return new Date(Date.now() + off).toISOString().replace(/\.\d{3}Z$/, 'Z'); }
+
+/* ---------- key ---------- */
+async function getKey() {
+  const saved = store.get(KEY_STORE);
+  if (saved) {
+    const o = JSON.parse(saved);
+    const priv = await crypto.subtle.importKey('pkcs8', unb64(o.pkcs8), { name: 'Ed25519' }, true, ['sign']);
+    return { party: o.party, pubRaw: unb64(o.pub), priv };
+  }
+  const kp = await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']);
+  const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', kp.privateKey));
+  const pub = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+  const o = { party: 'pt_' + rand(12), pkcs8: b64(pkcs8), pub: b64(pub), made: new Date().toISOString() };
+  store.set(KEY_STORE, JSON.stringify(o));
+  return { party: o.party, pubRaw: pub, priv: kp.privateKey };
+}
+
+/* ---------- SSHSIG ---------- */
+async function sshsig(payload, priv, pubRaw) {
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-512', payload));
+  const toSign = cat(enc.encode('SSHSIG'), str(NS), str(''), str('sha512'), str(hash));
+  const raw = new Uint8Array(await crypto.subtle.sign({ name: 'Ed25519' }, priv, toSign));
+  const sigField = cat(str('ssh-ed25519'), str(raw));
+  const blob = cat(enc.encode('SSHSIG'), u32(1), str(pubBlob(pubRaw)), str(NS), str(''), str('sha512'), str(sigField));
+  const body = b64(blob).replace(/(.{70})/g, '$1\n');
+  return '-----BEGIN SSH SIGNATURE-----\n' + body + (body.endsWith('\n') ? '' : '\n') + '-----END SSH SIGNATURE-----\n';
+}
+
+/* ---------- transport ---------- */
+function demoReply(path, obj) {
+  if (path.endsWith('/party')) return { status: 200, json: { ok: true, party_id: obj.party_id, already: false } };
+  if (obj.state === 'withdrawn') return { status: 200, json: { ok: true, request_id: obj.request_id, seq: 2, state: 'withdrawn' } };
+  return { status: 200, json: { ok: true, request_id: obj.request_id, seq: 1, state: 'open' } };
+}
+
+async function send(path, obj, opts = {}) {
+  const body = enc.encode(JSON.stringify(obj));
+  /* 签名要 WebCrypto 的 Ed25519。沙箱 iframe 与部分隐私模式里它取不到，而「取不到」不该
+     让整条流程停在原地：演示态照走，真站上则明说签不了，不假装发成功。 */
+  let key = null;
+  try { key = await getKey(); } catch (e) { console.warn('钥匙不可用：', e); }
+  let headers = {};
+  if (key) {
+    const digest = hex(await crypto.subtle.digest('SHA-256', body));
+    const issued = isoUtc(clockOffset);
+    const nc = nonce();
+    const payload = enc.encode(`drawcommons-ingest-v1\nPOST\n${path}\n${key.party}\n${issued}\n${nc}\n${digest}\n`);
+    const armor = await sshsig(payload, key.priv, key.pubRaw);
+    lastTrace = { payload: new TextDecoder().decode(payload), armorHead: armor.split('\n').slice(1, 3).join('\n'), bytes: body.length };
+    headers = {
+      'Content-Type': 'application/json',
+      'X-DG-Party': key.party,
+      'X-DG-Issued': issued,
+      'X-DG-Nonce': nc,
+      'X-DG-Sig': b64(enc.encode(armor)),
+    };
+  }
+  if (FILE_MODE) { await sleep(340); return demoReply(path, obj); }
+  if (!key) throw new Error('这台浏览器用不了签名钥匙，发不出去。');
+  const res = await fetch(path + (opts.dryRun ? '?dry_run=1' : ''), { method: 'POST', headers, body });
+  const text = await res.text();
+  let json = null; try { json = JSON.parse(text); } catch { /* 非 JSON 时保留原文 */ }
+  return { status: res.status, json, text };
+}
+
+async function syncClock() {
+  if (FILE_MODE) return;
+  try {
+    const r = await fetch('/healthz', { method: 'HEAD' });
+    const d = r.headers.get('date');
+    if (d) clockOffset = new Date(d).getTime() - Date.now();
+  } catch { /* 取不到就用本机时间，超窗时页面会报 004 */ }
+}
+
+/* ---------- ui ---------- */
+const DRAFT_STORE = 'dg_post_draft_v1';
+/* 需求写到一半误点刷新、误关标签，几百字就没了——这在这页是常事，
+   因为唯一要写的就是一段长文本。存本地草稿，回来接着写。 */
+function saveDraft() {
+  try {
+    store.set(DRAFT_STORE, JSON.stringify({
+      need: $('#need').value, due: $('#due').value,
+    }));
+  } catch { /* 隐私模式写不进，不影响发布 */ }
+}
+function restoreDraft() {
+  try {
+    const o = JSON.parse(store.get(DRAFT_STORE) || 'null');
+    if (!o) return;
+    if (o.need) $('#need').value = o.need;
+    /* 草稿里的日期可能已经过期（隔天再打开就是）。过期日期不往回填：
+       留着它等于预置一个必然被拒的值，人还得先发现再删掉。 */
+    if (o.due && o.due >= ymd(new Date())) $('#due').value = o.due;
+    $('#cnt').textContent = $('#need').value.length;
+  } catch { /* 草稿坏了就当没有 */ }
+}
+const clearDraft = () => { try { store.del(DRAFT_STORE); } catch { /* 同上 */ } };
+
+const out = $('#out');
+const trace = $('#trace');
+/* 结果框在按钮下方。发失败时它可能落在视口外，人只会看到按钮弹回原样，
+   以为「点了没反应」。滚一下，让结果一定被看见。 */
+const setOut = (html, kind) => {
+  out.hidden = false;
+  out.className = 'result ' + (kind || '');
+  out.innerHTML = html;
+  const r = out.getBoundingClientRect();
+  if (r.bottom > window.innerHeight || r.top < 0) out.scrollIntoView({ block: 'center' });
+};
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function showTrace() {
+  if (!lastTrace) return;
+  trace.hidden = false;
+  trace.querySelector('pre').textContent =
+    'payload（这些字节被签了，改一个空格就验不过）\n' + lastTrace.payload +
+    '\n请求体 ' + lastTrace.bytes + ' 字节\nX-DG-Sig 前两行\n' + lastTrace.armorHead;
+}
+
+let lastRequest = null;
+let reqId = null;
+let lastDraft = null;
+/* 这一单的联系邮箱。留着只为在发成功的提示里回显——它不在请求体里，详见 formValue。 */
+let lastMail = '';
+
+/* 认领截止期限的上限：发布后 90 天。服务端（ingest.op_request）也拦同一个数，
+   页面上先挡住，省得填完、签完名才被打回。90 与「不填按 90 天算」是同一个
+   常数——窗口最长就是 90 天，填与不填只差「从哪天开始数」。 */
+const MAX_DUE_DAYS = 90;
+/* 页面这一栏的上限。协议层 `need_desc` 是 1–2000，这里比协议更紧是刻意的：
+   一屏能读完的才算「说清了缺什么」；写成两千字的多半是把来龙去脉都塞进来了。 */
+const MAX_NEED = 1000;
+function ymd(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+function maxDueYmd() {
+  const d = new Date();
+  d.setDate(d.getDate() + MAX_DUE_DAYS);
+  return ymd(d);
+}
+/* 单号怎么定，直接决定重试是「同一单」还是「第二张单」：
+   内容没改 → 复用同一个号，服务端把重发当幂等；内容改了 → 换新号，
+   否则服务端按「同号改字段」拒（029），人会觉得改完反而发不出去。 */
+function ensureReqId(draft) {
+  const sig = JSON.stringify(draft);
+  if (!reqId || lastDraft !== sig) { reqId = 'rq_' + rand(16); lastDraft = sig; }
+  return reqId;
+}
+
+function formValue() {
+  const need = $('#need').value.trim();
+  if (!need) { setOut('<b>还差一句</b><p>「需求描述」还空着，写完这一栏才能发。</p>', 'bad'); $('#need').focus(); return null; }
+  if (need.length > MAX_NEED) {
+    setOut('<b>太长了</b><p>需求描述最多 ' + MAX_NEED + ' 字，现在 ' + need.length + ' 字。</p>', 'bad');
+    $('#need').focus(); return null;
+  }
+  /* 类别页面上不再让选：写口必填该字段，统一记 labor（词表里的「人力」） */
+  const kind = 'labor';
+  const due = $('#due').value;
+  /* YYYY-MM-DD 定长，字符串比较就是日期比较。 */
+  if (due && due < ymd(new Date())) {
+    /* 已经过去的日期不算「截止」：它一提交就到期，等于发了一条当场作废的需求发布。 */
+    setOut('<b>日期已经过去</b><p>认领截止期限不能早于今天（' + ymd(new Date()) + '）。</p>', 'bad');
+    $('#due').focus(); return null;
+  }
+  if (due && due > maxDueYmd()) {
+    setOut('<b>截止太远</b><p>认领截止期限最多到发布后 ' + MAX_DUE_DAYS + ' 天（' +
+           maxDueYmd() + '）。</p>', 'bad');
+    $('#due').focus(); return null;
+  }
+  /* 联系邮箱只随这一单走，**不进请求体**：协议现在没有这个字段，塞进 body 会被
+     写口按「多余字段」拒。它在这一页只做两件事：校验形状、记在提示里给人看。
+     真站要落库，得先加协议字段与可见性规则（v2.2）。 */
+  const mail = $('#mail').value.trim();
+  if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+    setOut('<b>邮箱不像</b><p>检查一下有没有写全，像 name@example.com 这样。</p>', 'bad');
+    $('#mail').focus(); return null;
+  }
+  lastMail = mail;
+  const draft = {
+    state: 'open',
+    category: kind,
+    need_desc: need,
+    /* 日期框给的是当地的一天。按本地 23:59:59 解释再转 UTC——
+       写成 T23:59:59Z 等于把「11-20」当成 UTC 的 11-20，北京用户会白多出 8 小时，
+       而选今天的人可能一提交就已经过期。 */
+    window_expires_at: due ? new Date(due + 'T23:59:59').toISOString().replace(/\.\d{3}Z$/, 'Z') : '',
+  };
+  return {
+    request_id: ensureReqId(draft),
+    ...draft,
+    requested_by: null,
+    claim_agent_id: null,
+    evidence_uri: null,
+    occurred_at: null,
+  };
+}
+
+async function publish(dryRun) {
+  const base = formValue();
+  if (!base) return;
+  let key = null;
+  try { key = await getKey(); } catch (e) { console.warn('钥匙不可用：', e); }
+  if (!key && !FILE_MODE) { setOut('<b>没发出去</b><p>这台浏览器用不了签名钥匙，发不出去。</p>', 'bad'); return; }
+  const party = key ? key.party : 'pt_preview0000';
+  const req = { ...base, requested_by: party };
+  const btns = ['#pub'];
+  btns.forEach((s) => { $(s).disabled = true; });
+  try {
+    setOut('<b>' + (dryRun ? '正在试' : '正在发') + '</b><p>稍等一下，别关这一页。</p>', 'wait');
+    /* 没钥匙时跳过登记这一步：没有公钥就没有可登记的主体，演示态也不该编一把。 */
+    if (key) {
+      const p = await send('/api/v1/party', { party_id: key.party, pubkey: pubLine(key.pubRaw), display_mode: 'pseudonymous' }, { dryRun });
+      if (p.status >= 400) return fail(p);
+    }
+    const r = await send('/api/v1/request', req, { dryRun });
+    if (r.status >= 400) return fail(r);
+    showTrace();
+    if (dryRun) {
+      const sim = FILE_MODE ? '（本地演示，没连服务器）' : '';
+      setOut('<b>能发出去' + sim + '</b><p>检查都过了，什么都没写。真要发就点上面那个「发布」。</p>', 'ok');
+      return;
+    }
+    const id = (r.json && r.json.request_id) || req.request_id;
+    lastRequest = req;
+    curId = id;
+    mineUpsert(id, (r.json && r.json.state) || 'open');
+    reqId = null;
+    lastDraft = null;
+    if (!dryRun) clearDraft();
+    const tag = FILE_MODE ? '（演示，没有真发）' : '';
+    /* 演示态不给线上链接：本地点开是 404，比没有链接更糟。 */
+    const link = FILE_MODE ? '' : '<p><a href="https://drawcommons.org/r/' + esc(id) + '">打开这次需求发布 ↗</a></p>';
+    setOut(
+      '<b>发出去了' + tag + '</b>' +
+      '<p>需求编号 <code>' + esc(id) + '</code> —— 记一下，认领、交付都靠它。</p>' +
+      (lastMail ? '<p>联系邮箱 <code>' + esc(lastMail) + '</code> 记在这一单上：列表与公开页都不显示，认领之后只有他看得到。</p>' : '') +
+      link, 'ok');
+  } catch (e) {
+    setOut('<b>没发出去</b><p>' + esc(e.message || e) + '</p>', 'bad');
+  } finally {
+    btns.forEach((s) => { $(s).disabled = false; });
+  }
+}
+
+function fail(r) {
+  const j = r.json || {};
+  const code = j.error || ('HTTP ' + r.status);
+  const hint = j.hint || j.detail || (r.text || '').slice(0, 200);
+  setOut('<b>没发出去（' + esc(code) + '）</b><p>' + esc(hint) + '</p><p>改完可以再点一次「发布」，不会多出一次需求发布。</p>', 'bad');
+}
+
+async function withdraw() {
+  if (!lastRequest) return;
+  const r = await send('/api/v1/request', { ...lastRequest, state: 'withdrawn' });
+  if (r.status >= 400) return fail(r);
+  setOut('<b>已撤回</b><p>别人不能再接这次需求发布了。文字还在公开页上，删不掉。</p>', 'ok');
+  mineUpsert(curId || (lastRequest && lastRequest.request_id), 'withdrawn');
+}
+
+/* ---------- 本地清单（本页只写、不显示） ----------
+   本页不再列「我发过的」：清单一律在「已发布的需求管理」那一页显示（mine.js 读同一个
+   localStorage 键）。这里只做一件事——发布成功/撤回时把「编号 / 时间 / 状态 / 归属」
+   记下来，免得单号只活在内存里，一刷新就没了。
+   真站上 refreshMine 再向 /api/v1/requests 要一次最近的公开需求，按 requested_by 过滤后
+   写回，让清单里的状态跟上服务端；查不到的（终态 90 天后退出公开视图）保留本地那一份。
+   只写不画：这里任何函数都不碰 DOM。 */
+const MINE_STORE = 'dg_post_mine_v1';
+const MINE_MAX = 200;
+let curId = null;
+let curParty = null;
+
+function loadMine() {
+  try {
+    const a = JSON.parse(store.get(MINE_STORE) || '[]');
+    return Array.isArray(a) ? a : [];
+  } catch { return []; }
+}
+function saveMine(list) {
+  try { store.set(MINE_STORE, JSON.stringify(list.slice(0, MINE_MAX))); }
+  catch { /* 写不进（隐私模式）就放过，管理页那边会显示没有 */ }
+}
+function mineUpsert(id, state) {
+  if (!id) return;
+  const list = loadMine();
+  const i = list.findIndex((x) => x.id === id);
+  if (i >= 0) { if (state) list[i].state = state; if (curParty) list[i].by = curParty; }
+  else list.unshift({ id, at: new Date().toISOString(), state: state || 'open', by: curParty || '' });
+  saveMine(list);
+}
+async function refreshMine(party) {
+  if (FILE_MODE || !party) return;
+  try {
+    const r = await fetch('/api/v1/requests?limit=' + MINE_MAX, { headers: { Accept: 'application/json' } });
+    if (!r.ok) return;
+    const j = await r.json();
+    const items = (j.items || []).filter((x) => x.requested_by === party);
+    if (!items.length) return;
+    const list = loadMine();
+    for (const it of items) {
+      const i = list.findIndex((x) => x.id === it.request_id);
+      if (i >= 0) { list[i].state = it.state; }
+      else list.push({ id: it.request_id, at: it.created_at || '', state: it.state, by: party });
+    }
+    saveMine(list);
+  } catch { /* 取不到就只留本地那份，不报错 */ }
+}
+
+/* ---------- boot ---------- */
+(async function boot() {
+  /* 先把按键接上，再取钥匙。取钥匙要 WebCrypto + localStorage，隐私模式或沙箱 iframe 里
+     任一不可用就会抛；它一抛，后面的 addEventListener 全都不执行——表现正是「点发布没反应」。
+     所以顺序反过来：接线不依赖钥匙，钥匙失败只影响「你的编号 / 指纹」那两格。 */
+  $('#need').addEventListener('input', () => { $('#cnt').textContent = $('#need').value.length; saveDraft(); });
+  $('#due').min = ymd(new Date());
+  $('#due').max = maxDueYmd();
+  $('#due').addEventListener('change', saveDraft);
+  restoreDraft();
+  $('#pub').addEventListener('click', () => publish(false));
+  if (FILE_MODE) {
+    $('#mode').hidden = false;
+  }
+  let key = null;
+  try {
+    key = await getKey();
+    curParty = key.party;
+    $('#party').textContent = key.party;
+    $('#fp').textContent = 'SHA256:' + b64(new Uint8Array(await crypto.subtle.digest('SHA-256', pubBlob(key.pubRaw)))).replace(/=+$/, '');
+  } catch (e) {
+    $('#party').textContent = '取不到';
+    $('#fp').textContent = '取不到';
+    console.warn('钥匙不可用：', e);
+  }
+  await syncClock();
+  /* 「认领截止期限」那一格里按回车会触发表单默认提交——在这个页面等于带着 GET 参数把页刷一遍，
+     填的东西全没。拦下来，当成按了「发布」。 */
+  $('#f').addEventListener('submit', (e) => { e.preventDefault(); publish(false); });
+  /* 复制与导出挂在容器上，按 data-* 分流：编号行和指纹行各有一套，写两个 id 会漏一个。
+     两种手段都不可用时，人还得有第三条路——选区与把 JSON 摊在页面上。 */
+  $('.ident').addEventListener('click', async (e) => {
+    const c = e.target.closest('[data-copy]');
+    if (c) { e.preventDefault(); await copyFrom(c); return; }
+    if (e.target.closest('[data-export]')) { e.preventDefault(); doExport(key); }
+  });
+  if (key) await refreshMine(key.party);
+})();
+
+/* 剪贴板 API 在沙箱 iframe 里常被拒；退回 execCommand，再不行就把文字选中，
+   让人自己按 Ctrl+C——总比只留一句「复制失败」有用。 */
+async function copyFrom(el) {
+  const which = el.dataset.copy;
+  const src = $('#' + (which === 'both' ? 'party' : which));
+  /* 一次给两行：编号认人、指纹核对，分开复制要来回两次，还容易只贴了一半。 */
+  const text = which === 'both'
+    ? '编号：' + $('#party').textContent + '\n指纹：' + $('#fp').textContent
+    : (src ? src.textContent : '');
+  const old = el.textContent;
+  let done = false;
+  /* 剪贴板 API 在没给权限的上下文里可能既不 resolve 也不 reject（headless、部分嵌入页），
+     不设上限就等于把按钮按死在那里。600ms 等不到就走下一条路。 */
+  try {
+    await Promise.race([
+      navigator.clipboard.writeText(text),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('clipboard timeout')), 600)),
+    ]);
+    done = true;
+  } catch { /* 往下退 */ }
+  if (!done) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { done = document.execCommand('copy'); } catch { done = false; }
+    document.body.removeChild(ta);
+  }
+  if (done) el.textContent = '已复制';
+  else {
+    /* 两条自动复制手段都不行时，别只留一句「复制失败」：把要复制的东西摊在下面，
+       人自己全选也能带走。选区方案在这里不可靠——收起时选不中，两次复制还各只有一半。 */
+    const box = $('#copyout');
+    box.innerHTML = '<p>浏览器不让自动复制，请手动选中下面这段：</p><pre></pre>';
+    box.querySelector('pre').textContent = text;
+    box.hidden = false;
+    el.textContent = '见下方文字';
+  }
+  setTimeout(() => { el.textContent = old; }, 1800);
+}
+
+function doExport(key) {
+  const raw = store.get(KEY_STORE);
+  if (!raw) return;
+  let pretty = raw;
+  try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch { /* 原样导出 */ }
+  const blob = new Blob([pretty], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'drawcommons-key-' + (key ? key.party : 'backup') + '.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  /* 沙箱 iframe 会静默吞掉下载（不给提示、也没有 onerror）。所以同时把内容摊开：
+     点了没反应的人，至少能自己存一份。 */
+  const box = $('#keyout');
+  box.innerHTML = '<p>没看到下载，就把下面这段存成 .json 文件。</p><pre></pre>';
+  box.querySelector('pre').textContent = pretty;
+  box.hidden = false;
+}
+
+</script>
+</body>
+</html>

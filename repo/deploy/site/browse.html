@@ -1,0 +1,669 @@
+<!doctype html>
+<!-- 生成物：由 _inline.py 从 browse.src.html + dg-sign.js + dg-time.js + browse.js 合成，别手改这份；改完源文件重跑 python _inline.py -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务浏览</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #f4f3ef; color: #2c2c2a; line-height: 1.6; }
+  .banner { background: #ba7517; color: #fff; text-align: center; padding: 6px 12px; font-size: 13px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+  .back { display: inline-block; font-size: 13px; color: #5f5e5a; text-decoration: none; margin-bottom: 12px; }
+  h1 { font-size: 20px; font-weight: 500; margin: 0 0 6px; }
+  h2 { font-size: 14px; font-weight: 500; color: #5f5e5a; margin: 26px 0 8px; }
+  .sub { font-size: 13px; color: #888780; margin: 4px 0 14px; }
+  .bar { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 10px; font-size: 13px; color: #5f5e5a; }
+  .bar .mini { font: inherit; font-size: 13px; padding: 6px 14px; background: #fff; border: 1px solid #d3d1c7; border-radius: 8px; cursor: pointer; }
+  /* 一条需求一张卡：编号与状态在上，描述在中，截止与「打开」在下。 */
+  .req { background: #fff; border: 1px solid #e5e3db; border-radius: 12px; padding: 12px 16px 10px; margin-bottom: 10px; }
+  .req .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .req code { font-size: 12px; color: #185fa5; background: #f0f4f8; padding: 1px 6px; border-radius: 3px; }
+  .req .desc { margin: 8px 0 0; font-size: 13px; color: #2c2c2a; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .req .foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 9px; border-top: 1px solid #f0eee7; font-size: 12px; color: #888780; }
+  .req .go { font-size: 13px; color: #185fa5; text-decoration: none; border: 1px solid #d3d1c7; border-radius: 8px; padding: 5px 14px; }
+  .req .go:hover { border-color: #185fa5; }
+  .req.done { background: #faf9f5; }
+  /* 交付截止已过：只标红，不禁用任何东西——页面不判死，判死是服务端清扫的事。 */
+  .req .late { color: #a32a2a; }
+  .req.done .desc { color: #5f5e5a; }
+  .req .taken { font-size: 13px; color: #888780; }
+  .slot { display: flex; align-items: center; justify-content: center; min-height: 132px; margin: 4px 0 10px; border: 1px dashed #d3d1c7; border-radius: 10px; background: #faf9f5; font-size: 13px; color: #a8a69d; text-align: center; padding: 12px; }
+  .card { background: #fff; border: 1px solid #e5e3db; border-radius: 12px; padding: 12px 16px; }
+  .card ul { margin: 0; padding-left: 18px; font-size: 13px; color: #5f5e5a; }
+  .card li { margin-bottom: 6px; }
+  .card li:last-child { margin-bottom: 0; }
+  .card a { color: #185fa5; text-decoration: none; }
+  .tag { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; line-height: 18px; border: 1px solid #d3d1c7; white-space: nowrap; }
+  .tag.s-open { color: #185fa5; background: #e6f1fb; border-color: #85b7eb; }
+  .tag.s-claimed { color: #0f6b62; background: #e2f2ef; border-color: #8fc9c0; }
+  .tag.s-delivered { color: #8a5310; background: #fbf0dd; border-color: #e8c48b; }
+  .tag.s-closed { color: #27500a; background: #eaf3de; border-color: #c0dd97; }
+  .tag.s-withdrawn { color: #6b6a65; background: #eeece4; border-color: #d3d1c7; }
+  .tag.s-expired { color: #a32a2a; background: #fcebeb; border-color: #f0a8a8; }
+  .msg { margin: 0 0 10px; font-size: 13px; border-radius: 10px; padding: 10px 14px; background: #f1efe8; border: 1px solid #d3d1c7; color: #444441; }
+  .msg.bad { background: #fcebeb; border-color: #f09595; color: #791f1f; }
+  footer { border-top: 1px solid #e5e3db; margin-top: 28px; padding: 14px 0 6px; text-align: center; font-size: 12px; color: #888780; }
+  footer a { color: #5f5e5a; text-decoration: none; margin: 0 8px; }
+/* ==== DG-UI BEGIN ==== */
+/* 整站单源样式。由 _theme.py 写进每一页 <style> 的末尾。
+   页内同名规则会被这一段覆盖（同选择器、后者胜）——改样式改这里，别改页内副本。
+   三档按键：.btn 一栏一个主动作 / .mini .op 行内小键 / .go 卡片里那一个入口。
+   两个断点：≤560px 触控（按键不低于 44px）、≥900px 桌面留白。 */
+
+:root {
+  --bg: #f4f3ef; --paper: #fff;
+  --ink: #2c2c2a; --sub: #5f5e5a; --muted: #888780; --faint: #a8a69d;
+  --line: #d3d1c7; --hair: #e5e3db; --hair2: #f0eee7;
+  --blue: #185fa5; --blue-h: #134a80; --blue-a: #0f3d6b; --blue-l: #85b7eb; --blue-bg: #e6f1fb;
+  --amber: #ba7517;
+  --green: #27500a;
+  --red: #a32a2a;
+  --r-lg: 12px; --r-sm: 8px;
+  --press: 0 0 0 3px rgba(24, 95, 165, .14);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+/* ---- 主键：一栏一个，50px 高，实心蓝 ---- */
+.btn {
+  display: block; width: 100%; min-height: 50px; margin: 0;
+  padding: 13px 18px;
+  font: inherit; font-size: 16px; font-weight: 500; line-height: 1.4;
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  text-align: center; text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s;
+}
+.btn:hover { border-color: var(--muted); }
+.btn:active { background: #faf9f5; }
+.btn.primary {
+  color: #fff; background: var(--blue); border-color: var(--blue);
+  box-shadow: 0 1px 2px rgba(24, 95, 165, .18);
+}
+.btn.primary:hover { background: var(--blue-h); border-color: var(--blue-h); box-shadow: 0 2px 6px rgba(24, 95, 165, .22); }
+.btn.primary:active { background: var(--blue-a); border-color: var(--blue-a); box-shadow: none; }
+.btn[disabled], .btn[aria-disabled="true"] {
+  opacity: .45; cursor: not-allowed;
+  background: #f1efe8; border-color: var(--line); color: var(--sub); box-shadow: none;
+}
+.btn.center { text-align: center; }
+.btn small { display: block; font-size: 12px; font-weight: 400; color: var(--sub); margin-top: 3px; }
+/* 只能由本人按、且一按就收不回来的那一类（撤回、拒收）：红字白底，鼠标移上去才转实。
+   不做成实心红——那是「马上要发生」，而这几个键按下去之前还有一次确认。 */
+.btn.danger { color: var(--red); background: var(--paper); border-color: #e4b4b4; }
+.btn.danger:hover { background: #fdf4f4; border-color: var(--red); }
+.btn.danger:active { background: #fcebeb; border-color: var(--red); }
+
+/* ---- 行内小键 ---- */
+.mini, .op {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 38px; margin: 0; padding: 8px 14px;
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.mini:hover, .op:hover { border-color: var(--muted); background: #faf9f5; }
+.mini:active, .op:active { background: #f1efe8; }
+.mini.primary { color: var(--blue); background: var(--blue-bg); border-color: var(--blue-l); }
+.mini.primary:hover { background: #dbeaf9; border-color: var(--blue); }
+.mini[disabled], .op[disabled] { opacity: .45; cursor: not-allowed; background: var(--paper); border-color: var(--hair); }
+
+/* ---- 卡片里那一个入口（「打开」「去交付」「继续交付」） ---- */
+.go {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 38px; margin: 0; padding: 6px 14px;
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--blue); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.go:hover { border-color: var(--blue); background: var(--blue-bg); }
+.go:active { background: #dbeaf9; }
+.go[disabled] { color: var(--faint); border-color: var(--hair); background: var(--paper); cursor: not-allowed; }
+
+/* ---- 导航卡：大厅的门、接任务的三张、接入与查账的条目 ---- */
+.dcard, .door, .linkcard {
+  display: block; margin-bottom: 10px; padding: 15px 17px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg);
+  color: inherit; text-decoration: none;
+  transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.dcard:hover, .door:hover, .linkcard:hover { border-color: var(--muted); box-shadow: 0 1px 3px rgba(44, 44, 42, .06); }
+.dcard:active, .door:active, .linkcard:active { background: #faf9f5; box-shadow: none; }
+/* 有底色的那几张（发布/浏览/已接、大厅的「热门门」）把描边换成同色系的深一号，
+   否则一 hover 就变成灰边，看着像掉了色。 */
+.dcard.pub:hover { border-color: var(--blue); }
+.dcard.browse:hover, .door.hot:hover { border-color: #993c1d; }
+.dcard.taken:hover { border-color: var(--green); }
+.dcard b, .door b, .linkcard b { font-size: 15px; font-weight: 500; }
+/* 导航卡右上角那枚「↗」是说明，不是第二个按键：退回成纯文字。 */
+.dcard .go, .door .go, .linkcard .go {
+  float: right; min-height: 0; padding: 0; margin-left: 10px;
+  font-size: 12px; color: var(--muted);
+  background: none; border: 0; border-radius: 0;
+}
+.dcard .go:hover, .door .go:hover, .linkcard .go:hover { background: none; color: var(--sub); }
+
+/* 选中的那一档整块跟着变色：只靠一个小圆点，手机上不容易看出选了哪个。
+   选择器要带上 .card.form，否则压不过页内 `.card.form .way`（三个类）。 */
+.card.form .way:has(input:checked) { border-color: var(--blue-l); background: var(--blue-bg); }
+.card.form .way:has(input:focus-visible) { outline: 2px solid var(--blue-l); outline-offset: 2px; }
+
+/* ---- 键盘可见的焦点环：鼠标点击不出现，Tab 一定出现 ---- */
+a:focus-visible, button:focus-visible, summary:focus-visible,
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--blue-l); outline-offset: 2px;
+}
+
+/* ---- 手机：触控目标不低于 44px，正文不缩到看不清 ---- */
+@media (max-width: 560px) {
+  .wrap { padding: 14px 14px 26px; }
+  h1 { font-size: 19px; }
+  h2 { margin-top: 22px; }
+  .banner { font-size: 12px; padding: 5px 10px; }
+  .back { min-height: 44px; margin-bottom: 6px; }
+  .btn { font-size: 16px; min-height: 52px; padding: 14px 16px; }
+  .mini, .op { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  .go { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  /* 页内 `.req .go`、`.mine .row button.op` 比上面两条更具体，字号得单独抬一档。 */
+  .req .go, .mine .row button.op { font-size: 14px; }
+  .bar .mini { font-size: 14px; }
+  .dcard .go, .door .go, .linkcard .go { min-height: 0; padding: 0; font-size: 12px; }
+  /* 卡片底栏：手机上一行放不下「期限 + 按键」，就让按键独占一行，整行可点。 */
+  .req .foot .go { width: 100%; }
+  /* iOS 在 < 16px 的输入框上会强制放大页面：这一处必须压过页内的 14px。 */
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* ---- 桌面：一栏还是那一栏，留白多一点，别把内容拉成一条长线 ---- */
+@media (min-width: 900px) {
+  .wrap { max-width: 680px; padding: 24px 20px 40px; }
+  .btn { min-height: 48px; }
+}
+/* ==== DG-UI END ==== */
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/tasks">← 回接任务</a>
+  <h1>任务浏览</h1>
+  <p class="sub">账本记已经给了什么，这里记谁还缺什么。</p>
+
+  <div class="bar">
+    <span id="count">正在取…</span>
+    <button type="button" class="mini" id="reload">重新取一遍</button>
+  </div>
+  <div id="msg" class="msg" hidden></div>
+  <div id="list"><div class="slot">正在取可接的任务…</div></div>
+
+  <h2>这一页的边界</h2>
+  <div class="card">
+    <ul>
+      <li>一条需求须写明三项：标的、数量与验收标准</li>
+      <li>按时间排序、先到先得，不排名、不推荐、不收费</li>
+      <li>已结、已撤回、已过期的需求 90 天后从列表隐藏，需求页永久可读</li>
+      <li>每条都来自签名请求；可验的是账目，不是需求单——自行验证去<a href="/ledger">账本数据查询</a></li>
+    </ul>
+  </div>
+
+  <footer><p><a href="/home">回大厅</a>·<a href="mailto:2379731846@qq.com">唯一联系邮箱：2379731846@qq.com</a></p></footer>
+</div>
+<script>
+/* 三页共用的一小段：本机钥匙、SSHSIG 签名、写口调用。
+   为什么抽出来：发布与认领签的是同一套字节（同一命名空间、同一载荷形状），
+   抄第二份就会在「改了一处忘了另一处」那天分叉，而分叉的表现是验签失败，不是报错。
+   以 IIFE 暴露 window.DG：几个页面都有自己的顶层 const $，直接并排外链会撞名。 */
+(function () {
+  'use strict';
+
+  const enc = new TextEncoder();
+  /* 演示态：本地文件，或本地预览服务器。只认 drawcommons.org 为真站——
+     预览里点「认领」不该真打到线上，也不该因为 127.0.0.1 上没有 /api 而报 404。 */
+  const REAL_HOST = /(^|\.)drawcommons\.org$/;
+  const FILE_MODE = location.protocol === 'file:' || !REAL_HOST.test(location.hostname);
+  const KEY_STORE = 'dg_post_key_v1';
+  const NS = 'drawcommons-ingest';
+
+  /* 沙箱 iframe 里 localStorage 一碰就抛 SecurityError（不是返回 null）。
+     探一次，通不了就退回内存：页面照样能生成钥匙、能认领，只是刷新即丢。 */
+  const store = (() => {
+    try {
+      const probe = '__dg_probe__';
+      localStorage.setItem(probe, '1');
+      localStorage.removeItem(probe);
+      return {
+        real: true,
+        get: (k) => localStorage.getItem(k),
+        set: (k, v) => localStorage.setItem(k, v),
+        del: (k) => localStorage.removeItem(k),
+      };
+    } catch {
+      const mem = new Map();
+      return {
+        real: false,
+        get: (k) => (mem.has(k) ? mem.get(k) : null),
+        set: (k, v) => { mem.set(k, String(v)); },
+        del: (k) => { mem.delete(k); },
+      };
+    }
+  })();
+
+  const cat = (...a) => { const n = a.reduce((s, x) => s + x.length, 0); const o = new Uint8Array(n); let p = 0; for (const x of a) { o.set(x, p); p += x.length; } return o; };
+  const u32 = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n); return b; };
+  const str = (s) => { const b = typeof s === 'string' ? enc.encode(s) : s; return cat(u32(b.length), b); };
+  const b64 = (u8) => { let s = ''; const CH = 0x8000; for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH)); return btoa(s); };
+  const unb64 = (t) => { const s = atob(t); const o = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) o[i] = s.charCodeAt(i); return o; };
+  const hex = (u8) => [...new Uint8Array(u8)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const pubBlob = (raw32) => cat(str('ssh-ed25519'), str(raw32));
+  const pubLine = (raw32) => 'ssh-ed25519 ' + b64(pubBlob(raw32));
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  const AB = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  /* 拒绝采样取 36 进制字符：256 % 36 = 4，直接取模会让前四个字符多出 1/64 的概率。
+     252 是 36×7，只收 0–251。主体编号要经得起别人盯着看，偏斜是看得见的。 */
+  function rand(n) {
+    const out = [];
+    while (out.length < n) {
+      const b = crypto.getRandomValues(new Uint8Array(n * 2));
+      for (const x of b) {
+        if (x < 252) { out.push(AB[x % 36]); if (out.length === n) break; }
+      }
+    }
+    return out.join('');
+  }
+  function nonce() { const b = crypto.getRandomValues(new Uint8Array(18)); return b64(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function isoUtc(off = 0) { return new Date(Date.now() + off).toISOString().replace(/\.\d{3}Z$/, 'Z'); }
+
+  /* 本机已有就用，没有就生成一把。认领方和发布方是两台机器上的两个主体，
+     所以认领页第一次来会自己长出一把钥匙——不需要谁先注册。 */
+  async function getKey() {
+    const saved = store.get(KEY_STORE);
+    if (saved) {
+      const o = JSON.parse(saved);
+      const priv = await crypto.subtle.importKey('pkcs8', unb64(o.pkcs8), { name: 'Ed25519' }, true, ['sign']);
+      return { party: o.party, pubRaw: unb64(o.pub), priv, pkcs8: o.pkcs8, pub: o.pub };
+    }
+    const kp = await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']);
+    const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', kp.privateKey));
+    const pub = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+    const o = { party: 'pt_' + rand(12), pkcs8: b64(pkcs8), pub: b64(pub), made: new Date().toISOString() };
+    store.set(KEY_STORE, JSON.stringify(o));
+    return { party: o.party, pubRaw: pub, priv: kp.privateKey, pkcs8: o.pkcs8, pub: o.pub };
+  }
+
+  /* 指纹与发布页同一个算法：SHA256(ssh-ed25519 公钥 blob)，与 ssh-keygen -lf 一致。 */
+  async function fpOf(pubRaw) {
+    const d = new Uint8Array(await crypto.subtle.digest('SHA-256', pubBlob(pubRaw)));
+    return 'SHA256:' + b64(d).replace(/=+$/, '');
+  }
+
+  async function sshsig(payload, priv, pubRaw) {
+    const hash = new Uint8Array(await crypto.subtle.digest('SHA-512', payload));
+    const toSign = cat(enc.encode('SSHSIG'), str(NS), str(''), str('sha512'), str(hash));
+    const raw = new Uint8Array(await crypto.subtle.sign({ name: 'Ed25519' }, priv, toSign));
+    const sigField = cat(str('ssh-ed25519'), str(raw));
+    const blob = cat(enc.encode('SSHSIG'), u32(1), str(pubBlob(pubRaw)), str(NS), str(''), str('sha512'), str(sigField));
+    const body = b64(blob).replace(/(.{70})/g, '$1\n');
+    return '-----BEGIN SSH SIGNATURE-----\n' + body + (body.endsWith('\n') ? '' : '\n') + '-----END SSH SIGNATURE-----\n';
+  }
+
+  /* 演示态的假 hash：长度与真的一样（64 位十六进制），页面按真形状截取前 16 位显示。
+     它是编出来的，所以凡是显示它的地方都得同时说明「不是真账目」。 */
+  function fakeHash(seed) {
+    let h = '';
+    for (let i = 0; i < 64; i++) h += ((seed + i * 7) % 16).toString(16);
+    return h;
+  }
+
+  /* 演示态的假回复。形状必须与写口一样（status/json），否则页面上两条路会走成两种分支。
+     delivered 比别的状态多一层：它是**一个转换**，服务端会当场生成 give + receive 两条账目，
+     所以这里也得返回 mutual_id 与 entries，否则交付页只能按「没有账目」渲染，看不出真形状。 */
+  function demoReply(path, obj) {
+    if (path.endsWith('/party')) return { status: 200, json: { ok: true, party_id: obj.party_id, already: false } };
+    const seq = obj.state === 'claimed' ? 2 : obj.state === 'delivered' ? 3 : 1;
+    const out = { ok: true, request_id: obj.request_id, seq, state: obj.state };
+    if (obj.state === 'delivered') {
+      const rid = String(obj.request_id);
+      let s = 0;
+      for (const c of rid) s += c.charCodeAt(0);
+      const mk = (pre, i) => ({
+        entry_id: pre + rid,
+        index: 12 + i,
+        hash: fakeHash(s + i * 13),
+        prev_hash: fakeHash(s + 97 + i),
+      });
+      out.mutual_id = 'm-' + rid;
+      out.entries = [mk('g-', 0), mk('r-', 1)];
+    }
+    return { status: 200, json: out };
+  }
+
+  let clockOffset = 0;
+  async function syncClock() {
+    if (FILE_MODE) return;
+    try {
+      const r = await fetch('/healthz', { method: 'HEAD' });
+      const d = r.headers.get('date');
+      if (d) clockOffset = new Date(d).getTime() - Date.now();
+    } catch { /* 取不到就用本机时间，超窗时写口会报 004 */ }
+  }
+
+  /* 签名覆盖的是**发出去的那串字节**，所以 body 先成型再签，不重新序列化。 */
+  async function send(path, obj) {
+    const body = enc.encode(JSON.stringify(obj));
+    let key = null;
+    try { key = await getKey(); } catch (e) { console.warn('钥匙不可用：', e); }
+    let headers = {};
+    if (key) {
+      const digest = hex(await crypto.subtle.digest('SHA-256', body));
+      const issued = isoUtc(clockOffset);
+      const nc = nonce();
+      const payload = enc.encode(`drawcommons-ingest-v1\nPOST\n${path}\n${key.party}\n${issued}\n${nc}\n${digest}\n`);
+      const armor = await sshsig(payload, key.priv, key.pubRaw);
+      headers = {
+        'Content-Type': 'application/json',
+        'X-DG-Party': key.party,
+        'X-DG-Issued': issued,
+        'X-DG-Nonce': nc,
+        'X-DG-Sig': b64(enc.encode(armor)),
+      };
+    }
+    if (FILE_MODE) { await sleep(320); return demoReply(path, obj); }
+    if (!key) throw new Error('这台浏览器用不了签名钥匙，发不出去。');
+    const res = await fetch(path, { method: 'POST', headers, body });
+    const text = await res.text();
+    let json = null; try { json = JSON.parse(text); } catch { /* 非 JSON 时保留原文 */ }
+    return { status: res.status, json, text };
+  }
+
+  /* 演示需求：**每次现算，不落存储**。
+     沙箱 iframe 里 localStorage 一碰就抛（见上面的 store 探针），退回的是**每个文档一份**的
+     内存 Map：列表页写进去的四条，跳到接受页就没了。于是「点开」看起来像链接坏了——其实跳过去了，
+     只是目标页读到空池子，停在「没选中哪一条」。
+     所以把演示数据写成纯函数：谁需要，谁按编号现生成一份，跨文档天然一致。真站一条都不加。 */
+  function demoReqs() {
+    const now = Date.now();
+    const day = 86400000;
+    const iso = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const mk = (n, st, by, desc, dueDays, mail) => ({
+      request_id: 'rq_demo000000' + n,
+      state: st,
+      category: 'labor',
+      need_desc: desc,
+      window_expires_at: dueDays ? iso(now + dueDays * day) : '',
+      requested_by: by,
+      claim_agent_id: st === 'claimed' ? 'pt_demo000000bb' : null,
+      created_at: iso(now - n * 3600000),
+      /* 认领那一刻单独给：交付期限从它起算 10 天，用 created_at（发布那一行）会算早。
+         真站也应由服务端补这一列，页面不自己推。 */
+      claimed_at: st === 'claimed' ? iso(now - 20 * 3600000) : null,
+      /* 联系邮箱挂在**单**上，不挂在人上：一个人发十单可以留十个地址。
+         这两列是本页与演示数据之间的约定，真站要等协议加字段。
+         poster_email 只有认领之后才对认领方显示；claimer_email 只有认领之后才对发布方显示。 */
+      poster_email: (mail && mail.poster) || '',
+      claimer_email: (mail && mail.claimer) || '',
+    });
+    return [
+      mk(11, 'open', 'pt_demo000000aa', '家里有台旧笔记本要重装系统，希望有人上门帮忙；能正常开机上网、装好常用软件就算完成。', 21, { poster: 'owner-a@example.com' }),
+      mk(12, 'open', 'pt_demo000000aa', '有 20 页产品说明书需要从英文译成中文，术语表已经整理好；交回可编辑的文档，术语与表一致就算完成。', 30, { poster: 'owner-a@example.com' }),
+      mk(13, 'open', 'pt_demo000000cc', '给一段 3 分钟的讲解视频配中文字幕，时间轴要对齐口型；交回 .srt 文件、能正常加载就算完成。', 14, { poster: 'owner-c@example.com' }),
+      mk(14, 'claimed', 'pt_demo000000cc', '核对一份 8 页的活动报名表，找出重复报名和格式错乱的行；交回标红的表格即可。', 0,
+         { poster: 'owner-c@example.com', claimer: 'worker-b@example.com' }),
+    ];
+  }
+
+  /* 演示：**本机名下**已经接下的单，给「已接的需求管理」那一页用。
+     与 demoReqs 一样现算不落存储（沙箱里存储是每个文档一份，跳一页就没了）。
+
+     认领方一律写成传进来的 party：假数据可以造，假签名身份不行——这一页的每个动作
+     都要拿本机钥匙去签，认领方若不是本机，点进去只会被「不在你名下」拦下来。
+     状态覆盖每一档：还剩 8 天、明天到期、已超期、等确认 3 天（催告未开放）、
+     等确认 11 天（可催告，且已带一次催告记录）、被拒收、已结、已作废。
+     每档都要能在页面上看见，否则没验的一样是空话。 */
+  function demoTaken(party) {
+    if (!party) return [];
+    const now = Date.now();
+    const day = 86400000;
+    const iso = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const mk = (n, st, agoDays, desc, extra) => ({
+      request_id: 'rq_demo000000' + n,
+      state: st,
+      category: 'labor',
+      need_desc: desc,
+      window_expires_at: iso(now + 30 * day),
+      requested_by: 'pt_demo000000aa',
+      claim_agent_id: party,
+      /* 当前状态那一行写下的时刻：claimed 是认领那一刻，delivered 是交付那一刻，
+         closed 是确认那一刻，expired 是作废那一刻。服务端每写一行都用当前时刻，
+         所以这一列就是各档要算起点的那个时间。 */
+      created_at: iso(now - agoDays * day),
+      poster_email: 'owner-a@example.com',
+      ...(extra || {}),
+    });
+    return [
+      mk(31, 'claimed', 2, '把 20 张手写票据录成表格，金额与日期两列不能错行；交回 .xlsx 即可。'),
+      mk(32, 'claimed', 9, '把一段 40 分钟的录音转成文字稿，人名与数字要核对；交回 .docx 即可。'),
+      mk(33, 'claimed', 12, '修一台会议室投影的偏色，能正常投出白底黑字就行；修完拍张照即可。'),
+      mk(34, 'delivered', 3, '给一份 6 页的租房合同做排版，页眉页脚统一；交回 .docx 即可。', {
+        evidence_uri: 'https://example.com/files/lease.docx',
+        occurred_at: iso(now - 3 * day),
+      }),
+      /* 这一条带一条已经发生的催告：它比「刚交付 3 天」的那条更该被看见，
+         也把「催过之后页面长什么样」一并演示出来。 */
+      mk(35, 'delivered', 11, '把 12 张活动照片裁成 1:1 并压到 500KB 以下；交回压缩包即可。', {
+        evidence_uri: 'local:handover',
+        occurred_at: iso(now - 11 * day),
+        reminders: 1,
+        last_remind_at: iso(now - 30 * 3600000),
+      }),
+      mk(36, 'closed', 5, '整理一份 30 人的通讯录，去重并统一手机号格式；交回 .xlsx 即可。', {
+        evidence_uri: 'https://example.com/files/contacts.xlsx',
+        occurred_at: iso(now - 6 * day),
+      }),
+      mk(37, 'expired', 14, '帮忙跑一趟邮局寄两份挂号信，回执拍照；一直没交，已经作废。', {
+        evidence_uri: null,
+        occurred_at: null,
+      }),
+      /* 拒收档：拒收不是状态，单子仍停在 delivered（ddl_v1.6 ④）。这一条要在页面上
+         真的看得见，否则「认领方不知道自己被拒了」这件事，改完也没人验得出。 */
+      mk(38, 'delivered', 6, '把一张门店照片换成白底、裁成正方形；交回 PNG 即可。', {
+        evidence_uri: 'https://example.com/files/shop.png',
+        occurred_at: iso(now - 6 * day),
+        rejected: true,
+      }),
+    ];
+  }
+
+  window.DG = {
+    FILE_MODE, KEY_STORE, store, getKey, fpOf, send, syncClock, demoReqs, demoTaken,
+    esc, b64, unb64, cat, str, u32, pubLine, rand,
+  };
+})();
+
+</script>
+<script>
+/* 协议 2.2 的两个时限：认领后 10 天内交付、交付后 10 天内确认。
+   一律固定，不随发布时选——发布页表单因此不用多一个字段，条款比对也少一维。
+
+   为什么按「10×24 小时」而不是「第 10 个自然日」：
+   服务端比较的是 UTC 时刻，用户看的是本地日期，UTC+8 在傍晚之后跨日——
+   按自然日取整会出现「页面说 27 日、服务端 26 日就到期」。按毫秒加，两边指同一个瞬间，
+   页面显示时再转本地时区，写出来的日期就是用户以为的那一天。
+
+   起算点一律是服务端写下的那一刻（claimed / delivered 行的 created_at），不用客户端时间：
+   客户端时钟偏了，期限就偏了，而这个期限是要判死的。 */
+'use strict';
+const CLAIM_DELIVERY_DAYS = 10;
+const CONFIRM_WINDOW_DAYS = 10;
+/* 催告的下限：交付后满 7 天才开放。太早催没有意义——对方可能只是还没看到，
+   账上却先落一条「催了也白催」的签名事实。上限不设：过了确认期反而更该催。 */
+const REMIND_AFTER_DAYS = 7;
+const DAY_MS = 86400000;
+
+/* iso → 到期时刻（毫秒）。取不到时间就返回 null，让调用方如实显示「取不到」，不猜。 */
+function deadlineMs(iso, days) {
+  const t = Date.parse(String(iso || ''));
+  return Number.isFinite(t) ? t + days * DAY_MS : null;
+}
+
+/* 「11 月 27 日 14:20」。写到分钟是必要的：只写日期会让人以为当天 23:59 前都行。 */
+function fmtDeadline(ms) {
+  if (!Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  const p = (n) => String(n).padStart(2, '0');
+  return (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日 ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+/* 从某个时刻到现在过了几天（向下取整）。用来算「等确认 N 天」，不参与判死。 */
+function daysSince(iso, nowMs) {
+  const t = Date.parse(String(iso || ''));
+  if (!Number.isFinite(t)) return null;
+  return Math.max(0, Math.floor(((nowMs || Date.now()) - t) / DAY_MS));
+}
+
+</script>
+<script>
+/* 任务浏览
+   只做两件事：把「还能接的」取回来排好，点进去时把这一条的完整条款交给接受页。
+   条款必须整条带过去——认领时服务端会拿它和库里那行逐字比对，漏一个字段就会
+   被判成「改了条款」（DGB_LED_037），而页面这边看起来只是「点了没反应」。 */
+'use strict';
+
+const DG = window.DG;
+const $ = (s) => document.querySelector(s);
+const esc = DG.esc;
+const PICK_STORE = 'dg_browse_pick_v1';
+const LIST_LIMIT = 50;
+const STATE_CN = { open: '待认领', claimed: '已认领', delivered: '交付中',
+                   closed: '已结', withdrawn: '已撤回', expired: '已过期' };
+
+/* 刚取回来的那批，点「打开」时从这里查——不解析 DOM，也不为了一次点击再请求一趟。 */
+let itemsCache = [];
+/* 本机是谁。只用来判断「这条是不是我认领的」，所以取不到就当空，页面照样能看。 */
+let me = '';
+
+function msg(text, kind) {
+  const m = $('#msg');
+  m.hidden = false;
+  m.className = 'msg ' + (kind || '');
+  m.textContent = text;
+}
+
+function savePick(it) {
+  try { DG.store.set(PICK_STORE, JSON.stringify(it)); } catch { /* 写不进就靠 ?id= 兜 */ }
+}
+
+/* 演示数据：只在预览里才有，四条覆盖「能点开」与「已被别人接走」两种样子。
+   编号 rq_demo… 开头，一眼看得出不是真单；真站一条都不加。
+
+   **现算，不落存储**：沙箱 iframe 里 localStorage 不可用（退回的内存 Map 每个文档一份），
+   写在这里、跳到接受页就没了，目标页只能停在空态——看着像「链接点不动」。
+   纯函数生成，跨文档天然一致，也没了「旧脏值让列表变空」那一类坑。 */
+function demoItems() {
+  return DG.demoReqs();
+}
+
+/* 真站：读口只有 state 一个过滤条件，没有「按发布方」。
+   这里要的是「还能接」加「刚被人接走」两种，所以取两趟再合。 */
+async function fetchItems() {
+  if (DG.FILE_MODE) return demoItems();
+  const one = async (state) => {
+    const r = await fetch('/api/v1/requests?state=' + state + '&limit=' + LIST_LIMIT, { headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error('取列表失败（HTTP ' + r.status + '）');
+    const j = await r.json();
+    return Array.isArray(j.items) ? j.items : [];
+  };
+  const [open, claimed] = await Promise.all([one('open'), one('claimed')]);
+  return open.concat(claimed);
+}
+
+function card(it) {
+  const st = it.state || 'open';
+  const id = it.request_id || it.id || '';
+  const due = String(it.window_expires_at || '').slice(0, 10);
+  /* 已被认领的，「认领截止」对它已经不起作用了（过期判定只挑待认领），
+     这里改显示「交付截止」——认领后 10 天，从认领那一刻起算。
+     claimed 那一行的 created_at 就是认领那一刻（服务端每写一行都用当前时刻），
+     视图里没有单独的 claimed_at，所以用它兜；两个都没有才如实写取不到，不按发布日推。 */
+  const ddl = st === 'claimed' ? deadlineMs(it.claimed_at || it.created_at, CLAIM_DELIVERY_DAYS) : null;
+  const left = st === 'claimed'
+    ? (ddl ? '<span' + (Date.now() > ddl ? ' class="late"' : '') + '>交付截止 ' +
+        esc(fmtDeadline(ddl)) + ' 前</span>' : '交付截止 取不到认领时间')
+    : (due ? '认领截止 ' + esc(due) : '认领截止 未填（按发布后 90 天）');
+  /* 「还能不能点进去」有三种，不是两种：待认领的能接；**自己认领的**能继续去交付；
+     别人认领的只能看。少了中间这一种，认领完回列表就找不到回交付页的路。 */
+  const mineClaim = st === 'claimed' && me && String(it.claim_agent_id || '') === me;
+  /* 自己发布的那一条不给入口：认领能过（写口只校验签名人==claim_agent_id），
+     交付会被 DGB_LED_033 挡下并整笔回滚，单子从此卡在「已认领」不会过期。
+     所以挡在能点之前，不让人先撞到服务端那堵墙。 */
+  const minePost = me && String(it.requested_by || '') === me;
+  const head = '<div class="head"><code>' + esc(id) + '</code>' +
+    '<span class="tag s-' + (STATE_CN[st] ? st : 'open') + '">' + esc(STATE_CN[st] || st) + '</span></div>';
+  const desc = '<p class="desc">' + esc(it.need_desc || '（这条没有描述）') + '</p>';
+  let right;
+  if (st === 'open' && minePost) {
+    right = '<span class="taken">你发布的</span>';
+  } else if (st === 'open') {
+    right = '<a class="go" href="/claim?id=' + encodeURIComponent(id) + '" data-pick="' + esc(id) + '">打开</a>';
+  } else if (mineClaim) {
+    right = '<a class="go" href="/deliver?id=' + encodeURIComponent(id) + '" data-pick="' + esc(id) + '">继续交付</a>';
+  } else {
+    right = '<span class="taken">' + (st === 'claimed' ? '已认领' : esc(STATE_CN[st] || st)) + '</span>';
+  }
+  const foot = '<div class="foot"><span>' + left + '</span>' + right + '</div>';
+  return '<article class="req' + (st === 'open' || mineClaim ? '' : ' done') + '" data-id="' + esc(id) + '">' + head + desc + foot + '</article>';
+}
+
+async function render() {
+  const el = $('#list');
+  let items = [];
+  try {
+    items = await fetchItems();
+  } catch (e) {
+    $('#count').textContent = '没取到';
+    el.innerHTML = '<div class="slot">没取到列表：' + esc(e.message || e) + '<br>稍后再点一次「重新取一遍」。</div>';
+    return;
+  }
+  if (!Array.isArray(items)) items = [];
+  items.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  itemsCache = items;
+  const openNo = items.filter((x) => (x.state || 'open') === 'open').length;
+  $('#count').textContent = items.length
+    ? '共 ' + items.length + ' 条，其中 ' + openNo + ' 条还能接'
+    : '现在没有可接的任务';
+  el.innerHTML = items.length
+    ? items.map(card).join('')
+    : '<div class="slot">现在没有可接的任务。<br>' +
+      (DG.FILE_MODE
+        ? '演示数据被清空时，可以点「重新取一遍」再看一次。'
+        : '你要是正好有件需要人搭把手的事，<a href="/post">可以先发一张</a>。') + '</div>';
+  if (DG.FILE_MODE) msg('预览里没有服务端，上面这几条是本机的演示数据；真站上会按 state 向读口取。', '');
+}
+
+/* 点「打开」时把这一条的完整条款先存下来：接受页拿它原样回传，不去二次拼装。
+   不拦默认行为——链接照常跳，缓存只是顺手带上的。 */
+$('#list').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-pick]');
+  if (!a) return;
+  const id = a.dataset.pick;
+  const it = itemsCache.find((x) => (x.request_id || x.id) === id);
+  if (it) savePick(it);
+});
+
+$('#reload').addEventListener('click', () => { $('#msg').hidden = true; render(); });
+
+(async function boot() {
+  /* 先认人再画：`card()` 要按「这条是不是我认领的」决定给不给「继续交付」。 */
+  try { me = (await DG.getKey()).party; } catch { me = ''; }
+  await render();
+})();
+
+</script>
+</body>
+</html>
