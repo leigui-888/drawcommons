@@ -18,7 +18,14 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _ddl_paths() -> list[str]:
-    names = ("ddl_w4.sql", "ddl_v1.4.sql")
+    # 顺序即执行顺序，不能乱：v1.5 与 v1.6 都是 `DROP VIEW` + `CREATE VIEW`，
+    # 后跑的覆盖先跑的。v1.6 的视图定义包含 v1.5 的全部条件，所以最终生效的是 v1.6；
+    # v1.7 重建 v_request_current 并改写状态机与 032，必须最后跑——它会 DROP 旧视图，
+    # 跑到一半的顺序（比如 v1.7 在 v1.6 之前）会让 v1.6 的视图定义留在库里，
+    # 而那份定义不认识 `delivered → delivered`。
+    # 少跑一个不会报错（视图还在，只是旧口径），这才是危险的地方——所以列在这里，
+    # 不靠调用方记得。
+    names = ("ddl_w4.sql", "ddl_v1.4.sql", "ddl_v1.5.sql", "ddl_v1.6.sql", "ddl_v1.7.sql")
     out = []
     for n in names:
         cands = [os.path.join(_HERE, "..", "spec", n), os.path.join(_HERE, n)]

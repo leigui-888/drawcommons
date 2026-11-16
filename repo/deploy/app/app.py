@@ -165,7 +165,8 @@ DATA_NOTICE = (
 # /sign/ 要的是发布方发的 dgtask1: 任务卡——从列表抄一个 request_id 粘进去走不通。
 # 三种处境：有卡 → /sign/；想自己挑 → /agent.md；想发单 → 测试期没有自助入口。
 # 三条边界必须写在页面上：认领后不能换人（状态机只有 delivered 与发布方 withdrawn
-# 两条出口）、网页不认列表编号、到期没有自动改状态的机制。
+# 两条出口）、网页不认列表编号、到期不由人改状态（有截止的单由写入面的 `sweep_expired`
+# 结算成 `expired`，没有接口能指名哪一单；认领人也没有退单动作）。
 # 静态文案：不读库、不进导出件、不动锚值。旧路径 /join 与 /en/join 301 到新页。
 # **这一段刻意放在 DATA_NOTICE 之后**：不插在文件头，免得把上面那段历史举例（记着
 # 11-11 实测的 cdec34e5 → 032e2f78）挤到别处去。判据现在按内容认那一段、不钉行号，
@@ -410,11 +411,14 @@ BADGES = [
 # 起算日只写在这里一处：页面上所有日期都从它算，免得「起算日」散落在正文、
 # 页脚、状态卡里各写一遍、改一处漏两处。
 #
+# 2026-11-17 从 11-14 再改成 11-17：产品号 2.1→2.2、三件套同升 v2.2-r1（只改版本串），
+# 页顶摘要随之变化，按同一口径重新起算。
+#
 # 2026-11-14 从 11-12 改成 11-14：账本结构升级同时更正了隐私政策附录的一句技术说明，
 # 页顶摘要变了，公示期按既定口径**重新起算**（公告 `/download/notice-20261114.md` 已这么说，
 # 站点若还写 11-12，两句话就同时在对外）。首次公示日 11-12 没有消失——它进了页末的
 # 变更记录，那里是历史，不受这个常量影响。
-DISCLOSURE_START = "2026-11-14"     # 本轮公示起算日（11-12 首次公示，11-14 重新起算）
+DISCLOSURE_START = "2026-11-17"     # 本轮公示起算日（11-12 首次公示，11-14、11-17 两次重新起算）
 DISCLOSURE_DAYS = 30
 PLANNED_EFFECTIVE = "2026-12-21"
 
@@ -435,11 +439,11 @@ def _notice_bar(lang: str = "zh") -> str:
     不是某一页的补充说明。"""
     if lang == "en":
         return ('<div class="notice"><div class="wrap">'
-                '<b>Protocol v2.1-r6 is published for comment — not yet in force.</b>'
+                '<b>Protocol v2.2-r1 is published for comment — not yet in force.</b>'
                 f'<span>Effective date planned for {PLANNED_EFFECTIVE}, subject to four conditions. '
                 '<a href="/terms">Notice page (Chinese)</a></span></div></div>')
     return ('<div class="notice"><div class="wrap">'
-            '<b>协议 v2.1-r6 公示中，尚未生效。</b>'
+            '<b>协议 v2.2-r1 公示中，尚未生效。</b>'
             f'<span>计划生效日 {PLANNED_EFFECTIVE}，以四项条件全部满足为前提。'
             '<a href="/terms">公示页</a></span></div></div>')
 
@@ -919,12 +923,33 @@ PAGE_CSS = r"""
   .doccard .go { display: inline-block; margin-top: .45rem; font-size: .84rem;
                  font-weight: 600; color: var(--teal); }
   .conds { width: 100%; border-collapse: collapse; font-size: .85rem; margin: .8rem 0 .2rem; }
+  /* 条件表按内容换行，不跟全局 `th, td { white-space: nowrap }` 走。
+     那条 nowrap 是给 .tablebox 里几列短字段的定宽表写的；.conds 的单元格里是整句，
+     一旦不换行，表格的最小宽度就等于最长那句的宽度——/testing 到过 1030px，
+     窗口 761px 时整页横向溢出 300px。/terms、/requests 同理（各溢出 11px、23px）。
+     overflow-wrap: anywhere 是为了长 token（sha256、URL）不至于把列顶宽。 */
   .conds th, .conds td { border: 1px solid var(--line); padding: .5rem .6rem;
-                         text-align: left; vertical-align: top; line-height: 1.65; }
+                         text-align: left; vertical-align: top; line-height: 1.65;
+                         white-space: normal; overflow-wrap: anywhere; }
   .conds th { background: var(--card); font-weight: 600; }
   .conds td.st { white-space: nowrap; font-size: .82rem; }
   .conds .no { color: #8a5a00; }
   .conds .yes { color: var(--teal); }
+  /* ≤760px：状态卡那五列挤不下（每列只有 1/5 宽，值会顶出屏幕、最右一列直接看不见）。
+     桌面保持原来的五列条状，窄屏改成「一列一行」——每一行本来就是 k + v 两个 span，
+     作者当初就是按行写的（`.row` 有 border-top）。
+     断点为什么是 760 不是 720：状态卡五列在 720 上下都只是「挤」，真正决定断点的是
+     字号和留白——窄屏里这两样都调小了，断点留在 720 会让 721–760 这段拿到缩小后的
+     字号却仍排五列。取 760 与上面的换行规则一起，保证 360–1280 全档不横向溢出。 */
+  @media (max-width: 760px) {
+    .status { display: block; }
+    /* 条件表四列在 500px 上按内容撑开仍会顶出屏幕（最右那列说明直接看不见）。
+       窄屏再进一步：定宽表格，第一列窄、其余均分，不靠内容撑。 */
+    .conds { table-layout: fixed; font-size: .8rem; }
+    .conds th:first-child, .conds td:first-child { width: 2.2rem; }
+    .conds td.st { white-space: normal; }
+    .conds th, .conds td { padding: .4rem .45rem; }
+  }
 
   /* 公示正文：法律文本的排版。比站点正文更松的行距、更小的字号 */
   .doc { max-width: 47rem; margin: 1.2rem 0 0; }
@@ -1493,7 +1518,9 @@ def _topbar(lang: str = "zh") -> str:
     latest = NOTICES[0]
     title = "Privacy policy" if en else "隐私政策"
     agree = "User agreement" if en else "用户协议"
-    ver = "v2.1 r6"
+    # 版本串只认一个源：legal.py 里三份的 `version`（v2.2-r1）。这里不再抄一份——
+    # 抄一份的后果是「正文升了、顶栏没升」，而页面上两个字串并排给人看。
+    ver = legal.DOCS[0]["version"].replace("-r", " r")
     ann_text = (f"{latest['title']} ({latest['date']}) — notice in Chinese" if en
                 else f"{latest['title']}（{latest['date']}）")
     return (
@@ -1541,7 +1568,7 @@ CONTRIB_BODY = """
 <p class="plain"><b>本页记录谁支持了这个项目，不是账本里「谁帮过谁」。</b>
    名录分三类：写代码与文档的、录数据的、出设备/服务器/场地的。前两类构成著作权意义上的贡献，
    署名是既有权利；第三类不产生作品，只承诺列名、注明形式、可随时撤回，不承诺永久。</p>
-<p class="plain"><b>只接受非现金支持：</b>实物、劳务、服务——服务器、带宽、设备、场地、人力。
+<p class="plain"><b>只接受资源型支持：</b>实物、劳务、服务——服务器、带宽、设备、场地、人力。
    不收现金、不设收款口、不代收代付，账本无金额字段。名录记的是「谁出了什么」，不是「谁给了多少钱」。</p>
 <ul class="links">
   <li><a href="/download/CREDITS.md">/download/CREDITS.md</a><span>名录全文：三类人、依据、认领与退出、逐版快照</span></li>
@@ -1851,7 +1878,10 @@ def render_en_notices() -> bytes:
 # 三条口径必须与读口 `GET /api/v1/requests`、`spec/request.md` 一致：
 #   ① 只读 `v_public_request`（列表）/ `request`（单页，因为单页承诺永久可读）；
 #   ② 一单只显示当前状态，历史在单页里按 `seq` 列出；
-#   ③ 终态 90 天后从**列表**隐藏，单据本身不删。
+#   ③ 终态 90 天后从**列表**隐藏；未认领的单在「截止已过」或「发布满 90 天」时同样不再公开
+#      （视图 v1.5）。这两支都会被写入面结算成真的 `expired`（v1.6 起空串按 +90 天；
+#      v1.7 起 `claimed` 也进候选——接了不交，到点同样作废，不再永久占着）。
+#      列表收窄只是结算之前的兜底，不是「看不见但还活着」。两种情况单据本身都不删。
 STATE_LABEL = {"open": "可接", "claimed": "已认领", "delivered": "已交付",
                "closed": "已结", "withdrawn": "已撤回", "expired": "已过期"}
 # 英文页面的状态名直接用意语原词（open/claimed/...）：它们是协议里的字面量，
@@ -1885,8 +1915,10 @@ def render_testing() -> bytes:
     第一段仍要先解那个具体歧义：``/requests`` 上挂着「可接」的单子，``/sign/`` 却只认
     发布方发的 ``dgtask1:`` 任务卡——**从列表里抄一个 request_id 粘进去走不通**。
 
-    三条不写的：不写「到期自动作废」（``expired`` 没有自动机制）、不写「我们会帮你核对」
-    （没有这个角色）、不写「钥匙可以找回」（找不回）。**少一句承诺，比多一句好。**
+    三条不写的：不写「我们会帮你核对」（没有这个角色）、不写「钥匙可以找回」（找不回）、
+    不写「到期自动作废」——``expired`` 自 2026-11-16 起**有**自动结算（写入面
+    `sweep_expired`），这句不再是空话；但这一页讲的是怎么参与测试，不讲需求单有效期，
+    所以仍不写。**少一句承诺，比多一句好。**
     """
     meta, body = content("zh", "testing")
     return _page(
@@ -1907,7 +1939,8 @@ def render_requests(state: str | None = None, note: str = "", lang: str = "zh") 
     所以第一节是发单三步与必填字段，而不是先甩一串卡片。
 
     三条不写的：不写「网页可以发单」（没有表单；写库一律验签，浏览器里没有替你保管
-    私钥的地方）、不写「到期自动作废」（``expired`` 没有自动机制）、不写「我们会帮你
+    私钥的地方）、不写「到期自动作废」（``expired`` 自 2026-11-16 起**有**自动结算，
+    这句不再是空话；但这一页只列当前状态，有效期归发单页讲）、不写「我们会帮你
     匹配」（没有这个角色，按时间列、不排名）。
 
     ``note`` 非空时取代列表区：坏参数与数据层不可用要**说一句人话**，而不是让读者
@@ -1917,6 +1950,14 @@ def render_requests(state: str | None = None, note: str = "", lang: str = "zh") 
     try:
         # 倒序取完再翻正，所以这里再反一次：列表要「新的在前」。
         items = list(reversed(load_request_page(DB_PATH, state=state, limit=50)["items"]))
+        # 沉底（v1.7）：已结 / 已撤回 / 已过期不再占着前排。
+        # 这一条只改**页面**的次序，不改读口：`/api/v1/requests` 的游标是
+        # `(created_at, request_id)`，在那儿按状态重排会让「游标之后」这句话
+        # 失效（同一页里状态一变，位置就跳）。页面一次取 50 条，重排没有那个问题。
+        # 排序键先按「是否终态」再按时间：Python 的 sort 是稳定的，两次比较
+        # 合在一个元组里，等同于先按时间排、再把终态整块挪到后面。
+        items.sort(key=lambda it: (1 if it["state"] in ("closed", "withdrawn", "expired") else 0,
+                                   it["created_at"], it["request_id"]))
         failure = ""
     except sqlite3.Error as exc:
         items, failure = [], type(exc).__name__
@@ -1966,6 +2007,17 @@ def render_requests(state: str | None = None, note: str = "", lang: str = "zh") 
                 meta = (f'{esc(it["request_id"])} · 发布 {esc(it["requested_by"])} {claim} '
                         f'· 期限 {esc(it["window_expires_at"] or "无期限")} '
                         f'· 更新 {esc(it["created_at"])}')
+
+            # 两张「卡住了」的脸（v1.6）：交付了没人确认、或者受方已经拒收。
+            # 以前这两种在列表上与「一切都好」长得完全一样——`delivered` 只是另一个
+            # 状态词，拒收则根本看不见。列在这儿是因为列表是唯一会被反复扫的地方。
+            if it.get("rejected"):
+                meta += ('<span class="sep">·</span> rejected by receiver' if en
+                         else '<span class="sep">·</span> 受方已拒收')
+            if it.get("unconfirmed_days") is not None:
+                meta += (f'<span class="sep">·</span> awaiting confirmation '
+                         f'{it["unconfirmed_days"]}d' if en
+                         else f'<span class="sep">·</span> 等确认 {it["unconfirmed_days"]} 天')
             cards.append(
                 f'<a class="reqcard" href="/r/{esc(it["request_id"])}">'
                 f'<span class="top">{_state_chip(it["state"], lang)}'
@@ -2130,6 +2182,12 @@ def render_request_detail(detail: dict) -> bytes:
     rid = detail["request_id"]
     state = cur["state"]
 
+    # 两件以前在这一页上没有的事（v1.6）：交付后等了几天、受方有没有拒收。
+    # 前者不是错误状态，是**沉默的时长**——账已经记了，单子却停在 delivered；
+    # 后者不改状态，只是一条带签名的「我不认这次交付」。
+    unc = detail.get("unconfirmed_days")
+    rej = detail.get("reject")
+
     rows = [
         ("当前状态", _state_chip(state)),
         ("类别", f'<code>{esc(cur["category"])}</code>'),
@@ -2139,6 +2197,12 @@ def render_request_detail(detail: dict) -> bytes:
         ("期限", esc(cur["window_expires_at"] or "无期限")),
         ("交付时间", f'<code>{esc(cur["occurred_at"])}</code>' if cur.get("occurred_at") else "—"),
         ("交付凭据", f'<code>{esc(cur["evidence_uri"])}</code>' if cur.get("evidence_uri") else "—"),
+        ("交付后未确认", ("当天" if unc == 0 else f"{unc} 天") if unc is not None else "—"),
+        ("受方拒收", (f'已拒收 <code>{esc(rej["signed_at"])}</code>'
+                      f'<div class="plain">{esc(rej["reason"])}</div>'
+                      if rej.get("reason") else
+                      f'已拒收 <code>{esc(rej["signed_at"])}</code>')
+                     if rej else "—"),
         ("本行落库", f'<code>{esc(cur["created_at"])}</code>'),
     ]
     table = "".join(f'<tr><th>{k}</th><td>{v}</td></tr>' for k, v in rows)
@@ -2328,7 +2392,7 @@ def render_terms() -> bytes:
     )
     body = f"""
 <div class="status">
-  <div class="row"><span class="k">版本串</span><span class="v">v2.1-r6（三份一致）</span></div>
+  <div class="row"><span class="k">版本串</span><span class="v">v2.2-r1（三份一致）</span></div>
   <div class="row"><span class="k">状态</span><span class="v hot">公示中，尚未生效</span></div>
   <div class="row"><span class="k">公示起算</span><span class="v">{DISCLOSURE_START}（重新起算；首次公示 2026-11-12）</span></div>
   <div class="row"><span class="k">公示期</span><span class="v">{DISCLOSURE_DAYS} 日，自起算日起连续计算，不因生效日顺延中断（1.20.3）</span></div>
@@ -2336,9 +2400,10 @@ def render_terms() -> bytes:
 </div>
 
 <p class="plain" style="margin:.9rem 0 0">用户协议文首仍写着「当前未起算：公示自本稿发布之日起算」——
-   那是 2026-11-12 定稿时点的状态标注。本组页面 2026-11-12 上线，公示自此起算；
-   2026-11-14 账本结构升级，隐私政策附录「本稿的可核查项」里那句列举随之更正
-   （只改这一句，页顶摘要因此改变），公示期<b>自该日重新起算</b>——所以上面写的是
+   那是 2026-11-12 定稿时点的状态标注。本组页面 2026-11-12 上线，公示自此起算；此后
+   <b>两次重新起算</b>：2026-11-14 账本结构升级，隐私政策附录「本稿的可核查项」里那句列举
+   随之更正（页顶摘要因此改变）；2026-11-17 产品号由 2.1 升为 2.2、三份同升
+   <code>v2.2-r1</code>（只换版本串，条款文字、编号与结构未变）。所以上面写的是
    {DISCLOSURE_START} 而不是 11-12。三份文本的其余部分一字未改。</p>
 
 <h2>三份文本</h2>
@@ -2374,14 +2439,15 @@ def render_terms() -> bytes:
    标题请含「协议公示意见」。公示期内文本若有变更，本页会留变更记录并另行公示；
    已公示的版本不覆盖、不删除。</p>
 <p class="plain">变更记录：v2.1-r5　2026-11-12　首次公示（三份同版本串）；
-   2026-11-14　两处修订同日发布，公示期均自该日重新起算：① 账本结构升级，隐私政策附录补一处事实性更正；② v2.1-r6 数值回填（N／M／K＝12／60／3、准入 3 次、责任上限与管辖法院填暂定值、注销后保留 30 天、泄露通知 72 小时），条款结构与编号未变。</p>
-<p class="plain" style="margin:.6rem 0 0;font-size:.82rem">本次变更公告：
+   2026-11-14　两处修订同日发布，公示期均自该日重新起算：① 账本结构升级，隐私政策附录补一处事实性更正；② v2.1-r6 数值回填（N／M／K＝12／60／3、准入 3 次、责任上限与管辖法院填暂定值、注销后保留 30 天、泄露通知 72 小时），条款结构与编号未变；
+   2026-11-17　产品号由 2.1 升为 2.2、三份同升 <b>v2.2-r1</b>（修订号自 2.2 重计），公示期自该日重新起算；条款文字、编号与结构未变。</p>
+<p class="plain" style="margin:.6rem 0 0;font-size:.82rem">历次变更公告：
    <a href="/download/notice-20261114b.md">v2.1 r6 数值回填（2026-11-14）</a>　·　
    <a href="/download/notice-20261114.md">2026-11-14 账本结构升级</a></p>
 """
     return _page(
         "协议公示 · 众汲之井",
-        "众汲之井三件套（用户协议、隐私政策、免责声明）v2.1-r6 公示页："
+        "众汲之井三件套（用户协议、隐私政策、免责声明）v2.2-r1 公示页："
         "全文、四项生效条件与当前状态，附可自行核对的文本指纹。",
         _hero("协议公示",
               "三份文本、一个版本串，公示中——尚未生效。",

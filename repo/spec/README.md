@@ -11,6 +11,9 @@
 | `ingest.md` | **写入面契约**（v2.2 草案） | 四条 POST 的字段（含确认层）、签名载荷的逐字节形状、`DGB_ING_*` 错误码、重放与时间窗；写的是「怎么把记录送进来」，不含任何记录本身 |
 | `../../spec/ddl_w4.sql` | **表结构基线**（SQLite，w4-ddl v1.3） | v1.3 的落地：三张 append-only 表、`party` 主体表、`v_public_party` 公开视图、触发器与错误码 |
 | `../../spec/ddl_v1.4.sql` | **表结构增量**（SQLite，w4-ddl v1.4，跑在 v1.3 之后） | `request` 表与状态机、主体公钥、`receive`/`payback` 的时间与证据列、`mutual_id` 溯源与判重、`entry_confirm`、写入面的重放闸门 `ingest_nonce` |
+| `../../spec/ddl_v1.5.sql` | **表结构增量**（SQLite，w4-ddl v1.5，跑在 v1.4 之后） | 只重建 `v_public_request`：未认领的单（截止已过，或无期限满 90 天）不再公开、`expired` 立即不收。不改表、不动数据、不影响锚值 |
+| `../../spec/ddl_v1.6.sql` | **表结构增量**（SQLite，w4-ddl v1.6，跑在 v1.5 之后） | `claimed → open` 回退（认领人的退路）、`open` 不再限定首行、`request_reject` 拒收层与两条触发器、视图末尾加 `unconfirmed_days` 与 `rejected` 两列。不改表结构、不动数据、不影响锚值 |
+| `../../spec/ddl_v1.7.sql` | **表结构增量**（SQLite，w4-ddl v1.7，跑在 v1.6 之后） | `request` 加 `poster_email` / `claimer_email` 两列（不进公开视图）、`delivered → delivered`（被拒之后才能再交）、`claimed → expired`（逾期作废）、`request_reject` 主键改为 `(request_id, seq)`、`DGB_LED_032` 改为「条数不超过交付次数」、新增 `request_reminder` 催告层。**含表重建与视图重建**：`ALTER TABLE … RENAME` 会改写引用它的触发器与视图，所以状态机触发器与 `v_public_request` 都在重建之后重做，顺序不能颠倒 |
 
 **为什么 DDL 在 `../../spec/` 而不是本目录。** 发布包（`git archive`）的根有两棵树：`repo/`
 是代码与这份规范，`spec/` 是表结构。DDL 是 Apache-2.0 的实现件，本目录按 R5 只能放 CC0，
@@ -22,8 +25,14 @@
 这几份文件说的是同一件事的几层：schema 管**一条记录合不合格**，DDL 管**它怎么存**。
 改一处必须同步另一处，`evidence/check_spec.py` 与 `_ops/w0/matrix_probe.py` 就是用来抓这种不同步的。
 
-DDL 为什么分成两个文件而不是一个：v1.3 的字节已被 tag 固定，原地追加会造成「同一个版本号下有
-两份 `ddl_w4.sql`」。增量单独成文件后，v1.3 的字节不动，旧库升级就只跑 v1.4 那一个。
+DDL 为什么按版本分成多个文件而不是一个：v1.3 与 v1.4 的字节都已被 tag 固定（`v2.1-rc19` /
+`v2.1-rc20`），原地追加会造成「同一个版本号下有两份」。增量单独成文件后，旧版本的字节不动，
+旧库升级只跑新增的那几个。v1.5 与 v1.6 同属 2026-11-16，但主题不同（可见性 / 状态机与拒收层），
+仍然分开——一份文件说不清两件事，而将来要回退其中一件时，分开才知道该撤哪一份。
+
+**执行顺序是硬约束**：v1.5 与 v1.6 都 `DROP VIEW` + `CREATE VIEW` 重建同一个视图，v1.6 包含
+v1.5 的全部条件。顺序颠倒不会报错，只会静默退回旧口径。`evidence/build_ledger.py` 把四份
+写在一个元组里并按序执行。
 
 ## 一、2026-11-12 合并了什么
 
@@ -34,7 +43,7 @@ DDL 为什么分成两个文件而不是一个：v1.3 的字节已被 tag 固定
 
 三处取舍，写在这里，不藏在字段里：
 
-1. **资金面整体不进本规范。** S0 阶段不启资金账，只接受非现金支持——实物、劳务、服务
+1. **资金面整体不进本规范。** S0 阶段不启资金账，只接受资源型支持——实物、劳务、服务
    （服务器、带宽、设备、场地、人力）。
    带金额的条目不是「暂未使用」，而是**校验必然失败**：`not: {required: ["amount_fen"]}`
    再加 `additionalProperties: false`，任何带 `amount_fen` 的条目都不是本规范的实例。
@@ -85,11 +94,16 @@ DDL 为什么分成两个文件而不是一个：v1.3 的字节已被 tag 固定
 | 登记一个主体（一把 ed25519 钥） | `ddl_v1.4.sql`（`party.pubkey`）、`ingest.md` §3 | ✅ | `POST /api/v1/party` |
 | 发需求单、撤回 | `request.schema.json`、`request.md` §2 | ✅ | `POST /api/v1/request`（`open` / `withdrawn`） |
 | 认领、标记已交付 | `request.md` §3 的迁移表 | ✅ | `POST /api/v1/request`（`claimed` / `delivered`） |
+| 接了做不了，把单放回池子 | `request.md` §3 的迁移表（`claimed → open`，v1.6） | ✅ | `POST /api/v1/request`（`state=open`，非首行即回退） |
 | 交付后自动生成 give + receive 两条 | `request.md` §6 | ✅ | 同一条 `state=delivered` |
 | 看需求（最近一屏 / 增量） | `ingest.md` §2.1 | ✅ | `GET /api/v1/requests` |
 | 记一条已经发生的账目 | `entry.schema.json`、`ddl_w4.sql`（三表） | ✅ | `POST /api/v1/entry` |
 | 确认别人给你的东西（受方签名） | `request.md` §5、`ingest.md` §5 | ✅ | `POST /api/v1/confirm` |
-| 站内消息 / 联系对方 | **协议里没有** | ❌ | —— |
+| 拒收一次不合格的交付（受方签名） | `request.md` §6、`ingest.md` §4 | ✅ | `POST /api/v1/reject` |
+| 被拒收之后再交一次 | `request.md` §2 的迁移表 | ✅ | 同一条 `state=delivered`（需前列被拒） |
+| 催一次尚未确认的交付（认领方签名） | `request.md` §6、`ingest.md` §4.6 | ✅ | `POST /api/v1/remind` |
+| 取双方联系方式（认领之后，要签名） | `request.md` §6.1、`ingest.md` §4.7 | ✅ | `GET /api/v1/request/contact` |
+| 站内消息 | **协议里没有** | ❌ | —— |
 
 三件读表时要知道的事：
 

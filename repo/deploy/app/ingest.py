@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 老夫 <2379731846@qq.com>
-"""写入面：四条受控 POST。挂在 `/api/v1/*`，与只读的公开页是两个进程。
+"""写入面：五条受控 POST。挂在 `/api/v1/*`，与只读的公开页是两个进程。
 
 **为什么是另一个进程，而不是给 app.py 加个 do_POST。**
 
@@ -8,9 +8,10 @@
 「公开页攻击面少一整类」的全部依据。同一个进程里加写入，就得把这个卷改成读写，
 那条承诺当场变成一句注释。所以写入单独一个容器：卷只对它读写，对 app 仍只读。
 
-**四条端点共用一条通路。**
+**六条端点共用一条通路。**
 
-`/api/v1/party`、`/api/v1/request`、`/api/v1/entry`、`/api/v1/confirm` 都走
+`/api/v1/party`、`/api/v1/request`、`/api/v1/entry`、`/api/v1/confirm`、
+`/api/v1/reject`、`/api/v1/remind` 都走
 `signing.verify`，没有「这条简单点，少验一样」的分支。验签之后才解析语义；语义错了回 422，
 签名错了回 401，两者不混——把「签名不对」报成「字段不对」，等于教攻击者怎么绕过。
 
@@ -49,7 +50,7 @@ import signing
 DB_PATH = os.environ.get("LEDGER_DB", "data/ledger.db")
 PORT = int(os.environ.get("PORT", "8001"))
 
-# 请求体上限。四条端点里最大的是需求单（need_desc 2000 字），64 KiB 有二十倍余量；
+# 请求体上限。六条端点里最大的是需求单（need_desc 2000 字），64 KiB 有二十倍余量；
 # 再大就不是本协议的形状了，早拒早省内存。
 MAX_BODY = 64 * 1024
 
@@ -89,8 +90,9 @@ STATUS = {
 
 # 需求单里允许 API 直写的状态。`closed` 要等双方签名与两条账目都落库——而那两件事
 # 一发生，`closed` 就是**可判定的事实**，由 `confirm` 顺手写（`close_after_confirm`），
-# 不由谁去「宣布」；`expired` 由窗口到期触发、也不是人工动作。这两条若开个口子，就等于
-# 允许一个人宣布一件系统还没挣到的事，也能宣布一件已经挣到的事——接口上分不出这两种。
+# 不由谁去「宣布」；`expired` 由写入面按期限结算（`sweep_expired`），也不是人工动作。
+# 这两条若开个口子，就等于允许一个人宣布一件系统还没挣到的事，也能宣布一件已经
+# 挣到的事——接口上分不出这两种。
 WRITABLE_STATES = ("open", "claimed", "delivered", "withdrawn")
 
 
@@ -114,7 +116,7 @@ CODE_HINTS = {
     "DGB_ING_004": "把本机时钟对准 UTC；issued_at 须在服务端时间 ±15 分钟内",
     "DGB_ING_005": "每次请求换一个新 nonce（≥16 字节随机）；重试也要换",
     "DGB_ING_006": "Content-Type: application/json，且 body 是一个 JSON 对象而不是数组",
-    "DGB_ING_007": "写口只有四个：/api/v1/party、/request、/entry、/confirm",
+    "DGB_ING_007": "端点只有 party/request/entry/confirm/reject/remind 六个",
     "DGB_ING_008": "pubkey 传 authorized_keys 里的整行 ssh-ed25519 AAAA…，单行、不带注释",
     "DGB_ING_009": "按 detail 点名的字段补齐；请求体形状见 /agent.md §4 的示例",
     "DGB_ING_010": "本端点只接受 display_mode=pseudonymous",
@@ -128,6 +130,8 @@ CODE_HINTS = {
     "DGB_ING_019": "省略 rule_version（默认 v1），或显式写 v1",
     "DGB_ING_020": "请求体压到 64 KiB 以内；大文件放 evidence_uri 指过去",
     "DGB_ING_021": "用 curl -d 或显式带 Content-Length；分块传输不被接受",
+    "DGB_LED_038": "同一张单 24 小时只能催一次；冷却过后再来",
+    "DGB_LED_039": "只有当前认领方能催交付中的单；其他人不签",
     # —— 库约束（触发器）——
     "DGB_LED_012": "账本只追加：改状态要 POST 一行新的 seq，不要 UPDATE",
     "DGB_LED_013": "没有删除这条路径；写错了就再追加一行说明，别 DELETE",
@@ -151,6 +155,8 @@ CODE_HINTS = {
     "DGB_LED_033": "give 的 from_agent_id 与 to_agent_id 不能是同一主体",
     "DGB_LED_034": "payload 三行：drawcommons-confirm-v1、entry_id、hash，末尾各带换行",
     "DGB_LED_035": "该条目已确认过；确认不可覆盖，要纠正只能追加说明",
+    "DGB_LED_036": "拒收只能由发布方签；认领方与第三方不能拒别人的交付",
+    "DGB_LED_037": "认领与交付只能推进状态，不能改条款；要改让发布方撤回后重发",
 }
 
 
@@ -184,7 +190,7 @@ class RateLimiter:
 LIMITER = RateLimiter()
 
 
-# ── 四条端点的语义 ───────────────────────────────────────────────────────────
+# ── 六条端点的语义 ───────────────────────────────────────────────────────────
 def _require(data: dict, *keys: str) -> None:
     missing = [k for k in keys if data.get(k) in (None, "")]
     if missing:
@@ -221,10 +227,34 @@ def op_party(writer, party: str, data: dict, env: dict) -> dict:
     return res
 
 
+# 邮箱形状：只挡「把一段话糊进邮箱栏」，不追求 RFC 5322 的完备。
+# 判得越细越容易把合法地址挡在门外，而这里要防的从来不是罕见合法地址。
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _email(value, field: str) -> str | None:
+    """规整一格邮箱：空串与 None 都算「没填」，其余必须过形状。"""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    if len(s) > 254 or not EMAIL_RE.match(s):
+        raise ledger_store.WriteError(
+            "DGB_ING_009", f"{field} 不是一个邮箱地址（形状：xxx@yyy.zzz，最多 254 字符）")
+    return s
+
+
 def op_request(writer, party: str, data: dict, env: dict) -> dict:
     _no_extra(data, ("request_id", "state", "category", "need_desc", "window_expires_at",
-                     "requested_by", "claim_agent_id", "evidence_uri", "occurred_at", "note"))
+                     "requested_by", "claim_agent_id", "evidence_uri", "occurred_at", "note",
+                     "poster_email", "claimer_email"))
     _require(data, "request_id", "state", "category", "need_desc", "requested_by")
+    # 两格联系方式先规整成 None / 合法串。空串存 NULL——`''` 与「没填」在页面上
+    # 是同一件事，存两种值只会让读端多一个分支。
+    data = dict(data,
+                poster_email=_email(data.get("poster_email"), "poster_email"),
+                claimer_email=_email(data.get("claimer_email"), "claimer_email"))
     if not REQUEST_RE.match(data["request_id"]):
         raise ledger_store.WriteError("DGB_ING_009", "request_id 形状：rq_ + 8–32 位小写字母数字")
     state = data["state"]
@@ -232,24 +262,160 @@ def op_request(writer, party: str, data: dict, env: dict) -> dict:
         raise ledger_store.WriteError(
             "DGB_ING_011",
             f"{state} 不接受直写：" + ("closed 要等双方签名与两条账目（第 04/05 步）"
-                                       if state == "closed" else "expired 由窗口到期触发"))
-    # 谁能推进哪一步。发布方管发布与撤回，认领方管认领与交付——不是「有钥就能写」。
-    if state in ("open", "withdrawn"):
+                                       if state == "closed" else "expired 由写入面按期限结算"))
+    # 谁能推进哪一步。发布方管发布与撤回，认领方管认领、交付与放回——不是「有钥就能写」。
+    # `open` 分两种，归属不同：第 1 行是「发布」，只能由 requested_by 发；非第 1 行是
+    # 「回退」（v1.6），发布方与当前认领方都能提。后者要看库里当前行，所以判定挪进事务。
+    if state == "withdrawn":
         if party != data["requested_by"]:
-            raise ledger_store.WriteError("DGB_ING_011", f"{state} 只能由发布方（requested_by）提交")
-    else:
+            raise ledger_store.WriteError(
+                "DGB_ING_011", "withdrawn 只能由发布方（requested_by）提交")
+    elif state in ("claimed", "delivered"):
         if not data.get("claim_agent_id"):
             raise ledger_store.WriteError("DGB_ING_009", f"{state} 必须带 claim_agent_id")
         if party != data["claim_agent_id"]:
-            raise ledger_store.WriteError("DGB_ING_011", f"{state} 只能由认领方（claim_agent_id）提交")
+            raise ledger_store.WriteError(
+                "DGB_ING_011", f"{state} 只能由认领方（claim_agent_id）提交")
     with writer.tx(commit=not env.get("dry_run")) as con:
         writer.spend_nonce(con, env["nonce"], party)
+        cur = writer.current_request(con, data["request_id"])
+
+        # ── 联系方式两格：谁给、能不能改、怎么沿用（v1.7）──────────────────
+        # 规则只有三条，都是「这版没有编辑功能」的直接推论：
+        #   1) 带了就必须与上一行一字不差，否则 037——认领/交付/撤回/回退都不是
+        #      改联系方式的暗门；
+        #   2) 没带就沿用上一行，否则每推进一次状态就丢一次邮箱，而页面上的
+        #      「双方认领后才可见」会在第二次状态变化后变成「看不见」；
+        #   3) `claimer_email` 允许在 claimed / delivered 行**首次**填写（那时才
+        #      第一次有认领方），填的人由上面的 claim_agent_id 校验保证是认领方本人。
+        if cur is not None:
+            v = data.get("poster_email")
+            if v is not None and v != cur["poster_email"]:
+                raise ledger_store.WriteError(
+                    "DGB_LED_037", "不能改需求条款：poster_email（发单时的联系方式）")
+            data["poster_email"] = v or cur["poster_email"]
+
+            v = data.get("claimer_email")
+            if v is not None and v != cur["claimer_email"]:
+                if cur["claimer_email"] is not None:
+                    raise ledger_store.WriteError(
+                        "DGB_LED_037", "不能改需求条款：claimer_email（认领时的联系方式）")
+                if state not in ("claimed", "delivered"):
+                    raise ledger_store.WriteError(
+                        "DGB_LED_037", "claimer_email 只能在认领或交付那一行第一次填写")
+            data["claimer_email"] = v or cur["claimer_email"]
+
+        if state == "open":
+            if cur is None:
+                # 第 1 行：发布。用自己的名字发别人的单不是本协议的动作。
+                if party != data["requested_by"]:
+                    raise ledger_store.WriteError(
+                        "DGB_ING_011", "open 只能由发布方（requested_by）提交")
+                if data.get("claimer_email"):
+                    # 还没有人认领，就没有「认领方的联系方式」这回事。
+                    # 不静默丢掉：丢掉会让客户端以为写进去了。
+                    raise ledger_store.WriteError(
+                        "DGB_ING_009", "第 1 行还没有认领方，不能带 claimer_email")
+                # 接单窗口上限 90 天（v1.6）。页面上写着「上限 90 天」，服务端就得认同一个数，
+                # 否则那句话只是前端的礼貌，脚本照样能挂十年。
+                # 用 SQLite 自己的 `julianday()` 判，一次同时验两件事：格式能不能解析、
+                # 是不是超过了上限。不在 Python 里另写一套日期解析——两套解析器迟早对不上。
+                w = (data.get("window_expires_at") or "").strip()
+                if w:
+                    # 比较用**日期**而不是时刻：页面上写的是「上限 90 天」，人按天选，
+                    # 而日期框给的是当地的一天、转成 UTC 后会落在这天的某个时刻。
+                    # 拿时刻比，选「第 90 天」的人在 UTC+8 会被多出的 8 小时顶出去——
+                    # 页面允许、服务端拒绝，这种错最难查。按天比，两边口径一致。
+                    ok = con.execute(
+                        "SELECT julianday(?) IS NOT NULL"
+                        "   AND date(?) <= date('now', ?)",
+                        (w, w, f"+{ledger_store.MAX_WINDOW_DAYS} days")).fetchone()[0]
+                    if not ok:
+                        raise ledger_store.WriteError(
+                            "DGB_ING_009",
+                            "window_expires_at 必须是可以解析的时间，且不晚于发布后 "
+                            f"{ledger_store.MAX_WINDOW_DAYS} 天")
+            else:
+                # 非第 1 行：把已认领的单放回池子（v1.6）。这是认领人唯一的退路——
+                # 他没有能力兑现时，以前只能永久占着这张单，连发布方都只能整张撤掉。
+                if cur["state"] == "open":
+                    # 已经是 open 了。「open → open」不是迁移，与 v1.4 那条
+                    # `trg_request_open_only_first` 报同一个码，客户端不必为新旧行为
+                    # 学两种错误码。
+                    raise ledger_store.WriteError(
+                        "DGB_LED_020", "这张单已经是 open；重复提交 open 不是一次迁移")
+                if cur["state"] != "claimed":
+                    raise ledger_store.WriteError(
+                        "DGB_ING_011", f"只有 claimed 能回退到 open，当前是 {cur['state']}")
+                allowed = {cur["requested_by"], cur["claim_agent_id"]} - {None, ""}
+                if party not in allowed:
+                    raise ledger_store.WriteError(
+                        "DGB_ING_011", "回退到 open 只能由发布方或当前认领方提交")
+                # **回退只改状态，不改条款。** 认领关系作废（认领方置空），而
+                # category / need_desc / 截止时间一律沿用原行——否则「回退」就成了
+                # 一个改需求的暗门，而这版没有编辑功能。
+                # 认领方邮箱同时清掉（v1.7）：那个地址属于一个已经不在单上的人，
+                # 留给下一任认领方看既没必要，也是在两次无关的认领之间传信息。
+                data = dict(data, claim_agent_id=None, evidence_uri=None, occurred_at=None,
+                            claimer_email=None,
+                            category=cur["category"], need_desc=cur["need_desc"],
+                            window_expires_at=cur["window_expires_at"], note=cur["note"])
+
+        # 只在**前置状态本身合法**时才比条款：跳级（open → delivered）要报状态机那个
+        # 更根本的错（`DGB_LED_020`），不该被一个次要校验抢先做成 037。判据顺序也是语义顺序。
+        # v1.7 加了第四条：`delivered → delivered`（被拒收后再交一次）同样要走条款比对——
+        # 它是真正的第二轮交付，不是重试；重试在下面走 `delivery_replay`。
+        prev_ok = cur is not None and (
+            (state == "claimed" and cur["state"] == "open")
+            or (state == "delivered" and cur["state"] == "claimed")
+            or (state == "delivered" and cur["state"] == "delivered"))
+        if prev_ok:
+            # **认领与交付都不能顺带改条款**（v1.6）。这版没有编辑功能，每一条推进状态的
+            # 路径都必须关上这扇门，否则「认领」就成了一个改需求的暗门——发布方按 A 的
+            # 条件挂出来，认领方交 B 的条件，账本里还两个都像真的。
+            # 只比请求体里**带了**的键：脚本按最小字段提交（只带 request_id/state/…）时
+            # 不该被「你没带 note」判成改了 note。带了就必须与上一行一字不差。
+            def _norm(v):
+                return "" if v is None else str(v)
+            diff = [k for k in ledger_store.TERMS_FIELDS
+                    if k in data and _norm(data[k]) != _norm(cur[k])]
+            if diff:
+                raise ledger_store.WriteError(
+                    "DGB_LED_037",
+                    "认领与交付不能改需求条款；要改只能由发布方撤回后重发"
+                    f"（不一致：{', '.join(diff)}）")
+            if state == "delivered" and cur["state"] in ("claimed", "delivered"):
+                # 换个人来交付，等于绕过「先到先得」把单子转手了。第二次交付同样
+                # 只能由当初那个人交——否则「拒收 → 换人重交」就是一条转手暗门。
+                if _norm(data.get("claim_agent_id")) != _norm(cur["claim_agent_id"]):
+                    raise ledger_store.WriteError(
+                        "DGB_LED_037", "交付的认领方必须与认领时一致（先到先得）")
+
+        if state == "withdrawn" and cur is not None:
+            # 撤回行沿用上一行的交付字段。撤掉的可能是**已经被接过**的单，当前视图
+            # 若看不到认领方，就等于抹掉了「撤掉的是谁接的单」——历史行仍在，但
+            # 一单一行当前状态的口径残缺了。closed 由 close_after_confirm 整行复制，
+            # 同一个道理，这里补齐。
+            data = dict(data, claim_agent_id=cur["claim_agent_id"],
+                        evidence_uri=cur["evidence_uri"],
+                        occurred_at=cur["occurred_at"])
+
         if state == "delivered":
             # 交付这一次是**一个转换**，不是一行状态：它同时产出 give 与 receive 两条
             # 账目（第 05 步），并且与状态行在同一个事务里。分两步做就会留下「已交付但
             # 账上没东西」的中间态，而那个中间态没有任何人能修——delivered 不能重进。
-            cur = writer.current_request(con, data["request_id"])
-            if cur is not None and cur["state"] in ("delivered", "closed"):
+            #
+            # **三种情形，靠「当前行是否已被拒收」分开（v1.7）：**
+            #   · 已结（closed）→ 重放分支：单子封了，任何提交都只能是重试；
+            #   · 交付中、没被拒 → 重放分支：字段一致回 200，不一致 029（凭据以第一次为准）；
+            #   · 交付中、**已被拒** → 这是一次新的交付，往下追加行与账目。
+            # 第三支为什么必须有「已被拒」这个前提：没有它，任何一次带新凭据的
+            # `delivered` 都能把上一次的凭据顶掉，而 append-only 的账上会留下两对
+            # 一模一样的「交付」，没人分得清哪次算数。拒绝是重交的通行证。
+            if cur is not None and (
+                    cur["state"] == "closed"
+                    or (cur["state"] == "delivered"
+                        and not writer.rejected_seq(con, cur["request_id"], cur["seq"]))):
                 return writer.delivery_replay(con, data, cur)
             res = writer.append_request(con, data)
             res.update(writer.convert_delivery(con, data["request_id"]))
@@ -341,10 +507,158 @@ def op_confirm(writer, party: str, data: dict, env: dict) -> dict:
     return res
 
 
+def op_reject(writer, party: str, data: dict, env: dict) -> dict:
+    """受方拒收某一次交付。**不改需求单状态。**
+
+    理由见 `ledger_store.insert_reject`：交付那一刻两条账目已经进链，append-only 撤不回来，
+    把单子改成别的状态会让人以为「这次交付被取消了」。拒收能做的只有一件事——把
+    「沉默」变成「有签名、有理由、可查询的拒绝」。
+
+    内层签名载荷三行（`request_id` + `seq`），由服务端按库里那一行重算；客户端带的
+    `payload` 只作核对，不采信——和 `op_confirm` 同一个道理。
+    """
+    _no_extra(data, ("request_id", "seq", "sig", "payload", "reason"))
+    _require(data, "request_id", "seq", "sig")
+    rid = str(data["request_id"])
+    if not REQUEST_RE.match(rid):
+        raise ledger_store.WriteError("DGB_ING_009", "request_id 形状：rq_ + 8–32 位小写字母数字")
+    seq = data["seq"]
+    if not isinstance(seq, int) or isinstance(seq, bool) or seq < 1:
+        raise ledger_store.WriteError(
+            "DGB_ING_009", "seq 必须是正整数，指向被拒的那条 delivered 行")
+    sig_text = data["sig"]
+    if not isinstance(sig_text, str) or "BEGIN SSH SIGNATURE" not in sig_text:
+        raise ledger_store.WriteError("DGB_ING_009", "sig 必须是 SSHSIG armor 全文")
+    if len(sig_text) > 8192 or "\x00" in sig_text:
+        raise ledger_store.WriteError("DGB_ING_009", "sig 超长或含 NUL")
+    reason = data.get("reason")
+    if reason is not None:
+        reason = str(reason).strip() or None
+    if reason is not None and len(reason) > 500:
+        raise ledger_store.WriteError("DGB_ING_009", "reason 最多 500 字")
+
+    with writer.tx(commit=not env.get("dry_run")) as con:
+        writer.spend_nonce(con, env["nonce"], party)
+        cur = writer.current_request(con, rid)
+        if cur is None:
+            # 没有这一单，就没有「那次交付」可否认。用 029 而不是 030：030 是
+            # 「entry 不存在」（那是账本侧的指针），这里错的是需求单这一侧。
+            raise ledger_store.WriteError("DGB_LED_029", f"需求单 {rid} 不存在")
+        if cur["state"] != "delivered":
+            # 拒收否认的是一次已经发生的交付。没有交付可否认时，「拒」没有对象。
+            raise ledger_store.WriteError(
+                "DGB_LED_036", f"只能拒收 delivered 的单，当前是 {cur['state']}")
+        if seq != cur["seq"]:
+            # 指错行 = 否认另一次交付。当前行是唯一还没被确认的那一次。
+            raise ledger_store.WriteError(
+                "DGB_ING_011", f"seq 必须指向当前 delivered 行（第 {cur['seq']} 行）")
+        if party != cur["requested_by"]:
+            raise ledger_store.WriteError(
+                "DGB_LED_036", "拒收只能由发布方签（认领方与第三方不能拒别人的交付）")
+        # 同一次交付只能被拒一次（v1.7 起一单可以有多条拒收，但一条交付只有一次拒绝）。
+        # 重发同一份：理由一致就回已存在（幂等），不一致就是 029——拒收不可改，
+        # 改理由不是重试。撞主键在 append-only 的表上没有第二种解释。
+        prev = writer.current_reject(con, rid, seq)
+        if prev is not None:
+            if (prev["reason"] or None) != (reason or None):
+                raise ledger_store.WriteError(
+                    "DGB_LED_029", "这一次交付已经被拒收，理由以第一次为准；拒收不可改")
+            return {"request_id": rid, "seq": seq, "party_id": party,
+                    "key_fp": prev["key_fp"], "reason": prev["reason"],
+                    "signed_at": prev["signed_at"], "already": True}
+        payload = signing.reject_payload(rid, seq)
+        sent = data.get("payload")
+        if sent is not None and str(sent).encode("utf-8") != payload:
+            raise ledger_store.WriteError(
+                "DGB_LED_034", "payload 与服务端重算值不一致（签错单号或签错行号）")
+        ok, out = signing.verify_detached(env["key_line"], party, sig_text, payload,
+                                          signing.REJECT_NAMESPACE)
+        if not ok:
+            print(f"ingest: reject verify failed {party} {rid}#{seq}: {out[:200]}", flush=True)
+            raise ledger_store.WriteError(
+                "DGB_LED_034", "拒收签名验不过：载荷须为 request_id 与 seq 两行（带版本行）")
+        res = writer.insert_reject(con, rid, seq, party, env["key_fp"],
+                                   payload.decode("utf-8"), sig_text, reason)
+    res.update({"payload": payload.decode("utf-8")})
+    return res
+
+
+def op_remind(writer, party: str, data: dict, env: dict) -> dict:
+    """认领方对一次尚未确认的交付留一条「我催过」。**不改状态、不改条款。**
+
+    拒收是「我不认这次交付」，催告是「请你看一眼」。两者都落在当前那条 delivered
+    行上，但意思相反，所以各用一张表、各用一个签名域——合成一张表加 kind 列的话，
+    每个查询都要带 `WHERE kind=...`，漏一处就把催告读成拒收，而那种错不会报。
+
+    三条硬约束都在库里（`trg_request_reminder_is_claimer` / `_cooldown`），应用层
+    再判一次只为把「这是谁的单」「还差几个小时」写成一句人话，而不是把触发器的
+    RAISE 原文丢给调用方。判据里两条都要能弄红：拆掉触发器，应用层挡住；把应用层
+    那两段删掉，触发器挡住。
+    """
+    _no_extra(data, ("request_id", "seq", "sig", "payload"))
+    _require(data, "request_id", "seq", "sig")
+    rid = str(data["request_id"])
+    if not REQUEST_RE.match(rid):
+        raise ledger_store.WriteError("DGB_ING_009", "request_id 形状：rq_ + 8–32 位小写字母数字")
+    seq = data["seq"]
+    if not isinstance(seq, int) or isinstance(seq, bool) or seq < 1:
+        raise ledger_store.WriteError(
+            "DGB_ING_009", "seq 必须是正整数，指向当前那条 delivered 行")
+    sig_text = data["sig"]
+    if not isinstance(sig_text, str) or "BEGIN SSH SIGNATURE" not in sig_text:
+        raise ledger_store.WriteError("DGB_ING_009", "sig 必须是 SSHSIG armor 全文")
+    if len(sig_text) > 8192 or "\x00" in sig_text:
+        raise ledger_store.WriteError("DGB_ING_009", "sig 超长或含 NUL")
+
+    with writer.tx(commit=not env.get("dry_run")) as con:
+        writer.spend_nonce(con, env["nonce"], party)
+        cur = writer.current_request(con, rid)
+        if cur is None:
+            raise ledger_store.WriteError("DGB_LED_029", f"需求单 {rid} 不存在")
+        if cur["state"] != "delivered":
+            raise ledger_store.WriteError(
+                "DGB_LED_039", f"只有交付中的单能催，当前是 {cur['state']}")
+        if seq != cur["seq"]:
+            raise ledger_store.WriteError(
+                "DGB_ING_011", f"seq 必须指向当前 delivered 行（第 {cur['seq']} 行）")
+        if party != cur["claim_agent_id"]:
+            raise ledger_store.WriteError(
+                "DGB_LED_039", "催告只能由当前认领方签（发布方催自己不是催告）")
+
+        # 冷却：24 小时内同一个人对同一张单只能催一次。这里先判一次是为了给
+        # 「还差多久」；触发器那道照样在，防止绕过接口直写。
+        last = writer.last_reminder_at(con, rid, party)
+        if last:
+            gap = con.execute(
+                "SELECT julianday('now') - julianday(?)", (last,)).fetchone()[0]
+            if gap is not None and gap < 1.0:
+                hours = max(1, int(24 - gap * 24))
+                raise ledger_store.WriteError(
+                    "DGB_LED_038", f"24 小时内已经催过一次（最近 {last}）；约 {hours} 小时后再来")
+
+        payload = signing.remind_payload(rid, seq)
+        sent = data.get("payload")
+        if sent is not None and str(sent).encode("utf-8") != payload:
+            raise ledger_store.WriteError(
+                "DGB_LED_034", "payload 与服务端重算值不一致（签错单号或签错行号）")
+        ok, out = signing.verify_detached(env["key_line"], party, sig_text, payload,
+                                          signing.REMIND_NAMESPACE)
+        if not ok:
+            print(f"ingest: remind verify failed {party} {rid}#{seq}: {out[:200]}", flush=True)
+            raise ledger_store.WriteError(
+                "DGB_LED_034", "催告签名验不过：载荷须为 request_id 与 seq 两行（带版本行）")
+        res = writer.insert_reminder(con, rid, seq, party, env["key_fp"],
+                                     payload.decode("utf-8"), sig_text)
+    res.update({"payload": payload.decode("utf-8")})
+    return res
+
+
 ROUTES = {"/api/v1/party": op_party,
           "/api/v1/request": op_request,
           "/api/v1/entry": op_entry,
-          "/api/v1/confirm": op_confirm}
+          "/api/v1/confirm": op_confirm,
+          "/api/v1/reject": op_reject,
+          "/api/v1/remind": op_remind}
 
 
 def parse_body(body: bytes) -> dict:
@@ -411,6 +725,26 @@ def preflight() -> list[str]:
 WRITER = ledger_store.Writer(DB_PATH)
 
 
+def sweep_expired_quietly(where: str) -> None:
+    """顺手把到期的 `open` 单结算成 `expired`。**失败只记日志，不改这一次请求的结果。**
+
+    一次 sweep 炸掉（库锁、某行时间格式异常）不该让一次合法的写入变成 500：列表早就
+    由视图 `v_public_request` 收走了，晚一步结算只是账本与站点暂时不一致，而一次
+    500 会让调用方以为自己的写入失败了——那是个更坏的错误。
+
+    它不读请求体、也没有调用方能指名哪一单，所以「`expired` 不是人工动作」这句
+    仍然成立。它不是一个角色，是一个时钟。
+    """
+    try:
+        with WRITER.tx() as con:
+            done = WRITER.sweep_expired(con)
+        if done:
+            print(f"ingest: {where}结算 {len(done)} 张到期未认领的单："
+                  + ", ".join(d["request_id"] for d in done), flush=True)
+    except Exception:                      # noqa: BLE001
+        print(f"ingest: sweep 失败（{where}）：\n{traceback.format_exc()}", flush=True)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "drawcommons-ingest"
 
@@ -451,10 +785,54 @@ class Handler(BaseHTTPRequestHandler):
         return xff.split(",")[0].strip() if xff else self.client_address[0]
 
     def do_GET(self) -> None:  # noqa: N802
-        if self.path.split("?", 1)[0].rstrip("/") == "/healthz":
+        path = self.path.split("?", 1)[0].rstrip("/")
+        if path == "/healthz":
             self._send(200, b"ok", "text/plain; charset=utf-8")
             return
+        if path == "/api/v1/request/contact":
+            self._contact()
+            return
         self._send(404, {"ok": False, "error": "not_found"})
+
+    def _contact(self) -> None:
+        """取一单的联系方式。**读口，但要签名**——这是「双方认领后才可见」的实现。
+
+        为什么放在写口进程而不是站点：站点是匿名的，`/r/<id>` 谁都能打开，
+        CSP 又禁了脚本，浏览器里没有可验证的身份。把邮箱渲染上去，就是公开。
+        这里用的是写口已有的那套信封签名：`X-DG-Party` + 四个头 + 空 body，
+        验过之后才知道「问的人是谁」，再由 `contact_for` 判定他是不是这两方之一。
+
+        载荷里的 method 是 `GET`，path 是 `/api/v1/request/contact`，body 摘要为空
+        串的 sha256。查询串不参与签名（与 POST 的 dry_run 同一条规矩），所以
+        `?id=` 不会让签名失效。
+        """
+        qs = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        rid = (qs.get("id") or [""])[0]
+        try:
+            if not REQUEST_RE.match(rid):
+                raise ledger_store.WriteError("DGB_ING_009", "id 形状：rq_ + 8–32 位小写字母数字")
+            party, key_fp, _env = signing.verify_read(
+                self.headers, "/api/v1/request/contact", lookup_key)
+            LIMITER.check(party)
+            res = ledger_store.contact_for(DB_PATH, rid, party)
+            if res is None:
+                # 不存在、不是你的事、还没人认领——三种一律同一个回答，不区分。
+                self._send(404, {"ok": False, "error": "not_found",
+                                 "detail": "这一单不存在，或你不是它的当事人，或它还没有人认领。"})
+                return
+            res.update({"ok": True, "party": party, "key_fp": key_fp})
+            self._send(200, res)
+        except TooFast as exc:
+            self._send(429, {"ok": False, "error": "DGB_ING_015",
+                             "detail": "一分钟内读得太多，稍后再试"},
+                       extra={"Retry-After": exc.retry_after})
+        except signing.AuthError as exc:
+            self._fail(exc.code, exc.detail, "contact")
+        except ledger_store.WriteError as exc:
+            self._fail(exc.code, exc.detail, "contact")
+        except sqlite3.Error as exc:
+            print("ingest sqlite error: " + traceback.format_exc(), flush=True)
+            self._fail("DGB_ING_016", f"数据库拒绝：{type(exc).__name__}", "contact")
 
     def do_POST(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
@@ -502,6 +880,11 @@ class Handler(BaseHTTPRequestHandler):
             env["dry_run"] = (
                 qs.get("dry_run", ["0"])[0] in ("1", "true", "yes")
                 or self.headers.get("X-DG-Dry-Run", "").strip() in ("1", "true", "yes"))
+            if not env["dry_run"]:
+                # 真写之前顺手结算一次。放在这里而不是定时任务里：写入面是唯一
+                # 持 rw 的进程，也是唯一知道「现在」的地方；多一个调度器就多一个
+                # 会单独坏掉、又没人看得见的部件。
+                sweep_expired_quietly("写入前")
             res = op(WRITER, party, data, env)
             res.update({"ok": True, "endpoint": endpoint, "party": party, "key_fp": key_fp})
             if env["dry_run"]:
@@ -558,6 +941,7 @@ def main() -> int:
     print(f"ingest: db={DB_PATH}  endpoints={' '.join(sorted(ROUTES))}  "
           f"namespace={signing.NAMESPACE}", flush=True)
     print(f"ingest: ssh-keygen={shutil.which('ssh-keygen')}", flush=True)
+    sweep_expired_quietly("启动时")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
     return 0
 

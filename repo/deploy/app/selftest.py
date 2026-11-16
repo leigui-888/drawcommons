@@ -175,9 +175,9 @@ def scan_sites() -> dict:
     静态一侧要回答三个问题，每个都对应一种「多写一份」的方式：
       · `ssh-keygen -Y verify` 有几个调用点？（`_ssh_verify` 只能有一个）
       · 谁 import 了 subprocess？（只有 signing.py 该有）
-      · `signing.verify` 在 ingest.py 里被调了几次？（三条端点只能共用一个出口）
+      · `signing.verify` 在 ingest.py 里被调了几次？（所有端点只能共用一个出口）
     """
-    verify_calls, subproc_imports, funnel = [], [], 0
+    verify_calls, subproc_imports, funnel, read_funnel = [], [], 0, 0
     for fn in RUNTIME_MODULES:
         path = os.path.join(HERE, fn)
         if not os.path.exists(path):
@@ -202,9 +202,14 @@ def scan_sites() -> dict:
                 if (isinstance(f, ast.Attribute) and f.attr == "verify"
                         and isinstance(f.value, ast.Name) and f.value.id == "signing"):
                     funnel += 1
+                # 读口（v1.7）：只允许一个调用点，且它走 `verify_read` 这层固定参数
+                # 转发——读口不能自己拼 method/body，否则就是绕过写口校验的旁路。
+                if (isinstance(f, ast.Attribute) and f.attr == "verify_read"
+                        and isinstance(f.value, ast.Name) and f.value.id == "signing"):
+                    read_funnel += 1
     return {"verify_calls": verify_calls,
             "subproc_imports": sorted(set(subproc_imports)),
-            "funnel": funnel}
+            "funnel": funnel, "read_funnel": read_funnel}
 
 
 # ── 主流程 ───────────────────────────────────────────────────────────────────
@@ -353,12 +358,15 @@ def main() -> int:
                 str(scan["verify_calls"]))
         T.check("只有 signing.py 导入 subprocess", scan["subproc_imports"] == ["signing.py"],
                 str(scan["subproc_imports"]))
-        T.check("ingest.py 里 `signing.verify(...)` 只有 1 个调用点（三条端点共用）",
+        T.check("ingest.py 里 `signing.verify(...)` 只有 1 个调用点（全部写端点共用）",
                 scan["funnel"] == 1, f"funnel={scan['funnel']}")
-        T.check("路由表恰好 4 条，都指向同一条通路的语义函数",
-                len(ingest.ROUTES) == 4 and set(ingest.ROUTES) == {
+        T.check("读口只经 `verify_read` 一个转发点（不能自带 method/body）",
+                scan["read_funnel"] == 1, f"read_funnel={scan['read_funnel']}")
+        T.check("路由表恰好 6 条，都指向同一条通路的语义函数",
+                len(ingest.ROUTES) == 6 and set(ingest.ROUTES) == {
                     "/api/v1/party", "/api/v1/request", "/api/v1/entry",
-                    "/api/v1/confirm"}, str(list(ingest.ROUTES)))
+                    "/api/v1/confirm", "/api/v1/reject", "/api/v1/remind"},
+                str(list(ingest.ROUTES)))
         original = signing.verify
 
         def boom(*a, **k):
@@ -374,11 +382,15 @@ def main() -> int:
                                         "category": "compute", "occurred_at": now_iso()}),
                 "/api/v1/confirm": jbody({"kind": "give", "entry_id": "g_probe_1",
                                           "sig": "-----BEGIN SSH SIGNATURE-----\n"}),
+                "/api/v1/reject": jbody({"request_id": "rq_probe000001", "seq": 2,
+                                         "sig": "-----BEGIN SSH SIGNATURE-----\n"}),
+                "/api/v1/remind": jbody({"request_id": "rq_probe000001", "seq": 2,
+                                         "sig": "-----BEGIN SSH SIGNATURE-----\n"}),
             }
             results = {p: alice.send(p, b)[:2] for p, b in probes.items()}
             allfail = all(st == 401 and r.get("error") == "DGB_ING_002"
                           for st, r in results.values())
-            T.check("替换唯一实现后，四条端点全部 401 DGB_ING_002（4/4）", allfail,
+            T.check("替换唯一实现后，六条端点全部 401 DGB_ING_002（6/6）", allfail,
                     str(results))
         finally:
             signing.verify = original

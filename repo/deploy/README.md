@@ -136,28 +136,52 @@ curl -sS -o /dev/null -w '%{http_code}\n' 'https://drawcommons.org/requests?stat
 curl -sSI 'https://drawcommons.org/needs?state=open' | grep -i '^location'   # 301 且带 ?state=open
 ```
 
-## 2.5 旧库升级（v1.3 → v1.4，2026-11-14）
+## 2.5 旧库升级（v1.3 → v1.6，2026-11-16）
 
-已经有 `ledger.db` 的部署，升级时**只跑一个增量脚本**，不要重建库：
+已经有 `ledger.db` 的部署，升级时**只跑增量脚本**，不要重建库：
 
 ```bash
-# 顺序：先 v1.3 基线（新机器才需要），再 v1.4 增量
+# 顺序：v1.3 基线（只有 v1.2 及更早需要）→ v1.4 → v1.5 → v1.6
 sqlite3 ledger.db < spec/ddl_w4.sql      # 只有 v1.2 及更早需要
 sqlite3 ledger.db < spec/ddl_v1.4.sql
+sqlite3 ledger.db < spec/ddl_v1.5.sql    # 重建 v_public_request（可见性收窄）
+sqlite3 ledger.db < spec/ddl_v1.6.sql    # 状态机回退 + request_reject + 视图两列
+sqlite3 ledger.db < spec/ddl_v1.7.sql    # 联系方式 + 再交一次 + 催告层 + claimed 到期
 ```
+
+**v1.5 与 v1.6 的先后不能颠倒**：两者都 `DROP VIEW` + `CREATE VIEW` 重建同一个视图，
+v1.6 的定义包含 v1.5 的全部条件。先跑 v1.6 再跑 v1.5，站点会退回旧口径，而且不报错——
+这是这次升级里唯一「静默错」的步骤，别靠记忆，照抄上面四行。
 
 三条要知道的：
 
-1. **全部是 `ALTER TABLE ... ADD COLUMN` 与 `CREATE`，没有一条 `UPDATE`/`DELETE`**，
+1. **全部是 `ALTER TABLE ... ADD COLUMN`、`CREATE`，没有一条 `UPDATE`/`DELETE`**，
    所以既有行的既有字段值一个字符都不会变（`spec/ddl_v1.4.sql` 头部有完整说明）。
+   v1.5 / v1.6 是 `DROP VIEW` + `CREATE VIEW`（v1.6 另加一张 `request_reject` 表与两条触发器）：
+   视图不是表，重建不删任何数据行，也不需要重跑 v1.3/v1.4。
 2. **但条目 hash 会变**：读面是 `SELECT *`，新增的列以 `NULL` 出现在条目里，
    而条目 hash 覆盖它的全部字段。这是「条目 = 它此刻的全部字段」这条既有规则的必然结果。
    于是**锚值也变**——换锚值不是事故，是这次升级的预期结果；把新值公告出去。
+   **变锚值是 v1.4 那一步的事，v1.5 / v1.6 都不变**：视图与 `request_reject` 都不进导出件，
+   锚值只由三类条目算出。
 3. **自己包一个事务**。`sqlite3 <file` 每条语句自动提交，中途失败会留下「加了一半列」的库，
    而 `ADD COLUMN` 重跑会撞 `duplicate column name`。想避免就用 Python 逐句执行并包在
    `BEGIN IMMEDIATE` … `COMMIT` 里（`sqlite3.executescript()` **不做**这件事）。
+   v1.5 / v1.6 同一个道理，而且更直接：它们先 `DROP VIEW` 再 `CREATE VIEW`，若第二条失败，
+   `DROP` 已经提交了，库里就少一个 `v_public_request`——公开页与 `/api/v1/requests` 会一起 500。
+   v1.6 还要重建两个触发器（`trg_request_transition` / `trg_request_open_only_first`），
+   `DROP TRIGGER` 之后若 `CREATE` 失败，状态机就处于「没有迁移检查」的状态：写口还能用，
+   但非法迁移不再被拒。这是必须整体回滚的第二种情形。
 
 升级后自检：`/api/ledger/verify` 应返回 `ok:true`、`first_bad:null`，条目数与升级前相同。
+
+**v1.5 之后不需要配定时任务**：写入面（`ingest`）在进程启动时、以及每次真写之前，会顺手把
+到期的单写成 `expired`（`Writer.sweep_expired`）。**v1.7 起候选包含 `open` 与 `claimed` 两种
+状态**——认领方接了不交，到点同样作废，不再永久占着。到期时刻：填了 `window_expires_at`
+就是它；**空串按本行 `created_at + 90 天`**（v1.6 起，此前空串＝无期限、永不被结算；
+`claimed` 行的 `created_at` 是认领时刻，所以那一支读作「认领后 90 天」）。
+一整段时间没人写，那些单只是晚一点变成 `expired`——列表早就由视图 `v_public_request` 收走了，
+外人看不到差别。运维不用为它做任何事，也不该手工去补那一行（`expired` 不接受直写是刻意的）。
 
 ## 3. 部署（改一个文件也要走完）
 

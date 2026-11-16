@@ -53,6 +53,17 @@ NAMESPACE = "drawcommons-ingest"
 # 「把写入面签名挪来当确认」这条路，而它验得过。
 CONFIRM_NAMESPACE = "drawcommons-confirm"
 CONFIRM_TAG = "drawcommons-confirm-v1"
+# 拒收用第三个域（v1.6）。同为「受方说一句话」，但对象不同：确认认可的是**一条账目**，
+# 拒收否认的是**一次交付**（需求单的那一行）。共用一个域就会出现「把确认签名挪来当
+# 拒收」这条路，而它验得过——两者的载荷结构不同，域必须不同。
+REJECT_NAMESPACE = "drawcommons-reject"
+REJECT_TAG = "drawcommons-reject-v1"
+# 催告用第四个域（v1.7）。同为「认领方说一句话」，但对象不同：催告说的是
+# 「这次交付还没被确认」，拒收说的是「这次交付我不认」。前者请对方看一眼，
+# 后者否认一次交付——两者都落在同一条 delivered 行上，若共用一个域，
+# 把催告签名挪来当拒收会验得过，而单子会因此被记成「被拒绝」。
+REMIND_NAMESPACE = "drawcommons-remind"
+REMIND_TAG = "drawcommons-remind-v1"
 # 载荷第一行的版本标记。与 NAMESPACE 分开：namespace 拦「他域签名」，
 # 这一行拦「同域、不同载荷格式」——后者在协议演进时才会出现，而那时旧客户端
 # 的签名仍然带着合法的 namespace。
@@ -147,6 +158,36 @@ def confirm_payload(entry_id: str, entry_hash: str) -> bytes:
     return f"{CONFIRM_TAG}\n{entry_id}\n{entry_hash}\n".encode("utf-8")
 
 
+def reject_payload(request_id: str, seq: int) -> bytes:
+    """拒收层被签的字节。三行，末行带换行，UTF-8。
+
+    **为什么绑 seq 而不只绑 request_id。** 拒收否认的是**某一次交付**，不是整张单：
+    单子将来可能被放回、被重新认领、再交付一次，那时「拒收」指的是哪一次就必须能分开。
+    seq 指向被拒的那条 `delivered` 行，行本身不可改（append-only），所以这个指针
+    永久有效。只绑 request_id 的话，一次拒收会漂到这张单的所有交付上。
+
+    **为什么不用条目 hash。** 确认层签 hash，是因为条目 hash 是链上算出来的、可复算的
+    事实；需求单的状态行没有 hash（`request.md` §1 的诚实边界），签一个不存在的 hash
+    才是撒谎。这里签的是「哪张单的哪一行」，服务端按库重算，客户端交的只用于核对。
+    """
+    return f"{REJECT_TAG}\n{request_id}\n{seq}\n".encode("utf-8")
+
+
+def remind_payload(request_id: str, seq: int) -> bytes:
+    """催告层被签的字节。三行，末行带换行，UTF-8。
+
+    **与拒收同一个形状，但不是同一段字节。** 第一行的 tag 不同（`-remind` 而不是
+    `-reject`），容器里的 namespace 也不同。两道分开都保留：tag 拦「同一 namespace
+    下换了一种载荷」，namespace 拦「拿另一类签名挪过来」。任何一道单独都不够——
+    前者拦不住跨域，后者拦不住同域的载荷演进。
+
+    **绑 seq、不绑时间。** 催告的对象是「这一次交付还没被确认」，seq 指向那条
+    delivered 行；把时间签进去，同一个意思在重发时就变成一条新记录，而重发应当
+    是幂等的。真实时刻由服务端盖章（`signed_at`），不采信客户端。
+    """
+    return f"{REMIND_TAG}\n{request_id}\n{seq}\n".encode("utf-8")
+
+
 def read_envelope(headers) -> dict:
     """从请求头里取四件套。缺一件就拒，且**先于**任何解析——不猜。"""
     got = {}
@@ -225,12 +266,27 @@ def verify_detached(pubkey_line: str, principal: str, sig_text: str, payload: by
     已经发生的事」，载荷必须是**从库里重算出来的值**——客户端自带的一律不信，否则
     签名保护的就成了客户端自己写的那句话。
 
-    namespace 只认两个取值：写入面与确认层。写成「随便传」的话，调用方某天传错一个串，
-    表现是「验签总是失败」，而没人会想到是这里。
+    namespace 只认四个取值：写入面、确认层、拒收层、催告层。写成「随便传」的话，
+    调用方某天传错一个串，表现是「验签总是失败」，而没人会想到是这里。
     """
-    if namespace not in (NAMESPACE, CONFIRM_NAMESPACE):
+    if namespace not in (NAMESPACE, CONFIRM_NAMESPACE, REJECT_NAMESPACE,
+                         REMIND_NAMESPACE):
         raise ValueError(f"未知 namespace={namespace}")
     return _ssh_verify(pubkey_line, principal, sig_text, payload, namespace)
+
+
+def verify_read(headers, path: str, lookup):
+    """读口（`GET`，无请求体）的验签。**只是 `verify` 的一层固定参数转发。**
+
+    为什么单独开这个名字，而不是让调用方直接写 `verify(..., "GET", path, b"", ...)`：
+    `selftest` 用「`signing.verify(` 在 ingest.py 里只有 1 个调用点」来证明「没有哪条
+    写口偷懒少验一道」。读口也验签，但它不是写口——把它的调用混进同一个计数，
+    那条判据要么变红，要么被放松成「随便几个都行」，两种都在削弱它。
+
+    所以这里把「GET + 空 body」定死成一个名字：读口的验签走同一段实现，
+    但它不能自带 method、不能自带 body，也就没法变成一条绕过写口校验的旁路。
+    """
+    return verify(headers, "GET", path, b"", lookup)
 
 
 def verify(headers, method: str, path: str, body: bytes, lookup, hint_pubkey: str | None = None):

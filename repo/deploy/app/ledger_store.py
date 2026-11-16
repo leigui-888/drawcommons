@@ -75,6 +75,16 @@ LED_STATUS = {"012": 403, "013": 403,          # append-only：UPDATE / DELETE �
               # 确认层：034 是「你给的东西自己不自洽」（payload 与重算不等、签名验不过），
               # 属请求有问题 → 400；035 是「这条已经确认过了」→ 冲突 → 409。
               "034": 400, "035": 409,
+              # 拒收层：036 是「这不是你能拒的那次交付」——只有发布方能拒（v1.6）。
+              # 属权限问题 → 403，不是请求格式错。
+              "036": 403,
+              # 条款保护：037 是「认领/交付想顺带改需求」——这版没有编辑功能，
+              # 拦在状态机之前 → 422（读懂了，但按规矩不能这么写）。
+              "037": 422,
+              # 催告层（v1.7）：038 是「24 小时内已经催过」——不是格式错，是节奏错，
+              # 客户端隔一天再来即可 → 409（冲突，不是永久拒绝）。
+              # 039 是「这不是你能催的单」——只有当前认领方能催 delivered 的单 → 403。
+              "038": 409, "039": 403,
               # 入账转换：029 是「这一单的交付已经定局，你这次提交的字段与它不一致」。
               # 不是冲突（409 会让人以为重试一下就好了），是规矩不让——凭据以第一次为准。
               "029": 422}
@@ -244,6 +254,23 @@ def pubkey_of(db_path: str, party_id: str) -> str | None:
 # 本接口三处必须同一条口径——绕过去就等于悄悄换了一版「什么算公开」。
 REQUEST_STATES = ("open", "claimed", "delivered", "closed", "withdrawn", "expired")
 
+# 没填 `window_expires_at` 时按「发布后多少天」到期（v1.6，2026-11-16）。
+# 与终态留存的 90 天数值相同但彼此独立：一个是「还能放多久」，一个是「过期后还留多久」。
+# 常量不是条款——改它不换版；改「要不要默认期限」才换版。
+UNCLAIMED_DEFAULT_DAYS = 90
+
+# 接单窗口的最长天数。与上面那个是**同一个数**的两个用法，所以由它派生而不是另写一个 90：
+#   不填截止 → 从发布起算 90 天到期；
+#   填了截止 → 不得晚于发布 + 90 天（写口 `op_request` 拦，页面也拦同一个数）。
+# 分成两个独立常量的话，某天只改一个就会出现「不填能挂 90 天、填了能挂 365 天」这种矛盾。
+MAX_WINDOW_DAYS = UNCLAIMED_DEFAULT_DAYS
+
+# 认领与交付时**不允许改**的条款字段。这版没有编辑功能，任何一条推进状态的路径
+# 都不该成为改需求的暗门（`claimed → open` 的回退同理，见 ingest.op_request）。
+# 不包含 `claim_agent_id`：那一列在 `claimed` 行是**新填**的，比对它必然不等。
+# 不包含 `evidence_uri` / `occurred_at`：那是交付这一次的新值。
+TERMS_FIELDS = ("category", "need_desc", "window_expires_at", "note")
+
 # 游标带版本前缀。将来若要换键（比如加 seq），旧客户端手里的 `c1.` 会被明确拒绝，
 # 而不是被当成新格式解析出一个「看起来对、其实错位」的位置。
 CURSOR_PREFIX = "c1."
@@ -376,10 +403,105 @@ def load_request_detail(db_path: str, request_id: str) -> dict | None:
                 raise
         for e in pair:
             e["confirmed"] = confs.get((e["type"], e["entry_id"]))
+
+        # 拒收层（v1.6 / 多轮 v1.7）。表可能不存在——与上面 `entry_confirm`
+        # 同样的容错：旧库升到一半时，单页不该整页 500，只是「没有拒收记录」。
+        # 单页要按**轮次**列：一张被拒过两次的单，只显示最后一条会让人以为
+        # 中间那次交付没被拒过。
+        rejects: list[dict] = []
+        try:
+            rows = con.execute(
+                "SELECT seq, party_id, key_fp, reason, signed_at FROM request_reject"
+                " WHERE request_id=? ORDER BY seq", (request_id,)).fetchall()
+            rejects = [dict(r) for r in rows]
+        except sqlite3.OperationalError as exc:
+            if "no such table: request_reject" not in str(exc):
+                raise
+        reject = rejects[-1] if rejects else None
+
+        # 催告层（v1.7）：同样容错，旧库没有这张表时单页照常。
+        reminders: list[dict] = []
+        try:
+            rows = con.execute(
+                "SELECT seq, party_id, key_fp, signed_at FROM request_reminder"
+                " WHERE request_id=? ORDER BY signed_at", (request_id,)).fetchall()
+            reminders = [dict(r) for r in rows]
+        except sqlite3.OperationalError as exc:
+            if "no such table: request_reminder" not in str(exc):
+                raise
+
+        # 交付之后等了几天还没被确认。口径与 `v_public_request.unconfirmed_days`
+        # 一致（都从本行 `created_at` 起算、CAST 取整而不是四舍五入），否则
+        # 列表与单页会对同一张单给出相差一天的数字。非 delivered 一律 None：
+        # 那时候问「几天没确认」没有意义。
+        cur = hist[-1]
+        unconfirmed = None
+        if cur["state"] == "delivered":
+            unconfirmed = con.execute(
+                "SELECT CAST(COALESCE(julianday('now') - julianday(?), 0) AS INTEGER)",
+                (cur["created_at"],)).fetchone()[0]
+
+        # 联系方式（v1.7）在这里**剥掉**，不进单页数据。
+        # `/r/<id>` 是匿名可读的（没有登录，站点也禁脚本），任何进到这个结构里的
+        # 邮箱都会被渲染成公开页面上的一行。要联系方式的人走 `contact_for()`
+        # ——那条路要签名，且只给这条单的两方。
+        hist_out = []
+        for r in hist:
+            d = dict(r)
+            d.pop("poster_email", None)
+            d.pop("claimer_email", None)
+            hist_out.append(d)
+        cur_out = dict(cur)
+        cur_out.pop("poster_email", None)
+        cur_out.pop("claimer_email", None)
+
         return {"request_id": request_id,
-                "current": dict(hist[-1]),
-                "history": [dict(r) for r in hist],
-                "entries": pair}
+                "current": cur_out,
+                "history": hist_out,
+                "entries": pair,
+                "reject": reject,
+                "rejects": rejects,
+                "reminders": reminders,
+                "unconfirmed_days": unconfirmed}
+    finally:
+        con.close()
+
+
+def contact_for(db_path: str, request_id: str, party_id: str) -> dict | None:
+    """取一单的联系方式，**只给这条单的两方**，且只在认领成立之后。
+
+    这是「双方认领后才可见」这句话唯一的实现。页面上做不了：`/r/<id>` 匿名可读、
+    站点 `script-src 'none'`，浏览器里没有可验证的身份，把邮箱渲染上去就是公开。
+    所以它走写口那套签名——谁在问，由 `X-DG-Party` 与信封签名决定，而不是由
+    一个查询参数决定。
+
+    返回 None 的三种情况（对外一律同一个回答，不区分）：
+      · 单子不存在；
+      · 问的人既不是发布方也不是当前认领方；
+      · 还没人认领（`open` / `withdrawn` / `expired`）。
+
+    区分它们就等于给了一个探测接口：「这个 id 存在吗」「谁接过这单」。
+    两方拿到的是同一个结构，各自那一格也在里面——没有「只能看对方」的遮蔽，
+    因为本人本来就知道自己的地址，遮掉只会让客户端多一个特判。
+    """
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+    con.row_factory = sqlite3.Row
+    try:
+        con.execute("PRAGMA busy_timeout=5000")
+        cur = con.execute("SELECT * FROM v_request_current WHERE request_id=?",
+                          (request_id,)).fetchone()
+        if cur is None:
+            return None
+        if cur["state"] not in ("claimed", "delivered", "closed"):
+            return None
+        if party_id not in (cur["requested_by"], cur["claim_agent_id"]):
+            return None
+        return {"request_id": request_id,
+                "state": cur["state"],
+                "requested_by": cur["requested_by"],
+                "claim_agent_id": cur["claim_agent_id"],
+                "poster_email": cur["poster_email"],
+                "claimer_email": cur["claimer_email"]}
     finally:
         con.close()
 
@@ -456,6 +578,10 @@ class Writer:
         `created_at` 记的是**本行落库时间**，不是首行时间。公开视图的 90 天规则
         作用在终态行上，因此「终态之后 90 天从列表隐藏」才成立；若沿用首行时间，
         一张挂了两年的单子刚关闭就会立刻消失。
+
+        `poster_email` / `claimer_email`（v1.7）跟着行一起写：这两列是「本行这一方
+        留下的联系方式」，不是 `party` 的属性。追加行时由调用方决定填什么——
+        沿用上一行、置空、或者新填（认领那一刻才第一次有认领方邮箱）。
         """
         rid = body["request_id"]
         seq = con.execute(
@@ -464,12 +590,14 @@ class Writer:
         now = utcnow()
         con.execute(
             "INSERT INTO request(request_id, seq, state, category, need_desc, window_expires_at,"
-            " requested_by, claim_agent_id, evidence_uri, occurred_at, created_at, note)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            " requested_by, claim_agent_id, evidence_uri, occurred_at, created_at, note,"
+            " poster_email, claimer_email)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (rid, seq, body["state"], body["category"], body["need_desc"],
              body.get("window_expires_at") or "", body["requested_by"],
              body.get("claim_agent_id"), body.get("evidence_uri"),
-             body.get("occurred_at"), now, body.get("note")))
+             body.get("occurred_at"), now, body.get("note"),
+             body.get("poster_email") or None, body.get("claimer_email") or None))
         return {"request_id": rid, "seq": seq, "created_at": now}
 
     # ── 账目条目 ────────────────────────────────────────────────────────────
@@ -549,11 +677,167 @@ class Writer:
             (kind, entry_id, party_id, key_fp, payload, sig, utcnow()))
         return {"kind": kind, "entry_id": entry_id, "party_id": party_id, "key_fp": key_fp}
 
+    # ── 拒收层（v1.6 / 多轮 v1.7）：受方对一次交付说「不认」─────────────────
+    def current_reject(self, con, request_id: str, seq: int | None = None):
+        """某一轮的那条拒收记录；`seq` 省略时取最新一轮。没有则 None。
+
+        v1.6 一单只有一条，`WHERE request_id` 就够；v1.7 允许多轮交付，同一张单
+        可能有多条拒收记录，于是「当前」必须由 seq 指明——只用 request_id 取
+        `fetchone()` 会拿到任意一条（SQLite 通常给第一条），而调用方会把它当成
+        「这次交付被拒了」的证据，指错轮次。
+        """
+        if seq is None:
+            return con.execute(
+                "SELECT * FROM request_reject WHERE request_id=? ORDER BY seq DESC LIMIT 1",
+                (request_id,)).fetchone()
+        return con.execute(
+            "SELECT * FROM request_reject WHERE request_id=? AND seq=?",
+            (request_id, seq)).fetchone()
+
+    def rejects_of(self, con, request_id: str) -> list[dict]:
+        """这张单的全部拒收记录，按轮次升序。单页要把每一轮都列出来。"""
+        try:
+            rows = con.execute(
+                "SELECT seq, party_id, key_fp, reason, signed_at FROM request_reject"
+                " WHERE request_id=? ORDER BY seq", (request_id,)).fetchall()
+        except sqlite3.OperationalError as exc:
+            if "no such table: request_reject" not in str(exc):
+                raise
+            return []
+        return [dict(r) for r in rows]
+
+    def insert_reject(self, con, request_id: str, seq: int, party_id: str,
+                      key_fp: str, payload: str, sig: str, reason: str | None) -> dict:
+        """落一条拒收。`signed_at` 服务端盖章，`payload` 存服务端重算值。
+
+        **它不改需求单的状态。** 交付那一刻 give 与 receive 已经入链，账本 append-only
+        撤不回来；把单子改成别的状态会让人以为「这次交付被取消了」。拒收能做的只有
+        一件事：把「沉默」变成「有签名、有理由、可查询的拒绝」。状态仍停在 delivered，
+        `/r/<id>` 上多一行「受方已拒收」。
+
+        签名签的是 `request_id + seq`（被拒的那条 delivered 行），不是这条记录自己——
+        签自己等于签一句自述，签那一行才指着一项事实。载荷由服务端按库里那一行重算。
+        """
+        con.execute(
+            "INSERT INTO request_reject(request_id, seq, party_id, key_fp, payload, sig,"
+            " reason, signed_at) VALUES(?,?,?,?,?,?,?,?)",
+            (request_id, seq, party_id, key_fp, payload, sig, reason, utcnow()))
+        return {"request_id": request_id, "seq": seq, "party_id": party_id,
+                "key_fp": key_fp, "reason": reason}
+
+    # ── 催告层（v1.7）：认领方说一句「请你看一眼」───────────────────────────
+    def last_reminder_at(self, con, request_id: str, party_id: str) -> str | None:
+        """同一个人对同一张单最近一次催告的时刻；没有则 None。
+
+        应用层用它给出「还差几个小时」的人话；真正的门槛在触发
+        `trg_request_reminder_cooldown` 里——这里只是让错误信息的版本更好读。
+        两处都判不是冗余：触发器防绕过，这里防「报一个触发器原文给用户」。
+        """
+        try:
+            row = con.execute(
+                "SELECT MAX(signed_at) FROM request_reminder"
+                " WHERE request_id=? AND party_id=?", (request_id, party_id)).fetchone()
+        except sqlite3.OperationalError as exc:
+            if "no such table: request_reminder" not in str(exc):
+                raise
+            return None
+        return row[0] if row and row[0] else None
+
+    def insert_reminder(self, con, request_id: str, seq: int, party_id: str,
+                        key_fp: str, payload: str, sig: str) -> dict:
+        """落一条催告。`signed_at` 服务端盖章，`payload` 存服务端重算值。
+
+        **它不改需求单的状态，也不改条款。** 催告是「这次交付还没被确认」这件事的
+        一条签名断言：它让发布方那一侧的「等确认」有一个可查的次数与时刻，而不是
+        只剩沉默。单子仍在 delivered，下一步仍只有发布方能走（确认或拒收）。
+        """
+        now = utcnow()
+        con.execute(
+            "INSERT INTO request_reminder(request_id, seq, party_id, key_fp, payload,"
+            " sig, signed_at) VALUES(?,?,?,?,?,?,?)",
+            (request_id, seq, party_id, key_fp, payload, sig, now))
+        return {"request_id": request_id, "seq": seq, "party_id": party_id,
+                "key_fp": key_fp, "signed_at": now}
+
+    def reminders_of(self, con, request_id: str) -> list[dict]:
+        """这张单收到过的全部催告，按时间升序。单页与两侧管理页都用它。"""
+        try:
+            rows = con.execute(
+                "SELECT seq, party_id, key_fp, signed_at FROM request_reminder"
+                " WHERE request_id=? ORDER BY signed_at", (request_id,)).fetchall()
+        except sqlite3.OperationalError as exc:
+            if "no such table: request_reminder" not in str(exc):
+                raise
+            return []
+        return [dict(r) for r in rows]
+
     # ── 入账转换（第 05 步）：一次 delivered，两条账目 ────────────────────────
     def current_request(self, con, request_id: str):
         """当前状态行（视图口径，与公开页、读口同一份）。没有则 None。"""
         return con.execute("SELECT * FROM v_request_current WHERE request_id=?",
                            (request_id,)).fetchone()
+
+    def sweep_expired(self, con) -> list[dict]:
+        """把「到期仍未结」的单写成 `expired`，返回写了哪几单。
+
+        这是 `→ expired` 唯一的写入者。它不是一个角色，是一个时钟：没有调用方
+        能指名「让哪一单过期」，也没有请求体能带这个意图进来（`expired` 在写口仍是
+        `DGB_ING_011`）。候选只由库里那几列决定，同一次调用跑两遍，第二遍查不到候选。
+
+        **候选两支（v1.6 起）与两种状态（v1.7 起）：**
+
+        a) 填了 `window_expires_at`：过了那个时刻即到期——v1.5 起就是这样；
+        b) 没填（空串）：按 `created_at + UNCLAIMED_DEFAULT_DAYS` 到期。
+
+        v1.6 只扫 `open`，`claimed` 那一支刻意不碰：当时的理由是「已经有人接了，
+        时钟不该替他撤销约定」。那句话在页面上留下了一个死角——认领方接了单一直不交，
+        单子永远停在「已认领」，发布方等到截止也等不到任何下一步，而 `sweep` 每跑一次
+        都从它身上跨过去。v1.7 把 `claimed` 纳入：到期同样写 `expired`。
+
+        **为什么写 `expired` 而不是 `withdrawn`。** 两者在页面上都读作「不能接了」，
+        但在账上是两件事：`withdrawn` 是发布方签名的意思表示，`expired` 是期限到了。
+        时钟没有签名，替发布方写一条「他撤回了」就是伪造一条他没说过的意思表示。
+        作废是时钟唯一有资格做的事。
+
+        **claimed 的到期时刻怎么算。** 口径与 `open` 一字不差：填了截止就是那个时刻，
+        空串就是「本行 `created_at` + 90 天」。claimed 行的 `created_at` 是认领时刻
+        （`v_request_current` 取当前行整行），所以空串在这里读作「认领后 90 天」——
+        不是「发布后 90 天」。这两者不必统一：`open` 的空串是「没人接，挂牌多久」，
+        `claimed` 的空串是「有人接了，给他多久」。同一个常数，两段不同的时间。
+
+        **只认能解析的时间。** `julianday()` 解析不了返回 NULL，比较得 NULL，WHERE 视作
+        不成立——格式坏的单会被跳过，不会被误判成「已到期」。方向必须是「宁可留着」，
+        因为 `expired` 是终态，写错了没有回头路（append-only）。
+        """
+        now = utcnow()
+        rows = con.execute(
+            "SELECT * FROM v_request_current"
+            " WHERE state IN ('open','claimed')"
+            " AND ("
+            "   (TRIM(COALESCE(window_expires_at, '')) <> ''"
+            "    AND julianday(window_expires_at) IS NOT NULL"
+            "    AND julianday('now') > julianday(window_expires_at))"
+            "   OR"
+            "   (TRIM(COALESCE(window_expires_at, '')) = ''"
+            "    AND julianday(created_at) IS NOT NULL"
+            "    AND julianday('now') - julianday(created_at) > ?)"
+            " )"
+            " ORDER BY request_id",
+            (UNCLAIMED_DEFAULT_DAYS,)).fetchall()
+        out = []
+        for r in rows:
+            seq = r["seq"] + 1
+            con.execute(
+                "INSERT INTO request(request_id, seq, state, category, need_desc,"
+                " window_expires_at, requested_by, claim_agent_id, evidence_uri,"
+                " occurred_at, created_at, note, poster_email, claimer_email)"
+                " VALUES(?,?,'expired',?,?,?,?,?,?,?,?,?,?,?)",
+                (r["request_id"], seq, r["category"], r["need_desc"], r["window_expires_at"],
+                 r["requested_by"], r["claim_agent_id"], r["evidence_uri"],
+                 r["occurred_at"], now, r["note"], r["poster_email"], r["claimer_email"]))
+            out.append({"request_id": r["request_id"], "seq": seq,
+                        "from_state": r["state"]})
+        return out
 
     def mutual_entries(self, con, mutual_id: str) -> dict:
         """一次互助应有的两条，按类型取原始行。缺哪条就是哪条为 None。"""
@@ -594,8 +878,13 @@ class Writer:
             raise WriteError("DGB_LED_029", "delivered 行没有 claim_agent_id，无法判定给方")
 
         mutual = "m-" + request_id
-        give_id = DELIVERY_ID["give"] + request_id
-        receive_id = DELIVERY_ID["receive"] + request_id
+        # 第几次交付（v1.7）。第一次沿用历史 id（`g-rq_...` / `r-rq_...`），
+        # 第二次起带 `-d<n>` 后缀。为什么不给所有交付都加后缀：库里已有的条目
+        # 就叫 `g-rq_...`，改格式等于让历史条目换 id，而链上的 id 是不可改的。
+        # 两种格式并存不是妥协，是「旧的那一次已经发生过」的必然形状。
+        give_id, receive_id, round_no = self.delivery_ids(con, request_id, row["seq"])
+        if round_no < 1:
+            raise WriteError("DGB_LED_029", "交付行不存在，无法生成账目")
 
         # give：认领方（提交 delivered 的那一方，也就是签名主体）给发布方。
         # 这一条与 `/api/v1/entry` 的「give 的给方必须就是签名者本人」是同一个规则，
@@ -635,6 +924,31 @@ class Writer:
             raise WriteError("DGB_ING_016", "两条账目已写入但没能在链上定位（不应发生）")
         return {"mutual_id": mutual, "entries": [out["give"], out["receive"]]}
 
+    def delivery_ids(self, con, request_id: str, seq: int) -> tuple[str, str, int]:
+        """某一条 delivered 行对应的两条账目 id，以及它是第几轮交付。
+
+        v1.7 起一单可以有多轮交付（被拒收后再交一次）。第一轮沿用历史 id
+        （`g-rq_...` / `r-rq_...`），第二轮起带 `-d<n>`。`seq` 指明是哪一行：
+        同一个函数既给写入面用（刚追加的那一行），也给重放与关单用（当前行）。
+        """
+        round_no = con.execute(
+            "SELECT COUNT(*) FROM request WHERE request_id=? AND state='delivered' AND seq <= ?",
+            (request_id, seq)).fetchone()[0]
+        suffix = "" if round_no == 1 else f"-d{round_no}"
+        return (DELIVERY_ID["give"] + request_id + suffix,
+                DELIVERY_ID["receive"] + request_id + suffix, round_no)
+
+    def rejected_seq(self, con, request_id: str, seq: int) -> bool:
+        """这一条交付是否被拒收过。没有 `request_reject` 表（旧库）时按「没有」处理。"""
+        try:
+            return con.execute(
+                "SELECT 1 FROM request_reject WHERE request_id=? AND seq=?",
+                (request_id, seq)).fetchone() is not None
+        except sqlite3.OperationalError as exc:
+            if "no such table: request_reject" not in str(exc):
+                raise
+            return False
+
     def delivery_replay(self, con, data: dict, row) -> dict:
         """已经交付过的那一单，再来一次。
 
@@ -646,6 +960,10 @@ class Writer:
         · **缺账目** → 不变量破了（转换与状态行同事务，正常走不到）。这里不报错也不
           装作没看见：用那条已签的 delivered 行补生成一次，`repaired: true` 说清是补的。
           让单据卡在「已交付但账上没东西」才是更坏的结果——它永远无法再前进。
+
+        **多轮交付（v1.7）。** 这条分支只管「当前这一轮」。第二轮交付时，`row` 是
+        第二条 delivered 行，`delivery_ids` 按它的 seq 算出 `-d2` 那一对。上一轮
+        那对账目仍在链上、仍指向同一次互助，拒收记录也仍指着旧 seq——三者互不覆盖。
         """
         request_id = row["request_id"]
         mutual = "m-" + request_id
@@ -658,12 +976,14 @@ class Writer:
                 "这一单的交付已经入账，凭据以第一次为准；改凭据不是重试（不一致："
                 + ", ".join(diff) + "）")
 
-        have = self.mutual_entries(con, mutual)
+        give_id, receive_id, _round = self.delivery_ids(con, request_id, row["seq"])
+        have = {kind: con.execute(
+            f"SELECT * FROM ledger_{kind} WHERE {kind}_id=?", (eid,)).fetchone()
+            for kind, eid in (("give", give_id), ("receive", receive_id))}
         if have["give"] is not None and have["receive"] is not None:
             chain = build_chain(entries_from(con))
             entries = []
-            for kind in ("give", "receive"):
-                eid = DELIVERY_ID[kind] + request_id
+            for kind, eid in (("give", give_id), ("receive", receive_id)):
                 hit = [(i, e) for i, e in enumerate(chain)
                        if e["type"] == kind and e.get("entry_id") == eid]
                 if not hit:
@@ -691,6 +1011,11 @@ class Writer:
 
         只对 `m-rq_*` 生效。手工记的 `give`（`mutual_id` 为空）与需求单无关，不闭嘴。
         返回被关掉的需求单 id；没关任何东西返回 None。
+
+        **只认最新一轮（v1.7）。** 一单被拒收后可以再交，于是同一个 `mutual_id` 下
+        可能有多条 give。确认一条**旧的** give 当然也算确认（它是真的发生过），但它
+        不能把单子关掉——那张单当前等的是新一轮的确认。拿 give 的 id 与当前 delivered
+        行应得的那一条比对：不相等就返回 None，确认照样落库，单子不动。
         """
         if kind != "give":
             return None
@@ -703,8 +1028,13 @@ class Writer:
         row = self.current_request(con, request_id)
         if row is None or row["state"] != "delivered":
             return None
+        latest_give, _latest_recv, _round = self.delivery_ids(con, request_id, row["seq"])
+        if entry_id != latest_give:
+            return None
         # 关闭行是上一行的完整复制，只换 state：DGB_LED_024 要求 closed 也带
         # occurred_at 与 evidence_uri，漏一个就退化成「关闭时交付凭据消失了」。
+        # 邮箱两列同理——关单之后双方还要联系，凭据行缺了邮箱等于把联系方式
+        # 从当前行抹掉（历史行仍在，但「一单一行当前状态」的口径残缺了）。
         self.append_request(con, {
             "request_id": request_id,
             "state": "closed",
@@ -716,6 +1046,8 @@ class Writer:
             "evidence_uri": row["evidence_uri"],
             "occurred_at": row["occurred_at"],
             "note": row["note"],
+            "poster_email": row["poster_email"],
+            "claimer_email": row["claimer_email"],
         })
         return request_id
 

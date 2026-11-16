@@ -27,19 +27,29 @@
 | 方法 | 路径 | 做什么 | 谁能写 |
 | --- | --- | --- | --- |
 | POST | `/api/v1/party` | 登记主体公钥 | 持有该私钥的人（签名即证明） |
-| POST | `/api/v1/request` | 追加一行需求状态；`delivered` 那一次**同时产出两条账目** | 发布方（open / withdrawn）或认领方（claimed / delivered） |
+| POST | `/api/v1/request` | 追加一行需求状态；`delivered` 那一次**同时产出两条账目** | 发布方（open / withdrawn）或认领方（claimed / delivered / 回退 open） |
 | POST | `/api/v1/entry` | 追加一条账目 | 给方本人（`from_agent_id` 必须就是签名主体） |
 | POST | `/api/v1/confirm` | 受方确认一条 `give`；若这一单因此齐了条件，顺手落 `closed` | 受方（`to_agent_id`）本人 |
+| POST | `/api/v1/reject` | 受方拒收某一次交付（v1.6）。**不改需求单状态** | 发布方（`requested_by`）本人 |
+| POST | `/api/v1/remind` | 认领方催一次尚未确认的交付（v1.7）。**不改状态**，24 小时一次 | 当前认领方（`claim_agent_id`）本人 |
+| GET | `/api/v1/request/contact` | 取这条单双方的联系方式（v1.7）。**要签名** | 这条单的发布方或当前认领方 |
 
 另有 `GET /healthz`（探活，不碰库）。其余路径 404、其余方法 405。
+
+`GET /api/v1/request/contact` 是本进程里唯一的**读**端点，放在这里而不是读面，原因不是性能：
+联系方式只在「双方认领之后」可见，而读面是匿名的（`/r/<id>` 谁都能打开、站点禁脚本）。
+验签才能回答「问的人是谁」，读面回答不了。它走同一套信封签名，`method` 是 `GET`、`body` 为空
+（摘要为空串的 sha256），查询串不参与签名（与 `?dry_run=1` 同一条规矩）。
 
 `receive` / `payback` **不接受直写**：它俩没有主体列，只能通过 `mutual_id` 追到需求单
 上的认领方；而在 r6 的流程里它们由 `delivered` 那一次转换当场生成（§4.5）。
 现在开个直写口，等于先承认「没有主体也能进账」，之后再关掉就是改协议。
 
 `closed` 与 `expired` 同样不接受直写：前者是**可判定的事实**（两条账目在链上 + 受方签过
-`give`），由那次确认顺手写；后者由窗口到期触发。**API 不能宣布一件系统还没挣到的事，
-也不该让人去宣布一件已经挣到的事**——这两种请求在接口上分不出。
+`give`），由那次确认顺手写；后者由窗口到期触发——具体是写入面自己顺带结算
+（`Writer.sweep_expired`：进程启动一次、每次真写前一次），它只认库里那两列，没有调用方
+能指名哪一单。**API 不能宣布一件系统还没挣到的事，也不该让人去宣布一件已经挣到的事**
+——这两种请求在接口上分不出。
 
 ### 2.1 读口不在这里：`GET /api/v1/requests`
 
@@ -57,7 +67,7 @@
 | 参数 | 取值 | 作用 |
 | --- | --- | --- |
 | `since` | `c1.<created_at>~<request_id>` | 增量。不带则给「最近一屏」 |
-| `state` | `open` / `claimed` / `delivered` / `closed` / `withdrawn` / `expired` | 过滤**当前状态** |
+| `state` | `open` / `claimed` / `delivered` / `closed` / `withdrawn` / `expired` | 过滤**当前状态**。`expired` 自 v1.5 起不再进视图，查它永远是空集——要知道某一单为什么过期，去 `/r/<id>` |
 | `limit` | 1–200，默认 20 | 页大小 |
 
 ```json
@@ -77,7 +87,11 @@
 4. **坏游标回 `400 bad_cursor`**，不静默从头开始。后者会让调用方以为在拿增量、其实
    每次都在重放全量，而且永远不会知道——这是游标接口最坏的失败方式。
 
-读的是 `v_public_request`，与公开页同一口径（一单一行当前状态 + 90 天收窄终态）。
+读的是 `v_public_request`，与公开页同一口径（一单一行当前状态；`closed` / `withdrawn`
+按 90 天收窄、`expired` 立即不收，未认领的单按截止时刻或发布满 90 天收窄——
+见 request.md §4②）。填了截止的那些，
+在收窄之前就已经被写成 `expired`（`Writer.sweep_expired`，进程启动一次、每次真写前一次）；
+空串那些只收窄、状态不动。
 游标用 `(created_at, request_id)` 而不是 `seq`：视图里一个 `request_id` 只有一行，
 二元组已唯一；也不用 offset——offset 在 append-only 表上遇到并发插入会漏行，而漏掉
 的需求单不会报错，只会「谁都没看见」。
@@ -117,7 +131,9 @@ POST\n
    中间不存在第二套序列化。
 2. **路径在载荷里。** 否则一份签给 `/api/v1/party` 的请求体可以被原样送到
    `/api/v1/entry`——签名对、语义错，是最难发现的那类重放。
-3. **namespace 是 `drawcommons-ingest`。** 与 tag 签名、条目确认（`drawcommons-confirm`）
+3. **读口也用同一段载荷格式**（v1.7）：`method` 写 `GET`，`<请求体原始字节的 sha256>` 是空串的
+   摘要（`e3b0c442…`）。读口没有自己的载荷格式——多一套就多一处会漂的地方。
+4. **namespace 是 `drawcommons-ingest`。** 与 tag 签名、条目确认（`drawcommons-confirm`）
    同一套 SSHSIG 工具链。namespace 由容器校验：拿 git 的签名来当写入面凭证会被
    直接拒绝（实测 `namespace does not match`），域隔离不靠人记得。
 
@@ -158,9 +174,24 @@ ssh-keygen -Y verify -f allowed_signers -I <party> -n drawcommons-ingest -s sig 
 | `request_id`、`state`、`category`、`need_desc`、`window_expires_at`、`requested_by`、`claim_agent_id`、`evidence_uri`、`occurred_at`、`note` | `seq`（= 当前最大 + 1）、`created_at`（本行落库时间）、`state` 的合法性 |
 
 - `seq` 与 `created_at` 不接受客户端自带。`created_at` 记的是**本行**的时间而不是首行
-  时间，公开视图的 90 天规则作用在终态行上，「终态之后 90 天从列表隐藏」才成立。
-- 谁能推进哪一步：`open` / `withdrawn` 只能由 `requested_by` 提交；`claimed` /
-  `delivered` 只能由 `claim_agent_id` 提交（且必须带）。不是「有钥就能写」。
+  时间，公开视图的 90 天规则作用在 `closed` / `withdrawn` 行上，「之后 90 天从列表隐藏」才成立。
+- 谁能推进哪一步：`withdrawn` 只能由 `requested_by` 提交；`claimed` / `delivered` 只能由
+  `claim_agent_id` 提交（且必须带）。`open` 分两种：第 1 行（发布）只能由 `requested_by`；
+  非第 1 行（**回退**，v1.6）由 `requested_by` 或**当前** `claim_agent_id` 提交。
+  不是「有钥就能写」。
+- **推进状态的每一条路都不能改条款**（v1.6）。共四处：
+  ① `claimed → open` 回退时，`category` / `need_desc` / `window_expires_at` / `note`
+  一律沿用上一行，请求体里夹带的新值**不采信**（静默沿用）；`claim_agent_id` 置空。
+  ② `open → claimed`、`claimed → delivered` 若请求体里带了这四个字段之一且与上一行不等，
+  **直接拒**（`DGB_LED_037`）——静默改写比拒绝更坏，人以为自己的修改生效了。
+  只比「带了的键」：脚本按最小字段提交时不该被「你没带 note」判成改了 note。
+  ③ 交付的 `claim_agent_id` 必须与认领时一致，否则等于绕过先到先得把单子转手（`037`）。
+  ④ 发布时 `window_expires_at` 若不填，按发布 + `MAX_WINDOW_DAYS`（90）天到期；填了则
+  不得晚于那个时刻（`DGB_ING_009`）。**窗口最长 90 天**，与「不填按 90 天算」是同一个数。
+  比较用的是**日期**不是时刻（`date(?) <= date('now','+90 days')`）：页面上的日期框给的是
+  当地的一天，按时刻比会让 UTC+8 的人选「第 90 天」时被多出的 8 小时顶出去。
+- `state=withdrawn` 的行**沿用上一行的 `claim_agent_id` / `evidence_uri` / `occurred_at`**
+  （v1.6）：撤掉的可能是已经被接过的单，当前视图若看不到认领方，等于抹掉了「撤掉的是谁接的」。
 - `state=delivered` 是一个**转换**，不是一行状态：它在同一事务里产出 `give` + `receive`
   两条账目（§4.5）。响应因此比别的状态多一个 `entries` 数组。
 
@@ -255,8 +286,10 @@ drawcommons-confirm-v1\n
 - **两条都不是你提交的，是从那条已签的行推出来的。** `give` 的给方是 `claim_agent_id`、
   受方是 `requested_by`；`receive` 带 `evidence_uri` 与 `occurred_at`，`state='delivered'`。
   `quantity`/`unit` 留 null——需求单没有数量字段，编一个数就是造假。
-- **id 是派生的**：`g-<request_id>` 与 `r-<request_id>`。所以受方不必问你，也能算出
-  该确认哪一条（`g-rq_abc12345`），并从 `/api/ledger/items` 取到它的 hash。
+- **id 是派生的**：第一轮是 `g-<request_id>` 与 `r-<request_id>`；第二轮起带 `-d<n>`
+  （`n` = 该单第几条 `delivered` 行，v1.7）。所以受方不必问你，也能算出该确认哪一条，
+  并从 `/api/ledger/items` 取到它的 hash。第一轮不加后缀，是因为历史条目就叫那个名字——
+  改格式等于让链上的 id 变。
 - **重发同一次交付是幂等的**：字段全一致 → `200` 且 `already: true`，附上上次那两条的
   位置与 hash，不再写一个字节。字段有一处不一致 → `422 DGB_LED_029`——那不是重试，
   是想改已入账的凭据，凭据以第一次为准。
@@ -269,11 +302,56 @@ drawcommons-confirm-v1\n
 只换 `state`），响应里多一个 `"closed_request": "rq_abc12345"`。没有单独的「关闭」接口：
 `closed` 是「双签齐 + 两条账目在链上」这件事的名字，那件事一发生它就成立。
 
+### 4.6 `POST /api/v1/remind`
+
+```json
+{"request_id": "rq_abc12345", "seq": 3, "sig": "-----BEGIN SSH SIGNATURE-----\n…"}
+```
+
+`seq` 指向当前那条 `delivered` 行；`sig` 是对下面这段的 SSHSIG（`drawcommons-remind` 域，
+与拒收分开）：
+
+```
+drawcommons-remind-v1\n
+<request_id>\n
+<seq>\n
+```
+
+- **只有当前认领方能签**（`DGB_LED_039`）：发布方催自己没有意义，第三方催不是他的事。
+- **24 小时一次**（`DGB_LED_038`）：用服务端盖章的 `signed_at` 判，不采信客户端时间——
+  否则填成昨天就绕过去了。冷却写在触发器里，应用层那道只是为了让错误信息能说「还差几小时」。
+- **不改状态、不改条款**：单子仍停在 `delivered`，下一步仍只有发布方能走（确认或拒收）。
+- 重发同一份不会产生第二条（同一秒撞主键、跨秒撞冷却），它本来也不该被当成「又催了一次」。
+
+### 4.7 `GET /api/v1/request/contact`
+
+```
+GET /api/v1/request/contact?id=rq_abc12345
+X-DG-Party: pt_bob
+X-DG-Issued: 2026-11-17T02:00:00Z
+X-DG-Nonce: 32 位随机串
+X-DG-Sig: <对 GET 载荷的签名>
+```
+
+```json
+{"ok": true, "request_id": "rq_abc12345", "state": "delivered",
+ "requested_by": "pt_alice", "claim_agent_id": "pt_bob",
+ "poster_email": "alice@example.org", "claimer_email": "bob@example.org",
+ "party": "pt_bob", "key_fp": "SHA256:…"}
+```
+
+- **只给这条单的两方**，且只在 `claimed` / `delivered` / `closed` 时给。没认领、不是当事人、
+  单不存在——三种一律 `404 not_found`，不区分。区分它们就成了一个探测接口。
+- 两方拿到的是同一个结构，包括自己那一格：本人本来就知道自己的地址，遮掉只会让客户端
+  多一个特判。
+- 这两列**不在任何公开视图里**，也不在 `/r/<id>` 的渲染数据里（`load_request_detail` 会把
+  它们剥掉）——单页是匿名可读的，渲染上去就是公开。
+
 ## 5. 错误码
 
 传输与鉴权层用 `DGB_ING_*`；数据库约束仍然用 `DGB_LED_*`（原样透传，不翻译）。
 
-**下表是全集：42 条，等于「代码里会抛的」∪「已装触发器会抛的」。** 2026-11-15 之前它
+**下表是全集：44 条，等于「代码里会抛的」∪「已装触发器会抛的」。** 2026-11-15 之前它
 只列了 ING 那 20 条，剩下的 22 条散在散文与两张 Python 字典里——三者各说各话过一次
 （见本节末的 `022`）。现在由 `_ops/w0/error_codes_check.py` 守着：码表、状态表、
 代码、触发器四处必须一一对上，多一条少一条都红。
@@ -318,10 +396,14 @@ drawcommons-confirm-v1\n
 | `DGB_LED_029` | 422 | 交付已定局、字段与它不一致；或这一单没有可转换的交付 |
 | `DGB_LED_030` | 422 | 确认指向的条目不存在 |
 | `DGB_LED_031` | 422 | 只有受方可以确认该 `give` |
-| `DGB_LED_032` | 422 | 一次互助只允许一条 `give` 与一条 `receive` |
+| `DGB_LED_032` | 422 | `give` / `receive` 的条数不得超过该单的交付次数（v1.7：多轮交付各成一对） |
 | `DGB_LED_033` | 422 | `give` 的给方与受方不得是同一主体 |
 | `DGB_LED_034` | 400 | `payload` 与服务端重算值不等，或确认签名验不过 |
 | `DGB_LED_035` | 409 | 该条目已有确认（不可覆盖、不可重复） |
+| `DGB_LED_036` | 403 | 拒收只能由发布方签（认领方与第三方不能拒别人的交付） |
+| `DGB_LED_037` | 422 | 认领或交付时改了需求条款（这版没有编辑功能），或交付的认领方与认领时不一致 |
+| `DGB_LED_038` | 409 | 同一张单 24 小时内已经催过一次（同一个认领方） |
+| `DGB_LED_039` | 403 | 催告只能由当前认领方对 `delivered` 的单签 |
 
 `DGB_ING_013` 留空（避开 `DGB_LED_013` 的删除码，免得日志里看串）。
 

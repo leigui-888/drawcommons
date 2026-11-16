@@ -117,6 +117,24 @@
     "null"
    ],
    "description": "自由文本备注。可为 null，但 null 必须在公开页显示为「无备注」，不得隐藏该字段。"
+  },
+  "poster_email": {
+   "type": [
+    "string",
+    "null"
+   ],
+   "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+   "maxLength": 254,
+   "description": "发布方联系方式（v1.7）。发布那一行给，之后每行沿用；空串在库里存 NULL。**不进任何公开视图**：匿名读者看不到；只有这条单的两方经 GET /api/v1/request/contact 签名读取才拿得到（request.md §6.1）。"
+  },
+  "claimer_email": {
+   "type": [
+    "string",
+    "null"
+   ],
+   "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+   "maxLength": 254,
+   "description": "认领方联系方式（v1.7）。认领或交付那一行第一次填，之后沿用；回退到 open 时清空（认领关系作废）。同样不进公开视图。"
   }
  },
  "allOf": [
