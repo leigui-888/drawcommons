@@ -332,54 +332,88 @@ TOOLS = [
     {
         "name": "ledger_items",
         "description": (
-            "取众汲之井账本的条目（只读）。每条是一个 give/receive/payback 记录，"
-            "带 prev_hash 与 hash。\n"
-            "Read-only ledger entries, each with its hash. Beta: this ledger is still "
-            "test data — read the response's data_notice before citing any number."),
+            "Lists entries in the DrawCommons public audit ledger (read-only). Each entry "
+            "is a give / receive / payback record carrying prev_hash and hash.\n\n"
+            "Use when you need to know what the ledger contains: what was declared, by "
+            "whom, with which hash. Use ledger_export instead when you need the anchor "
+            "(the sha256 of the whole export), and ledger_verify when you need to know "
+            "whether the chain is intact.\n\n"
+            "Returns structuredContent {total, filtered, offset, limit, returned, genesis, "
+            "data_notice, items}. total is read live from the server on every call and is "
+            "never hardcoded. data_notice states whether the ledger still holds test data — "
+            "read it before citing any count or amount.\n\n"
+            "Read-only and credential-free: one public HTTPS endpoint, nothing written. A "
+            "filtered or truncated slice is not a contiguous chain segment — prev_hash still "
+            "points at the previous entry of the full chain — so do not verify the chain "
+            "from such a slice."),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "limit": {"type": "integer", "minimum": 1, "maximum": 200,
-                          "default": 20, "description": "返回条数上限"},
+                          "default": 20,
+                          "description": "Max entries returned, 1-200 (default 20). One "
+                                         "tool result should not flood the context window."},
                 "offset": {"type": "integer", "minimum": 0, "default": 0,
-                           "description": "跳过前 N 条"},
+                           "description": "Skip the first N entries (default 0); page with "
+                                          "limit."},
                 "type": {"type": "string", "enum": ["give", "receive", "payback"],
-                         "description": "只看某一类条目；筛选后不再是连续链段"},
+                         "description": "Optional filter: give, receive or payback. A "
+                                        "filtered slice is no longer a contiguous chain "
+                                        "segment."},
             },
             "additionalProperties": False,
         },
-        "annotations": {"title": "账本条目", "readOnlyHint": True,
+        "annotations": {"title": "Ledger entries", "readOnlyHint": True,
                         "destructiveHint": False, "idempotentHint": True,
                         "openWorldHint": True},
     },
     {
         "name": "ledger_verify",
         "description": (
-            "在本机重算哈希链与锚值，再与服务端自述比对（不采信服务端的 ok）。"
-            "返回 verdict：agree / chain_broken / server_disagrees。\n"
-            "Recomputes the hash chain and anchor locally and compares with the server's "
-            "own claim. Proves bytes are unchanged, not that the events happened."),
+            "Recomputes the hash chain and the anchor on your machine from bytes fetched in "
+            "this same call, then compares that against what the server says about itself. "
+            "The server's own ok is shown but never trusted.\n\n"
+            "Use whenever an integrity claim is on the table — including one made by this "
+            "project — and you would rather recompute than take it. Use ledger_items for "
+            "contents only and ledger_export for the anchor only.\n\n"
+            "Returns verdict: agree (local recompute matches the server's claim), "
+            "chain_broken (an entry does not match the recomputed chain, so the bytes you "
+            "received differ from the bytes that were chained), or server_disagrees (the "
+            "local chain is intact but the server's ok / count / chain_tail contradicts the "
+            "entries it just served). structuredContent carries both sides plus the anchor.\n\n"
+            "Boundary: this verifies bytes, not facts. A complete chain also results from a "
+            "false entry that was recorded honestly. Takes no parameters; fetches three "
+            "read-only endpoints, writes nothing."),
         "inputSchema": {"type": "object", "properties": {},
                         "additionalProperties": False},
-        "annotations": {"title": "校验（本机重算）", "readOnlyHint": True,
+        "annotations": {"title": "Verify chain locally", "readOnlyHint": True,
                         "destructiveHint": False, "idempotentHint": True,
                         "openWorldHint": True},
     },
     {
         "name": "ledger_export",
         "description": (
-            "取导出件原文并算它的 sha256——这个值就是账本锚值，可与 /ledger 页面上印的"
-            "那串逐字符比对。include_raw=true 时一并回原文（超过 200 KB 会截断并说明）。\n"
-            "Fetches the exported bytes and computes the anchor (sha256) locally."),
+            "Fetches the canonical export bytes and computes their sha256 locally. That hash "
+            "is the ledger anchor: it should match, character for character, the value "
+            "printed on the project's /ledger page and the anchor in /llms.txt.\n\n"
+            "Use to pin a version (record the anchor before and after something you care "
+            "about) or to compare two moments. Use ledger_items for contents and "
+            "ledger_verify for the chain.\n\n"
+            "Returns structuredContent {sha256, bytes, items, data_notice, truncated, raw}. "
+            "include_raw=true also returns the export text; above 200,000 bytes only the "
+            "leading 200,000 are returned and truncated is set, because a silently cut JSON "
+            "would look complete while being unusable for hashing.\n\n"
+            "Read-only and credential-free: one public HTTPS endpoint, nothing written."),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "include_raw": {"type": "boolean", "default": False,
-                                "description": "是否连原文一起返回"},
+                                "description": "true also returns the export text, capped at "
+                                               "200000 bytes (see truncated)."},
             },
             "additionalProperties": False,
         },
-        "annotations": {"title": "导出件与锚值", "readOnlyHint": True,
+        "annotations": {"title": "Export and anchor", "readOnlyHint": True,
                         "destructiveHint": False, "idempotentHint": True,
                         "openWorldHint": True},
     },
