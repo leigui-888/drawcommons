@@ -53,10 +53,11 @@ v1.5 的全部条件。顺序颠倒不会报错，只会静默退回旧口径。
    （2.0-final 冻结基线）与 git 历史里，连同 `donation` / `expense` / 采购 / 配捐那一套 `kind`
    与资助集中度字段。将来要启用，那是**协议换版**：增补字段、重定锚值算法、改公开口径，
    不是在本文件里悄悄加一列。
-3. **交付面的三个字段，两个没有落点。** 旧 `contribution-entry` 有 `quantity` /
+3. **交付面的三个字段，一个仍无落点。** 旧 `contribution-entry` 有 `quantity` /
    `deliverable_uri` / `evidence_uri`。`quantity` 落进了 `give` 的 `quantity` + `unit`；
-   `deliverable_uri` 与 `evidence_uri` 在现行链上**没有对应列**——这是**已知缺口**，
-   计划 v2.2 补，本版不假装有。所以「通过 T2 校验」的含义只有一句：
+   `evidence_uri` 已在 **DDL v1.4** 落进 `receive`（受方的交付凭据；与 `request.evidence_uri`
+   是同一份值被复制，不是引用链）；`deliverable_uri` 仍无对应列——这是**已知缺口**，本版不假装有。
+   所以「通过 T2 校验」的含义只有一句：
    **字段结构与实现一致**；它不代表证据可核验，也不代表东西真的交到了。
 
 **关于「可核验」，还得再说清一层：`verifiability` 是标签，不是机制。**

@@ -27,6 +27,7 @@ R9 一直是失败的：仓库里没有 MANIFEST，第三方拿到仓库后**没
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import os
 import subprocess
@@ -83,7 +84,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("root", nargs="?", default=".")
     ap.add_argument("--check", action="store_true", help="只校验，不写文件")
-    ap.add_argument("--when", default="2026-11-12")
+    # 默认取当天。原先是写死的 `2026-11-12`：不带参数跑会写出一个五天前的「生成时点」，
+    # 而那一行不参与 --check（注释行被跳过），于是过期日期可以一路留着不被发现。
+    ap.add_argument("--when", default=datetime.date.today().isoformat())
     a = ap.parse_args()
     root = os.path.abspath(a.root)
     text, rows = build(root, a.when)
