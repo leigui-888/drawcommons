@@ -16,7 +16,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "drawcommons-ledger-mcp"
-version = "0.1.1"
+version = "0.1.2"
 description = "Read-only MCP server for a public audit ledger: entries, local hash-chain recheck, anchor."
 readme = "README-pypi.md"
 requires-python = ">=3.8"

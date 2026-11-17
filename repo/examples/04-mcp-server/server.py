@@ -58,7 +58,7 @@ import urllib.error
 import urllib.request
 
 SERVER_NAME = "drawcommons-ledger"
-SERVER_VERSION = "0.1.1"   # 与 pyproject.toml / server.json 同值；beta 这件事写在 instructions 里
+SERVER_VERSION = "0.1.2"   # 与 pyproject.toml / server.json 同值；beta 这件事写在 instructions 里
 DEFAULT_BASE = "https://drawcommons.org"
 TIMEOUT = 20                      # 秒。公网够用；卡住时不至于让客户端干等
 STATUS_TIMEOUT = 4                # 握手里那次取数的上限：握手不该让客户端等
