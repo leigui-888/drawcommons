@@ -166,7 +166,9 @@ drawcommons.org, www.drawcommons.org {
 	# try_files 靠 `{path}.html` 命中：/home → /srv/site/home.html，/en/home → /srv/site/en/home.html。
 	# 为什么不走 app：这批页面要跑 JS（生成密钥、签名、取单、发单），而公开页的 CSP
 	# 是 `script-src 'none'`——那不是疏漏，是「公开页物理上不能写」的一半。
-	# 代价：静态目录里没有的文件就是 404，没有 app 的兜底渲染。新增页必须同时加文件与路由。
+	# 代价：静态目录里没有的文件就是 404，没有 app 的兜底渲染。
+	# 但 try_files 会兜住「文件放对就能访问」——新增页不必再加路由，放进 site/ 即可命中。
+	# 真正要补的是入口：导航、/notices 卡片、en_map.json 译文，否则页面在、没人找得到。
 	handle {
 		root * /srv/site
 		try_files {path} {path}.html {path}/index.html
