@@ -129,6 +129,19 @@ drawcommons.org, www.drawcommons.org {
 		}
 	}
 
+	# 引导三屏的六张图（/images/welcome-{1,2,3}.jpg 与 -m 移动版）走 app 的白名单出件。
+	# 2026-11-22 补：11-17 把 catch-all 反代换成静态兜底时，这条隐式路径一起被换掉了——
+	# `/images/*` 从此落到 /srv/site（那里没有 images/），六张图连续 404 五天，
+	# 每个访客进门第一屏都是破图。不改成「把图拷进 site/」：白名单、
+	# Content-Type 与「表外名字一律 404」都在 app 里，拷文件等于让 URL 重新描述资源。
+	handle /images/* {
+		reverse_proxy app:8000 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_down -Server
+		}
+	}
+
 	# 英文引导三屏（/en/welcome、/en/welcome/2、/en/welcome/3）：只有这三条还是 app 渲染。
 	# `handle /en/welcome*` 比下面那条静态兜底更具体，Caddy 的 handle 组按匹配器具体性
 	# 排序，无匹配器的 `handle {}` 永远垫底——所以"更具体"不是靠书写顺序，是靠匹配器。
