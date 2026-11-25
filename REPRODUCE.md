@@ -33,7 +33,7 @@ git clone https://drawcommons.org/repo.git drawcommons
 cd drawcommons
 
 python3 evidence/build_ledger.py      # ① 建基线库 + 执行 DDL + 十一次应当被拒的操作
-python3 evidence/regen_manifest.py    # ② 重算并校验 35 件（0-snapshot）+ 29 件（仓库根）
+python3 evidence/regen_manifest.py    # ② 重算并校验 35 件（0-snapshot）+ 41 件（仓库根）
 python3 evidence/check_spec.py        # ③ 用 repo/spec/entry.schema.json 校验库里每一条
 ```
 
@@ -231,30 +231,45 @@ Good "git" signature for 2379731846@qq.com with ED25519 key SHA256:3vOTR4UHVjuwc
 
 ## 5. 锚值
 
-跑完第 2 节，你可以自己算出线上服务展示的那个锚值：
+锚值就是导出件的字节 sha256。这里有两件不同的事，别混在一起。
+
+**（一）样例库的锚值——你能在本地算出来。**
 
 ```bash
+python3 evidence/build_ledger.py
 LEDGER_DB=evidence/ledger_w4.db python3 repo/deploy/app/app.py &
 curl -s http://127.0.0.1:8000/api/ledger/export | sha256sum
 ```
 
-> **必须先跑第 2 节的 ①。** `evidence/ledger_w4.db` **不在仓库里**——它是 `build_ledger.py`
-> 的构建产物，被 `.gitignore` 排除。跳过 ① 直接跑这段，服务会因为读不到库而返回 503。
-> 这也是本仓库的一条设计：库不是"存进来的一份文件"，而是"用脚本算出来的结果"，
-> 任何人都能重算出同一份（构建是字节确定的，跑完哈希不变）。
+应得：
 
-### 判据（永远成立的那一段）
+```
+80422d70ba8e870cc9e816db4eb1222afeb83835eb738d359271d39a4562f773
+```
 
-不看下面的具体数字，先对这三处：
+这是仓库里那 **4 条 W4 结构验证样例（假 ID）** 的锚值。**它在任何机器上都该是这一个数**——
+构建是字节确定的，删掉库重跑 `build_ledger.py` 再算，哈希不变（2026-11-25 实测两次相同）。
+它证明的是**构建可复现**，不是「线上账本长这样」。
+
+> **必须先跑 `build_ledger.py`。** `evidence/ledger_w4.db` 不在仓库里——它是构建产物，被
+> `.gitignore` 排除。跳过这步，服务会因读不到库返回 503。这也是本仓库的一条设计：库不是
+> 「存进来的一份文件」，而是「用脚本算出来的结果」。
+
+**（二）线上的锚值——你算不出来，只能核它自洽。**
+
+线上库有 8 条：4 条样例 + 2 条联调演练 + 2 条真实互助。**后 4 条不在仓库里**（有真实主体的
+rq id 与时间，进了仓库等于把别人的记录抄一遍），所以「用仓库重算出线上那个锚值」做不到——
+**谁声称能做到、或者把两个数摆在一起说「应该相同」，谁就是在说假话**。
+线上能核的是三处是否同源：
 
 | | 取得方式 |
 | --- | --- |
-| ① 你本机算的 | 上面那段 `sha256sum` 的输出 |
-| ② 线上导出件的 | `curl -s https://drawcommons.org/api/ledger/export \| sha256sum` |
-| ③ 站点页印的 | <https://drawcommons.org/ledger> 上「当前锚值」那一行 |
+| ① 线上导出件 | `curl -s https://drawcommons.org/api/ledger/export \| sha256sum` |
+| ② `/llms.txt` 公示值 | `curl -s https://drawcommons.org/llms.txt \| grep 锚值` |
+| ③ 站点页 | <https://drawcommons.org/ledger>（只给前 8 位的入口） |
 
-**三个必须同一值。** 这防的是「页面渲染用了与导出件不同的数据源」——那才是真正危险的事：
-同一个站点对同一份账本说两种话，而两种都自称是哈希。
+**①② 应当逐字符相同**；③ 是同一个值的入口，点进去读的就是 ②。这防的是「页面渲染用了与
+导出件不同的数据源」——同一站点对同一份账本说两种话，而两种都自称是哈希。
 
 ### 基线（会变的那一段）
 
