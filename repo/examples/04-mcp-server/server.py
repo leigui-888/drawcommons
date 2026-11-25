@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 老夫 <2379731846@qq.com>
-"""众汲之井 · MCP server（stdio）：三个只读接口变成三个 tool。
+"""众汲之井 · MCP server（stdio）：五个 tool，全是 GET。
 
-    ledger_items    取条目（分页、可按类型筛）
-    ledger_verify   在本机重算哈希链与锚值，再把服务端自述摆在一起比对
-    ledger_export   取导出件原文，算它的 sha256（就是锚值）
+    ledger_items     取条目（分页、可按类型筛）
+    ledger_verify    在本机重算哈希链与锚值，再把服务端自述摆在一起比对
+    ledger_export    取导出件原文，算它的 sha256（就是锚值）；给了 expect 就比对
+    requests_list    取需求单（发现口：现在有什么可接的、游标之后有什么新的）
+    entry_draft      把「要签哪几个字节」算准，并给出可以直接粘的命令（0.2.0）
+
+**关于 `entry_draft`，先把话说清**：它名字里有 draft，但它**不写任何东西**。它拼字节、
+算摘要、打印命令，然后把签名与发送留给人或本机 CLI。这个包里没有第二个 HTTP 动词，
+0.2.0 也没有给 MCP 加一条 POST：一旦它能替你发，"它能替你发什么"就变成一个需要重新
+论证的信任问题，而它现在的答案是一句话——「它只 GET 一个地址」。设计裁决见
+`_ops/W-A-设计裁决.md`（不在这个包里，仓库里有）。
 
 **零依赖**：Python 3.8+，标准库。不装 `mcp` SDK，也不装 httpx/pydantic。
 理由不是"省事"，是三条：
@@ -18,11 +26,11 @@
    `initialize` / `tools/list` / `tools/call` / `ping` 四个方法。为这四个方法装
    十兆依赖，是把简单的事交给别人维护。
 
-三条设计立场（都写在这里，而不是藏在代码里）：
+设计立场（写在这里，而不是藏在代码里。前四条是行为，第五条是这段话本身）：
 
 1. **只读，且只连一个地址。** base URL 在启动时定死（`--base` 或 `LEDGER_BASE`），
    tool 参数不能改它。若允许调用方传 URL，这个 server 就成了一台开放代理——它跑在
-   别人的机器上，能打到那台机器能打到的内网。三个 tool 都不可能写任何东西：
+   别人的机器上，能打到那台机器能打到的内网。五个 tool 都不可能写任何东西：
    协议里没有写方法，代码里没有第二个 HTTP 动词。
 2. **不采信服务端自述。** `ledger_verify` 拿 `/api/ledger/verify` 的 `ok` 只当"一面之词"，
    真正判据是本机重算：逐条算 `sha256(prev_hash + "\\n" + canonical(entry))`、查
@@ -31,8 +39,14 @@
 3. **"取不到数"不是"校验失败"。** 网络错误返回 `isError: true` 并说明取不到；
    链真的断了返回正常结果 + `verdict: "chain_broken"`。两者在监控里是两件事，
    混成一件就会把"网断了"记成"账本被改了"。
+4. **算字节，不算账。** `entry_draft` 只拼「该签的那几行」并算它们的摘要，它**不判断
+   对错**：不查 `request_id` 存不存在、不校验字段、不预演会不会被拒。那些答案拿到
+   签名之后用 `?dry_run=1` 问真服务端，别在这儿免费发放。
+   配套一条硬规矩：**客户端永不重算条目 hash**。确认要签的 hash 一律从
+   `/api/ledger/items` 读该条目的 `hash` 字段——重算要复制整条 `build_chain`
+   （含 canonical 排序），而它的失败方式是"多数情况下算对了"，不是报错。
 
-第四条，关于**这段话本身**：握手时给客户端的 `instructions` 里**不写会过期的字面量**。
+第五条，关于**这段话本身**：握手时给客户端的 `instructions` 里**不写会过期的字面量**。
 早先它写死了当时的两句话——一句说账本里现有几条样例，一句说协议正处于哪个修订的公示期。
 两条都对，但都是**某一时刻的快照**。包一旦上传就不可修改（PyPI 只能 yank 不能删），于是每变
 一次就得发一个新版本，而漏发的那一版就在所有人机器上说假话。现在它这么做：握手时向站点要
@@ -50,15 +64,19 @@ stdout——多一行日志，客户端就会解析失败并把整个 server 标
 from __future__ import annotations
 
 import argparse
+import base64
+import datetime
 import hashlib
 import json
 import os
+import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 SERVER_NAME = "drawcommons-ledger"
-SERVER_VERSION = "0.1.2"   # 与 pyproject.toml / server.json 同值；beta 这件事写在 instructions 里
+SERVER_VERSION = "0.2.0"  # 与 pyproject.toml / server.json 同值；beta 这件事写在 instructions 里
 DEFAULT_BASE = "https://drawcommons.org"
 TIMEOUT = 20                      # 秒。公网够用；卡住时不至于让客户端干等
 STATUS_TIMEOUT = 4                # 握手里那次取数的上限：握手不该让客户端等
@@ -69,6 +87,32 @@ GENESIS = "0" * 64                # 空链的前驱；与 spec 一致，不改
 # 支持的协议版本，从新到旧。客户端报哪个就回哪个（握手要谈拢，不能让对方
 # 按新版的格式发、按旧版的理解答）；都不认识就回我们最新的一个。
 PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
+
+# ── 写入面的载荷格式（与 spec/ingest.md §3、signing.py 逐字一致）─────────────
+# 这一段是**第四份实现**（前三分：signing.py、agent.md 的 bash、三个页面 JS）。
+# 权威仍是 spec 与 signing.py；这里只是客户端拼法，靠判据里的真签名 dry_run 钉住：
+# 拼错一个字节，真服务端会拒（J1/J2，见 _ops/W-A-设计裁决.md §7）。
+PAYLOAD_TAG = "drawcommons-ingest-v1"          # 信封第一行
+CONFIRM_TAG = "drawcommons-confirm-v1"         # 确认内层第一行
+CONFIRM_NAMESPACE = "drawcommons-confirm"
+INGEST_NAMESPACE = "drawcommons-ingest"
+EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()  # 读口的空 body 摘要（e3b0c442…）
+
+# 这一版 draft 覆盖的端点。reject / remind **不在里面**：它们的载荷要「当前那条
+# delivered 行的 seq」，而公开视图 v_public_request 没有这一列。硬凑就得猜或撞，
+# 不如明说做不了——它们仍按 agent.md §5.1 手工签。
+DRAFT_ENDPOINTS = {
+    "party":   ("POST", "/api/v1/party"),
+    "request": ("POST", "/api/v1/request"),
+    "entry":   ("POST", "/api/v1/entry"),
+    "confirm": ("POST", "/api/v1/confirm"),
+    "contact": ("GET", "/api/v1/request/contact"),
+}
+REQUEST_STATES = ("open", "claimed", "delivered", "closed", "withdrawn", "expired")
+PARTY_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+ISSUED_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+NONCE_RE = re.compile(r"^[A-Za-z0-9_-]{22,64}$")
+ENTRY_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 BASE = DEFAULT_BASE               # main() 里定死；tool 无法改它
 
@@ -159,7 +203,7 @@ def recompute(items: list) -> tuple[bool, int | None, str]:
     return True, None, f"链尾 {prev[:16]}…"
 
 
-# ───────────────────────────────────────────────────────────────── 三个 tool
+# ───────────────────────────────────────────────────────────────── 五个 tool
 def tool_items(args: dict) -> dict:
     try:
         limit = int(args.get("limit", 20))
@@ -286,22 +330,44 @@ MAX_RAW = 200_000                 # 导出件原文字节上限：超了就明�
 
 def tool_export(args: dict) -> dict:
     include_raw = bool(args.get("include_raw", False))
+    expect = args.get("expect")
+    if expect is not None:
+        # 形状不对就不联网：拿一个不是 sha256 的东西去比，比出来只有"不一致"，
+        # 而那个结论会被人当成"字节变了"。
+        if not isinstance(expect, str) or not re.fullmatch(r"[0-9a-f]{64}", expect):
+            raise RpcError(-32602, "expect 必须是 64 位小写十六进制（就是上次记下的锚值）")
     try:
         raw = http_get("/api/ledger/export")
         payload = get_json("/api/ledger/items")
     except Exception as exc:                  # noqa: BLE001
-        return _failure(f"取不到 /api/ledger/export：{describe(exc)}")
+        return _failure(f"取不到 /api/ledger/export：{failure_detail(exc)}")
 
     anchor = hashlib.sha256(raw).hexdigest()
     notice = payload.get("data_notice", "")
     text = (f"导出件 {len(raw):,} 字节，条目 {len(payload.get('items') or [])} 条\n"
             f"锚值（本机算的 sha256）：{anchor}\n"
             f"data_notice：{notice}\n\n"
-            "拿这个值去 https://drawcommons.org/ledger 页面对一眼，或者下载 .txt 自己算——\n"
+            f"拿这个值去 {BASE}/ledger 页面对一眼，或者下载 .txt 自己算——\n"
             "指纹一致只说明字节没变，不说明条目描述的事发生过。")
 
     structured = {"sha256": anchor, "bytes": len(raw),
                   "items": len(payload.get("items") or []), "data_notice": notice}
+    if expect is not None:
+        # 只报"一样 / 不一样"，不替谁判定谁对。历史在读者那边：他在自己关心的
+        # 时刻记一次，下次带上来问。这个包不记锚值历史（裁决 R4）。
+        match = (expect == anchor)
+        structured.update({"expect": expect, "match": match})
+        if match:
+            text += (f"\n\n与你记下的那个值一致：{expect}\n"
+                     "一致说明「自你记录之后，导出件的字节没变」。它不说明这段字节里"
+                     "写的事发生过，也不说明中间没人读过又写回同样的字节。")
+        else:
+            text += (f"\n\n与你记下的**不一致**。\n"
+                     f"  你记的：{expect}\n"
+                     f"  现在的：{anchor}\n"
+                     "这两个值本身不判定谁对。导出件变化有正当原因（有人记账、库结构升级），"
+                     "变化本身也不是篡改的证据；要判断改没改，看 ledger_verify 的链，"
+                     "以及 CHANGELOG 里有没有那条变更。")
     truncated = False
     if include_raw:
         if len(raw) > MAX_RAW:
@@ -325,6 +391,367 @@ def _failure(message: str) -> dict:
     return {"content": [{"type": "text", "text": message}],
             "structuredContent": {"error": message},
             "isError": True}
+
+
+def failure_detail(exc: Exception) -> str:
+    """把取数异常翻成一句话；服务端自己给了错误串就带上它。
+
+    读口出错时回的是 `{"ok": false, "error": "bad_cursor"}` 这种**一个字符串**，
+    不是 `DGB_*` 码。原样转述比"接口返回 HTTP 400"有用：调用方一眼能看出是自己
+    传错了参数，还是对方坏了。
+    """
+    if isinstance(exc, urllib.error.HTTPError):
+        try:
+            obj = json.loads(exc.read().decode("utf-8"))
+        except Exception:                     # noqa: BLE001（读不出就当没有）
+            obj = None
+        if isinstance(obj, dict):
+            msg = obj.get("error") or obj.get("detail")
+            if isinstance(msg, str) and msg:
+                return f"接口返回 HTTP {exc.code}：{msg}（{getattr(exc, 'url', '')}）"
+    return describe(exc)
+
+
+# ────────────────────────────────────────────── 需求单发现口（读，不要签名）
+def tool_requests_list(args: dict) -> dict:
+    """`/api/v1/requests` 的直通。**不在这一层做二次排序或过滤。**
+
+    读口那四条约定（不带 `since` 给最近一屏、带了给之后的、`next_cursor` 原样退回、
+    坏游标 400 且不静默从头开始）本身就是契约。在这儿再实现一遍，就会出现两套口径，
+    而"两套口径"在这条链上的意思通常是"其中一套没人测"。
+    """
+    q = {}
+    state = args.get("state")
+    if state is not None:
+        if state not in REQUEST_STATES:
+            raise RpcError(-32602, f"state 只能是 {'/'.join(REQUEST_STATES)} 之一")
+        q["state"] = state
+    since = args.get("since")
+    if since is not None:
+        if not isinstance(since, str) or not since.strip():
+            raise RpcError(-32602,
+                           "since 必须是非空字符串：把上一次返回的 next_cursor 原样退回，"
+                           "不要自己拼")
+        q["since"] = since
+    try:
+        limit = int(args.get("limit", 20))
+    except (TypeError, ValueError):
+        raise RpcError(-32602, "limit 必须是整数")
+    limit = max(1, min(limit, 200))          # 上限写死：一条 tool 结果不该撑爆上下文
+    q["limit"] = str(limit)
+
+    path = "/api/v1/requests?" + urllib.parse.urlencode(q)
+    try:
+        payload = get_json(path)
+    except Exception as exc:                  # noqa: BLE001（取数失败一律如实说）
+        return _failure(f"取不到 /api/v1/requests：{failure_detail(exc)}")
+
+    items = payload.get("items") or []
+    has_more = bool(payload.get("has_more"))
+    cursor = payload.get("next_cursor")
+    head = (f"需求单 {len(items)} 条"
+            f"（state={state or '不限'}，limit={limit}，"
+            f"has_more={str(has_more).lower()}）")
+    lines = [head]
+    if not items:
+        lines.append("这一屏是空的。空不是错误：没有可接的单是正常状态。")
+    else:
+        lines.append("一单变状态时会再出现一次——那是通知，不是重复，按 request_id 折叠。")
+    if cursor:
+        lines.append(f"next_cursor（下次带 since 原样退回）：{cursor}")
+    if has_more:
+        lines.append("has_more 为真：还有下一页，用同一个 next_cursor 再取。")
+    text = "\n".join(lines) + "\n\n" + json.dumps(items, ensure_ascii=False, indent=1)
+
+    return {
+        "content": [{"type": "text", "text": text}],
+        "structuredContent": {
+            "contract": payload.get("contract"),
+            "count": len(items),
+            "limit": limit,
+            "state": state,
+            "since": since,
+            "has_more": has_more,
+            "next_cursor": cursor,
+            "items": items,
+        },
+        "isError": False,
+    }
+
+
+# ──────────────────────────────────────── 起草：把待签字节算准（0.2.0 的主力）
+def _now_issued() -> str:
+    """本机 UTC 此刻，秒级、带 Z。服务端只收 15 分钟内的（`DGB_ING_004`）。
+
+    刻意**不**提供「让服务端给时间」这条路：那会让签名带上一个不是签名者主张的时间。
+    时钟不准就如实说时钟不准，比悄悄替它对表诚实。
+    """
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _new_nonce() -> str:
+    """18 字节 → 24 位 base64url，落在 22–64 的窗口里，不需要填充。"""
+    return base64.urlsafe_b64encode(os.urandom(18)).decode("ascii").rstrip("=")
+
+
+def _envelope(method: str, path: str, party: str, issued: str, nonce: str,
+              body_sha: str) -> str:
+    """七行信封。逐字节：UTF-8、LF、末行也有换行。"""
+    return (f"{PAYLOAD_TAG}\n{method}\n{path}\n{party}\n{issued}\n{nonce}\n"
+            f"{body_sha}\n")
+
+
+def _self_check(payload: str, method: str, path: str, party: str,
+                body_sha: str) -> None:
+    """拼完再读一遍自己拼的东西。**只对照自己刚生成的值，不查任何远端。**
+
+    这不是"校验请求"——那是服务端的事（`?dry_run=1`）。这只是防本工具自己写错：
+    五行里错一行，用户会拿到一份能被签、但一定被拒的载荷，而报错长得像"签名不对"。
+    """
+    rows = payload.split("\n")               # 末尾换行 → 最后一段是空串
+    good = (len(rows) == 8 and rows[7] == ""
+            and rows[0] == PAYLOAD_TAG and rows[1] == method
+            and rows[2] == path and rows[3] == party and rows[6] == body_sha)
+    if not good:
+        raise RpcError(-32603, "内部自检失败：拼出来的载荷与自己声明的不一致"
+                               "（这是本工具的缺陷，请报告，不要照它去签）")
+
+
+def _script(method: str, path: str, party: str, issued: str, nonce: str,
+            payload: str, body_text: str, namespace: str, query: str,
+            suffix: str) -> str:
+    """一段自包含的 bash：写字节、签名、发出。**全部按原样粘进终端就能跑。**
+
+    两条刻意的写法：
+    - 用 `<<'DCBODY'` / `<<'DCPAYLOAD'`（带引号的分隔符），shell 不做任何替换——
+      字节是什么就是什么。body_text 末尾那个换行正好被 heredoc 还原。
+    - `SIG=$(base64 -w0 … || base64 …)`：GNU 与 BSD/macOS 的 base64 参数不同，
+      两个都试一次，比写"请自行替换"有用。
+    """
+    url = BASE.rstrip("/") + path + (("?" + query) if query else "")
+    lines = [
+        "set -eu",
+        'KEY="${DG_KEY:-$HOME/.ssh/drawcommons_ed25519}"',
+        "TMP=$(mktemp -d)",
+    ]
+    if body_text:
+        lines.append('cat > "$TMP/body" <<\'DCBODY\'')
+        lines.append(body_text + "DCBODY")
+    lines += [
+        'cat > "$TMP/payload" <<\'DCPAYLOAD\'',
+        payload + "DCPAYLOAD",
+        f'ssh-keygen -Y sign -f "$KEY" -n {namespace} - < "$TMP/payload" > "$TMP/sig"',
+        'SIG=$(base64 -w0 < "$TMP/sig" 2>/dev/null || base64 < "$TMP/sig" | tr -d \'\\n\')',
+        f'curl -sS -X {method} "{url}{suffix}" \\',
+        f'  -H "X-DG-Party: {party}" -H "X-DG-Issued: {issued}" \\',
+        f'  -H "X-DG-Nonce: {nonce}" -H "X-DG-Sig: $SIG" \\',
+    ]
+    if body_text:
+        lines += ['  -H \'Content-Type: application/json\' \\',
+                  '  --data-binary @"$TMP/body"']
+    else:
+        lines[-1] = lines[-1].rstrip("\\").rstrip()   # 末行不留续行符
+    return "\n".join(lines) + "\n"
+
+
+def _body_text(body: dict) -> str:
+    """请求体 → 要原样发出的字节（字符串形态）。**末尾带一个换行。**
+
+    带换行是刻意的：JSON 容忍尾随空白，而 heredoc / 文件写入天然补一个换行——
+    带着它，"复制粘贴"这条路才与摘要字节一致。键排序固定，同一个对象两次起草
+    得到同一串字节（除非 `issued` / `nonce` 变了）。
+    """
+    return json.dumps(body, ensure_ascii=False, sort_keys=True,
+                      separators=(",", ":")) + "\n"
+
+
+def tool_entry_draft(args: dict) -> dict:
+    """把「该签哪几个字节」算准。**不写库、不校验、不探测存在性。**
+
+    只有 `confirm` 会读一次远端（取该条目此刻在链上的 hash）；其余五个端点纯本地。
+    两段式的由来：确认要两个签名，内层签完才知道 `sig` 长什么样，所以先给内层载荷，
+    拿到 armor 原文再拼信封。判定规则写死：`endpoint=confirm` 且 `body` 里没有 `sig`
+    → 第一段。调用方不需要记住任何状态。
+    """
+    ep = args.get("endpoint")
+    if ep not in DRAFT_ENDPOINTS:
+        raise RpcError(-32602, f"endpoint 只能是 {', '.join(DRAFT_ENDPOINTS)} 之一"
+                               "（reject / remind 这一版不做：它们的载荷要当前 delivered 行"
+                               "的 seq，公开读口没有这一列）")
+    method, path = DRAFT_ENDPOINTS[ep]
+
+    party = args.get("party")
+    if not isinstance(party, str) or not PARTY_RE.match(party):
+        raise RpcError(-32602, "party 形状：1–64 位 [A-Za-z0-9_.-]（就是主体标识本身）")
+
+    issued = args.get("issued") or _now_issued()
+    if not isinstance(issued, str) or not ISSUED_RE.match(issued):
+        raise RpcError(-32602, "issued 形状：YYYY-MM-DDTHH:MM:SSZ（UTC，带 Z）")
+    nonce = args.get("nonce") or _new_nonce()
+    if not isinstance(nonce, str) or not NONCE_RE.match(nonce):
+        raise RpcError(-32602, "nonce 形状：22–64 位 [A-Za-z0-9_-]")
+
+    body = args.get("body")
+    if body is None:
+        body = {}
+    if not isinstance(body, dict):
+        raise RpcError(-32602, "body 必须是对象（contact 时省略）")
+
+    query = args.get("query") or ""
+    if not isinstance(query, str) or any(ch in query for ch in "\n\r \t\"'<>"):
+        raise RpcError(-32602, "query 只放查询串本身（如 id=rq_xxx），不带 ? 与空白")
+    if ep == "contact" and not query:
+        # 不校验 id 存不存在（那是探测），但没查询串这条请求一定没有意义，直接说。
+        raise RpcError(-32602, "contact 需要 query，如 \"id=rq_xxx\"；本工具不替你判断它存不存在")
+
+    # ── 第一段：确认内层 ────────────────────────────────────────────────
+    if ep == "confirm" and not body.get("sig"):
+        eid = body.get("entry_id")
+        if not isinstance(eid, str) or not ENTRY_ID_RE.match(eid):
+            raise RpcError(-32602, "第一段只需要 {entry_id}（1–64 位 [A-Za-z0-9_-]）："
+                                   "entry_id 是从 delivered 的响应里拿到的那个 give id")
+        try:
+            items = (get_json("/api/ledger/items") or {}).get("items") or []
+        except Exception as exc:              # noqa: BLE001
+            return _failure(f"取不到 /api/ledger/items，所以拿不到该条目的 hash："
+                            f"{failure_detail(exc)}")
+        hit = [e for e in items
+               if e.get("type") == "give" and e.get("entry_id") == eid]
+        if not hit:
+            return _failure(
+                f"链上现在没有 give/{eid}。两种可能，本工具不猜是哪一种："
+                f"id 写错了；或者这条还没入链（give 是在 delivered 那一次同事务产出的）。"
+                f"清单：GET /api/ledger/items（本包的 ledger_items 也行）。")
+        entry_hash = hit[0].get("hash")
+        if not isinstance(entry_hash, str) or len(entry_hash) != 64:
+            return _failure(f"取到的条目没有可用的 hash（{str(entry_hash)[:16]}…），"
+                            f"不拿它去签。")
+        payload = f"{CONFIRM_TAG}\n{eid}\n{entry_hash}\n"
+        sign_block = "\n".join([
+            "set -eu",
+            'KEY="${DG_KEY:-$HOME/.ssh/drawcommons_ed25519}"',
+            "TMP=$(mktemp -d)",
+            'cat > "$TMP/cpayload" <<\'DCPAYLOAD\'',
+            payload + "DCPAYLOAD",
+            f'ssh-keygen -Y sign -f "$KEY" -n {CONFIRM_NAMESPACE} - < "$TMP/cpayload" '
+            f'> "$TMP/csig"',
+            'cat "$TMP/csig"',
+        ]) + "\n"
+        text = "\n".join([
+            f"【第 1 段 · 确认内层】give/{eid}",
+            "",
+            f"它此刻在链上的 hash（从 /api/ledger/items 读的，不是本机算的）：",
+            f"  {entry_hash}",
+            "",
+            "要签的三行（逐字节，末行有换行）：",
+            *(f"  {ln}" for ln in payload.rstrip("\n").split("\n")),
+            "",
+            "前三条都不一样的可能性在这里摆着：签错条目、签错 hash、域写错。",
+            "域是 drawcommons-confirm——把写入面的签名挪来当确认会被拒。",
+            "",
+            "签它（输出就是 armor 原文，整段留着）：",
+            "",
+            "```bash",
+            sign_block.rstrip("\n"),
+            "```",
+            "",
+            "然后把整段 armor（含 BEGIN / END 两行）放进 body.sig，再调一次本工具"
+            "（endpoint=confirm，body 里带上 kind、entry_id、sig）拿信封。",
+        ])
+        return {
+            "content": [{"type": "text", "text": text}],
+            "structuredContent": {
+                "stage": "inner",
+                "endpoint": path,
+                "method": method,
+                "entry_id": eid,
+                "entry_hash": entry_hash,
+                "hash_source": "/api/ledger/items（build_chain 的产物，本机不重算）",
+                "payload": payload,
+                "commands": {"sign": sign_block},
+                "notes": [
+                    "hash 是此刻的。链一变（有人记账，排序变了），它就变——"
+                    "所以签完尽快发；隔了很久就先重取一次。",
+                    "这个 hash 是本工具读来的，不是你算的。客户端永远不重算条目 hash。",
+                ],
+                "next": "签 inner 载荷 → 把 armor 放进 body.sig → 再调一次 entry_draft",
+            },
+            "isError": False,
+        }
+
+    # ── 第二段（以及 party / request / entry / contact）：信封 ─────────────
+    body_text = _body_text(body) if method == "POST" else ""
+    body_sha = (hashlib.sha256(body_text.encode("utf-8")).hexdigest()
+                if body_text else EMPTY_SHA256)
+    payload = _envelope(method, path, party, issued, nonce, body_sha)
+    _self_check(payload, method, path, party, body_sha)
+
+    send_block = _script(method, path, party, issued, nonce, payload, body_text,
+                         INGEST_NAMESPACE, query, "")
+    dry_block = _script(method, path, party, issued, nonce, payload, body_text,
+                        INGEST_NAMESPACE, query, "?dry_run=1" if not query
+                        else "&dry_run=1")
+
+    rows = payload.rstrip("\n").split("\n")
+    text = "\n".join([
+        f"【信封】{method} {path}" + (f"?{query}" if query else ""),
+        "",
+        f"请求体 {len(body_text.encode('utf-8'))} 字节，sha256 = {body_sha}",
+        f"issued={issued}　nonce={nonce}",
+        "",
+        "要签的七行（逐字节，末行有换行）：",
+        *(f"  {ln}" for ln in rows),
+        "",
+        "先演练（校验全跑、事务回滚、nonce 不消耗）：",
+        "",
+        "```bash",
+        dry_block.rstrip("\n"),
+        "```",
+        "",
+        "演练没问题就真发（**同一份签名**，查询串不进签名，不用重签）：",
+        "",
+        "```bash",
+        send_block.rstrip("\n"),
+        "```",
+        "",
+        "body 的原文（`body_text`，一个字节都别改，别 trim、别重新序列化）：",
+        "",
+        "```json",
+        body_text.rstrip("\n") if body_text else "（没有请求体）",
+        "```",
+    ])
+
+    notes = [
+        "body_text 末尾有一个换行，摘要按这串字节算。原样发；重新序列化就会对不上。",
+        "issued 是**你这台机器**的 UTC 时刻，服务端只收 15 分钟内"
+        "（过期或超前都是 DGB_ING_004）。钟差大就先对表。",
+        "本工具不校验字段、也不预演。想先知道会不会被拒，用上面那段 dry_run。",
+        "这条命令最好只真发一次：写成功之后 nonce 就用掉了，重发会撞 DGB_ING_005"
+        "——撞上了通常说明上一次其实写进去了，去读一下。",
+    ]
+    if ep == "confirm":
+        notes.insert(0, "这是第 2 段：body 里已经有 sig，所以拼的是信封。")
+    if method == "GET":
+        notes.insert(0, "读口也用同一套信封：method 写 GET，摘要取空串的 sha256。")
+
+    return {
+        "content": [{"type": "text", "text": text}],
+        "structuredContent": {
+            "stage": "envelope",
+            "endpoint": path,
+            "method": method,
+            "party": party,
+            "url": BASE.rstrip("/") + path + (("?" + query) if query else ""),
+            "body_text": body_text,
+            "body_sha256": body_sha,
+            "payload": payload,
+            "issued": issued,
+            "nonce": nonce,
+            "commands": {"dry_run": dry_block, "send": send_block},
+            "notes": notes,
+        },
+        "isError": False,
+    }
 
 
 # ──────────────────────────────────────────────────────────── tool 声明
@@ -403,6 +830,11 @@ TOOLS = [
             "include_raw=true also returns the export text; above 200,000 bytes only the "
             "leading 200,000 are returned and truncated is set, because a silently cut JSON "
             "would look complete while being unusable for hashing.\n\n"
+            "expect=<64 hex> compares the anchor you recorded earlier against the one computed "
+            "now and returns match: true/false, plus both values when they differ. It does not "
+            "judge which one is right: an export legitimately changes when someone records an "
+            "entry or the schema is upgraded. This server keeps no anchor history — the history "
+            "is yours to keep.\n\n"
             "Read-only and credential-free: one public HTTPS endpoint, nothing written."),
         "inputSchema": {
             "type": "object",
@@ -410,11 +842,107 @@ TOOLS = [
                 "include_raw": {"type": "boolean", "default": False,
                                 "description": "true also returns the export text, capped at "
                                                "200000 bytes (see truncated)."},
+                "expect": {"type": "string", "pattern": "^[0-9a-f]{64}$",
+                           "description": "Optional anchor you recorded earlier (64 lowercase "
+                                          "hex). Returns match: true/false."},
             },
             "additionalProperties": False,
         },
         "annotations": {"title": "Export and anchor", "readOnlyHint": True,
                         "destructiveHint": False, "idempotentHint": True,
+                        "openWorldHint": True},
+    },
+    {
+        "name": "requests_list",
+        "description": (
+            "Lists public requests (the discovery endpoint GET /api/v1/requests): what can be "
+            "taken right now, or what changed after a cursor. Read-only, no signature, no "
+            "session.\n\n"
+            "Use this to find work to claim or to poll for changes. Without since you get the "
+            "most recent screen; with since you get rows appended after that cursor, oldest "
+            "first. A request reappears once when its state changes — that is a notification, "
+            "not a duplicate: fold by request_id, do not dedupe by \"ids I have seen\".\n\n"
+            "Returns structuredContent {contract, count, limit, state, since, has_more, "
+            "next_cursor, items}. Pass next_cursor back verbatim as since. A bad cursor returns "
+            "HTTP 400 bad_cursor instead of silently restarting from the beginning — a silent "
+            "restart would look like an incremental feed while replaying everything.\n\n"
+            "No sorting, ranking or recommendation is added here: this tool forwards the "
+            "endpoint's four documented rules unchanged, so there is only one set of semantics."),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "state": {"type": "string",
+                          "enum": ["open", "claimed", "delivered", "closed", "withdrawn",
+                                   "expired"],
+                          "description": "Filter by current state. expired stopped appearing in "
+                                         "the public view at v1.5, so it always returns an "
+                                         "empty set."},
+                "since": {"type": "string",
+                          "description": "Cursor from a previous next_cursor, passed back "
+                                         "verbatim (e.g. c1.2026-11-14T00:00:00Z~rq_abc12345)."},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 20,
+                          "description": "Page size, 1-200 (default 20)."},
+            },
+            "additionalProperties": False,
+        },
+        "annotations": {"title": "Public requests", "readOnlyHint": True,
+                        "destructiveHint": False, "idempotentHint": True,
+                        "openWorldHint": True},
+    },
+    {
+        "name": "entry_draft",
+        "description": (
+            "Drafts the exact bytes you would have to sign for one write, and prints a "
+            "self-contained shell block that signs and sends them. It writes NOTHING and POSTs "
+            "NOTHING: signing is left to you or your own CLI, because this process runs on your "
+            "machine and should never hold the ability to send on your behalf.\n\n"
+            "Use when you are about to publish/claim/deliver a request, register a party, record "
+            "an entry, or confirm a give — that is, whenever the hard part is \"which bytes, "
+            "byte for byte\". Returns body_text (send exactly these bytes, do not re-serialize), "
+            "body_sha256, the payload to sign (7 lines for the envelope), issued, nonce, and "
+            "commands {dry_run, send}.\n\n"
+            "confirm has two stages, because a confirmation carries two signatures. Call it with "
+            "endpoint=confirm and body={entry_id} and no sig: you get the 3-line inner payload "
+            "and the give's current chain hash, read from /api/ledger/items (never recomputed "
+            "locally — recomputing would mean reimplementing build_chain, whose failure mode is "
+            "\"right most of the time\"). Sign that, put the armor into body.sig, and call again "
+            "to get the envelope. stage tells you which one you got.\n\n"
+            "It deliberately does NOT validate fields and does NOT check whether an id exists: "
+            "a free validator that answers \"would this be rejected\" is an oracle the write side "
+            "chooses not to be. Sign first, then use ?dry_run=1 (the dry_run block) — validation "
+            "runs, the transaction rolls back, the nonce is not spent.\n\n"
+            "Not covered: reject and remind. Their payloads need the seq of the current "
+            "delivered row, which the public view does not expose; sign those by hand per "
+            "/agent.md 5.1."),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "endpoint": {"type": "string",
+                             "enum": ["party", "request", "entry", "confirm", "contact"],
+                             "description": "Which write to prepare. contact is the signed GET "
+                                            "for both parties' contact details."},
+                "party": {"type": "string",
+                          "description": "The party id whose key will sign (the one you hold)."},
+                "body": {"type": "object",
+                         "description": "The request body to send. For confirm's first stage "
+                                        "just {entry_id}; for the second stage {kind, entry_id, "
+                                        "sig}. Omitted for contact."},
+                "query": {"type": "string",
+                          "description": "Query string only (e.g. id=rq_abc12345), no leading ?. "
+                                         "Required for contact. Query strings are not signed."},
+                "issued": {"type": "string",
+                           "description": "Optional YYYY-MM-DDTHH:MM:SSZ; defaults to this "
+                                          "machine's UTC now. The server accepts a 15-minute "
+                                          "window only (DGB_ING_004)."},
+                "nonce": {"type": "string",
+                          "description": "Optional 22-64 char [A-Za-z0-9_-]; defaults to a fresh "
+                                         "random one. Do not reuse a nonce that was spent."},
+            },
+            "required": ["endpoint", "party"],
+            "additionalProperties": False,
+        },
+        "annotations": {"title": "Draft bytes to sign", "readOnlyHint": True,
+                        "destructiveHint": False, "idempotentHint": False,
                         "openWorldHint": True},
     },
 ]
@@ -423,10 +951,14 @@ TOOL_IMPL = {
     "ledger_items": tool_items,
     "ledger_verify": tool_verify,
     "ledger_export": tool_export,
+    "requests_list": tool_requests_list,
+    "entry_draft": tool_entry_draft,
 }
 
 INSTRUCTIONS_HEAD = (
-    "众汲之井账本（beta）。三个 tool 全是只读：取条目、本机重算校验、取导出件与锚值。"
+    "众汲之井账本（beta）。五个 tool，全部只 GET 一个地址：取条目、本机重算校验、"
+    "取导出件与锚值（可带 expect 比对）、取需求单，以及把一条写入「该签哪几个字节」"
+    "算准（entry_draft：只拼字节与给命令，不写、不发、不碰私钥）。"
 )
 NOTICE_MAX = 240          # data_notice 进 instructions 的长度上限（原文不受影响）
 INSTRUCTIONS_TAIL = (

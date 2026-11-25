@@ -16,8 +16,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "drawcommons-ledger-mcp"
-version = "0.1.2"
-description = "Read-only MCP server for a public audit ledger: entries, local hash-chain recheck, anchor."
+version = "0.2.0"
+description = "MCP for a public audit ledger: entries, local hash-chain recheck, anchor, request discovery, and the exact bytes you sign. Reads only — it never POSTs."
 readme = "README-pypi.md"
 requires-python = ">=3.8"
 license = "Apache-2.0"

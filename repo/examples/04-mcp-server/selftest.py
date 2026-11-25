@@ -133,11 +133,12 @@ def main() -> int:
         r = c.call(c.send("tools/list"))
         tools = r.get("tools") or []
         names = [t.get("name") for t in tools]
-        check("三个 tool", names == ["ledger_items", "ledger_verify", "ledger_export"],
+        check("五个 tool", names == ["ledger_items", "ledger_verify", "ledger_export",
+                                     "requests_list", "entry_draft"],
               ", ".join(names))
         check("每个都有 object 型 inputSchema", all(
             (t.get("inputSchema") or {}).get("type") == "object" for t in tools))
-        check("每个都标了 readOnlyHint", all(
+        check("每个都标了 readOnlyHint（含 entry_draft：它只拼字节，不发）", all(
             (t.get("annotations") or {}).get("readOnlyHint") is True for t in tools))
 
         print("\nledger_items")
@@ -185,6 +186,60 @@ def main() -> int:
 
         check("stdout 全是 JSON（没有半行日志混进来）", not c.bad_lines,
               f"{len(c.bad_lines)} 行可疑" if c.bad_lines else "")
+
+        print("\nledger_export 的 expect（比对交给读者）")
+        r = c.call(c.send("tools/call", {"name": "ledger_export",
+                                         "arguments": {"expect": anchors["export"]}}))
+        sc = r.get("structuredContent") or {}
+        check("expect 与现算一致 → match=true", sc.get("match") is True, str(sc.get("match")))
+        r = c.call(c.send("tools/call", {"name": "ledger_export",
+                                         "arguments": {"expect": "0" * 64}}))
+        sc = r.get("structuredContent") or {}
+        check("expect 不一致 → match=false，且两个值都印出来",
+              sc.get("match") is False and sc.get("expect") == "0" * 64
+              and sc.get("sha256") == anchors["export"], str(sc.get("match")))
+
+        print("\nrequests_list（发现口，读的）")
+        r = c.call(c.send("tools/call", {"name": "requests_list",
+                                         "arguments": {"limit": 3}}))
+        sc = r.get("structuredContent") or {}
+        check("不是错误", r.get("isError") is False, str(sc.get("error"))[:60])
+        check("返回条数不超过 limit", (sc.get("count") or 0) <= 3, f"count={sc.get('count')}")
+        check("带 next_cursor 或空屏时为 null",
+              isinstance(sc.get("next_cursor"), str) or
+              (sc.get("count") == 0 and sc.get("next_cursor") is None),
+              str(sc.get("next_cursor")))
+
+        print("\nentry_draft（只拼字节，一个字节都不发）")
+        body = {"request_id": "rq_selftest01", "state": "open", "category": "review",
+                "need_desc": "自检用，不会发出去", "requested_by": "pt_selftest"}
+        r = c.call(c.send("tools/call", {"name": "entry_draft", "arguments": {
+            "endpoint": "request", "party": "pt_selftest", "body": body}}))
+        sc = r.get("structuredContent") or {}
+        rows = (sc.get("payload") or "").split("\n")
+        check("起草成功（stage=envelope）", sc.get("stage") == "envelope",
+              str(sc.get("error"))[:60])
+        check("载荷七行 + 末行换行", len(rows) == 8 and rows[7] == "", f"{len(rows)} 段")
+        check("第 2/3/4 行 = POST / 路径 / 主体",
+              rows[1:4] == ["POST", "/api/v1/request", "pt_selftest"], str(rows[1:4]))
+        check("第 7 行 = body_text 的 sha256",
+              rows[6] == _sha256(sc.get("body_text") or ""))
+        check("body_text 与原对象是同一份内容（只是紧凑了）",
+              _same(body, sc.get("body_text") or ""))
+        check("给了 dry_run 与 send 两段命令",
+              set((sc.get("commands") or {})) == {"dry_run", "send"})
+        check("两段都含 ssh-keygen 与 curl（签与发各在一段里，不用人拼起来）",
+              all(("ssh-keygen -Y sign" in v and "curl " in v)
+                  for v in (sc.get("commands") or {}).values()))
+        check("命令里不绕解释器（纯 shell，不 python -c）",
+              all("python" not in v for v in (sc.get("commands") or {}).values()))
+
+        r = c.call(c.send("tools/call", {"name": "entry_draft", "arguments": {
+            "endpoint": "confirm", "party": "pt_selftest",
+            "body": {"entry_id": "g_doesnotexist"}}}))
+        check("confirm 指一个不存在的条目 → 如实说没有，不编一个 hash 去签",
+              r.get("isError") is True, str((r.get("structuredContent") or {})
+                                            .get("error"))[:60])
     except Exception as exc:                     # noqa: BLE001
         check(f"自检中断：{type(exc).__name__}: {exc}", False)
         c.close()
@@ -204,6 +259,19 @@ def _is_json(text: str) -> bool:
     try:
         json.loads(text)
         return True
+    except Exception:                             # noqa: BLE001
+        return False
+
+
+def _sha256(text: str) -> str:
+    import hashlib
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _same(obj: dict, body_text: str) -> bool:
+    """body_text 解回来必须还是那个对象。键序无关，值必须一致。"""
+    try:
+        return json.loads(body_text) == obj
     except Exception:                             # noqa: BLE001
         return False
 

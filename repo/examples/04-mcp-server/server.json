@@ -2,17 +2,17 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.leigui-888/drawcommons-ledger",
   "title": "Drawcommons Ledger",
-  "description": "Read-only MCP for a public audit ledger: entries, local hash-chain recheck, anchor.",
+  "description": "MCP for a public audit ledger: entries, local chain recheck, anchor, requests, signing drafts.",
   "repository": {
     "url": "https://github.com/leigui-888/drawcommons",
     "source": "github"
   },
-  "version": "0.1.2",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "drawcommons-ledger-mcp",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"
