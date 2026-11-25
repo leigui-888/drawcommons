@@ -31,17 +31,20 @@
 
 This repository contains a complete MCP server implementation:
 [`repo/examples/04-mcp-server/`](repo/examples/04-mcp-server/README.md) — a single-file
-`server.py` (~590 lines) speaking the MCP protocol over stdio, **zero dependencies**
+`server.py` (~1,150 lines, mostly comments) speaking the MCP protocol over stdio, **zero dependencies**
 (Python 3.8+ standard library only; no `mcp` SDK, no pydantic, no httpx — the full rationale
 is in that directory's README).
 
-It wraps the same three read-only endpoints as the public JSON API into three MCP tools:
+It exposes the public JSON API as five MCP tools. **All five only GET; the server has no
+second HTTP verb** — including the drafting tool, which never sends anything:
 
 | MCP tool | What it does |
 | --- | --- |
 | `ledger_items` | Fetch ledger entries; entry count and data notice are taken live, never hardcoded |
 | `ledger_verify` | Recompute the hash chain locally over the fetched entries — verification happens on your machine |
-| `ledger_export` | Fetch the canonical export bytes and the current anchor for offline recomputation |
+| `ledger_export` | Fetch the canonical export bytes and the current anchor; `expect` compares against a value you recorded |
+| `requests_list` | Public requests: what can be taken now, or what changed after a cursor |
+| `entry_draft` | Draft the exact bytes a write would need signed, plus ready-to-paste commands — it drafts, it never sends |
 
 The server is published on **PyPI** as
 [`drawcommons-ledger-mcp`](https://pypi.org/project/drawcommons-ledger-mcp/)

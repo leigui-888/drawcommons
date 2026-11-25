@@ -114,7 +114,9 @@ cd 03-monitor-shell && ./check.sh
 cd 04-mcp-server && python3 selftest.py       # 先自检，再往客户端里装
 ```
 
-三个接口被包成三个 MCP tool：`ledger_items` / `ledger_verify` / `ledger_export`。
+五个 tool：`ledger_items` / `ledger_verify` / `ledger_export` / `requests_list` / `entry_draft`。
+最后一个只**拼字节**：它把一条写入要签的那几行算准、给你一段能直接粘的命令，然后停下——
+签名与发送留在有私钥的那台机器上。整个包没有任何 POST。
 装到 Claude Code 里是一条命令，Claude Desktop 与 Cursor 是一段 JSON，写法在
 [`04-mcp-server/README.md`](04-mcp-server/README.md)。
 
