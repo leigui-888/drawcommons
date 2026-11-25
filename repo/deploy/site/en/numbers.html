@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Public-good numbers</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #f4f3ef; color: #2c2c2a; line-height: 1.6; }
+  .banner { background: #ba7517; color: #fff; text-align: center; padding: 6px 12px; font-size: 13px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+  .back { display: inline-block; font-size: 13px; color: #5f5e5a; text-decoration: none; margin-bottom: 12px; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 4px; }
+  .sub { font-size: 13px; color: #5f5e5a; margin: 0 0 20px; }
+  h2 { font-size: 14px; font-weight: 500; color: #5f5e5a; margin: 24px 0 10px; }
+  .anchor { background: #e6f1fb; border: 1px solid #85b7eb; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  .anchor b { font-size: 14px; font-weight: 500; display: block; }
+  .anchor code { font-size: 12px; word-break: break-all; }
+  .anchor p { margin: 4px 0 0; font-size: 12px; color: #0c447c; }
+  .card { background: #fff; border: 1px solid #e5e3db; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+  .card b { font-size: 15px; font-weight: 500; display: block; margin-bottom: 4px; }
+  .card p { margin: 4px 0 0; font-size: 13px; color: #5f5e5a; }
+  .row { display: block; padding: 10px 0; border-bottom: 1px dashed #e5e3db; }
+  .row:last-child { border-bottom: 0; }
+  .row code { display: block; color: #185fa5; font-size: 13px; word-break: break-all; }
+  .row span { display: block; margin-top: 2px; color: #888780; font-size: 12px; }
+  .warn { border-color: #fac775; background: #faeeda; }
+  .warn p { color: #633806; }
+  .next { text-align: right; margin: 20px 0 0; }
+  .next a { font-size: 14px; color: #185fa5; text-decoration: none; }
+  footer { border-top: 1px solid #e5e3db; margin-top: 28px; padding: 14px 0 6px; text-align: center; font-size: 12px; color: #888780; }
+  footer a { color: #5f5e5a; text-decoration: none; margin: 0 8px; }
+/* ==== DG-UI BEGIN ==== */
+/* 整站单源样式。由 _theme.py 写进每一页 <style> 的末尾。
+   页内同名规则会被这一段覆盖（同选择器、后者胜）——改样式改这里，别改页内副本。
+   三档按键：.btn 一栏一个主动作 / .mini .op 行内小键 / .go 卡片里那一个入口。
+   两个断点：≤560px 触控（按键不低于 44px）、≥900px 桌面留白。 */
+
+:root {
+  --bg: #f4f3ef; --paper: #fff;
+  --ink: #2c2c2a; --sub: #5f5e5a; --muted: #888780; --faint: #a8a69d;
+  --line: #d3d1c7; --hair: #e5e3db; --hair2: #f0eee7;
+  --blue: #185fa5; --blue-h: #134a80; --blue-a: #0f3d6b; --blue-l: #85b7eb; --blue-bg: #e6f1fb;
+  --amber: #ba7517;
+  --green: #27500a;
+  --red: #a32a2a;
+  --r-lg: 12px; --r-sm: 8px;
+  --press: 0 0 0 3px rgba(24, 95, 165, .14);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+/* ---- 主键：一栏一个，50px 高，实心蓝 ---- */
+.btn {
+  display: block; width: 100%; min-height: 50px; margin: 0;
+  padding: 13px 18px;
+  font: inherit; font-size: 16px; font-weight: 500; line-height: 1.4;
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  text-align: center; text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s;
+}
+.btn:hover { border-color: var(--muted); }
+.btn:active { background: #faf9f5; }
+.btn.primary {
+  color: #fff; background: var(--blue); border-color: var(--blue);
+  box-shadow: 0 1px 2px rgba(24, 95, 165, .18);
+}
+.btn.primary:hover { background: var(--blue-h); border-color: var(--blue-h); box-shadow: 0 2px 6px rgba(24, 95, 165, .22); }
+.btn.primary:active { background: var(--blue-a); border-color: var(--blue-a); box-shadow: none; }
+.btn[disabled], .btn[aria-disabled="true"] {
+  opacity: .45; cursor: not-allowed;
+  background: #f1efe8; border-color: var(--line); color: var(--sub); box-shadow: none;
+}
+.btn.center { text-align: center; }
+.btn small { display: block; font-size: 12px; font-weight: 400; color: var(--sub); margin-top: 3px; }
+/* 只能由本人按、且一按就收不回来的那一类（撤回、拒收）：红字白底，鼠标移上去才转实。
+   不做成实心红——那是「马上要发生」，而这几个键按下去之前还有一次确认。 */
+.btn.danger { color: var(--red); background: var(--paper); border-color: #e4b4b4; }
+.btn.danger:hover { background: #fdf4f4; border-color: var(--red); }
+.btn.danger:active { background: #fcebeb; border-color: var(--red); }
+
+/* ---- 行内小键 ---- */
+.mini, .op {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 38px; margin: 0; padding: 8px 14px;
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.mini:hover, .op:hover { border-color: var(--muted); background: #faf9f5; }
+.mini:active, .op:active { background: #f1efe8; }
+.mini.primary { color: var(--blue); background: var(--blue-bg); border-color: var(--blue-l); }
+.mini.primary:hover { background: #dbeaf9; border-color: var(--blue); }
+.mini[disabled], .op[disabled] { opacity: .45; cursor: not-allowed; background: var(--paper); border-color: var(--hair); }
+
+/* ---- 卡片里那一个入口（「打开」「去交付」「继续交付」） ---- */
+.go {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 38px; margin: 0; padding: 6px 14px;
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--blue); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.go:hover { border-color: var(--blue); background: var(--blue-bg); }
+.go:active { background: #dbeaf9; }
+.go[disabled] { color: var(--faint); border-color: var(--hair); background: var(--paper); cursor: not-allowed; }
+
+/* ---- 导航卡：大厅的门、接任务的三张、接入与查账的条目 ---- */
+.dcard, .door, .linkcard {
+  display: block; margin-bottom: 10px; padding: 15px 17px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg);
+  color: inherit; text-decoration: none;
+  transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.dcard:hover, .door:hover, .linkcard:hover { border-color: var(--muted); box-shadow: 0 1px 3px rgba(44, 44, 42, .06); }
+.dcard:active, .door:active, .linkcard:active { background: #faf9f5; box-shadow: none; }
+/* 有底色的那几张（发布/浏览/已接、大厅的「热门门」）把描边换成同色系的深一号，
+   否则一 hover 就变成灰边，看着像掉了色。 */
+.dcard.pub:hover { border-color: var(--blue); }
+.dcard.browse:hover, .door.hot:hover { border-color: #993c1d; }
+.dcard.taken:hover { border-color: var(--green); }
+.dcard b, .door b, .linkcard b { font-size: 15px; font-weight: 500; }
+/* 导航卡右上角那枚「↗」是说明，不是第二个按键：退回成纯文字。 */
+.dcard .go, .door .go, .linkcard .go {
+  float: right; min-height: 0; padding: 0; margin-left: 10px;
+  font-size: 12px; color: var(--muted);
+  background: none; border: 0; border-radius: 0;
+}
+.dcard .go:hover, .door .go:hover, .linkcard .go:hover { background: none; color: var(--sub); }
+
+/* 选中的那一档整块跟着变色：只靠一个小圆点，手机上不容易看出选了哪个。
+   选择器要带上 .card.form，否则压不过页内 `.card.form .way`（三个类）。 */
+.card.form .way:has(input:checked) { border-color: var(--blue-l); background: var(--blue-bg); }
+.card.form .way:has(input:focus-visible) { outline: 2px solid var(--blue-l); outline-offset: 2px; }
+
+/* ---- 语言切换：每页最上面一行，靠右 ---- */
+/* 为什么单独占一行、而不是塞进 .head 或 .back：这两处每页长得都不一样
+   （大厅是「站名 + 一句话」，内页是「← 回大厅」，账本页是「← 返回查账与下载」），
+   塞进去要一页一页调对齐，改一次十几处。单独一行就只有一个位置要维护。
+   不做 position:fixed：它要盖在内容上，滚起来还挡字，而这一格只需要「一眼看见」。 */
+/* 底色用浅蓝、不用白：白底小胶囊在米色页面上几乎化进背景，只看得见一圈细边。
+   也不做成实心蓝——那是主键（.btn.primary）的份量，语言切换是次要动作。 */
+.langrow { display: flex; justify-content: flex-end; margin: -4px 0 6px; }
+.lang {
+  display: inline-flex; align-items: center; min-height: 30px; padding: 4px 12px;
+  font-size: 12px; line-height: 1; color: var(--blue); background: var(--blue-bg);
+  border: 1px solid var(--blue-l); border-radius: 999px; text-decoration: none;
+}
+.lang:hover { border-color: var(--blue); background: #dbeaf9; }
+
+/* ---- 访问量：一行字。它是次数，不是指标 ---- */
+/* 不做卡片、不做分页分布、不做图表——口径与 app.py 的 Visits 类一致：
+   只回答「首页被打开过多少次」。数字用等宽 + tabular-nums，位数变了不跳。
+   `[hidden]` 要显式压一下：下面 .visits 设了 margin，否则取不到数时那条
+   空行仍然占位，页脚会莫名其妙地偏低。 */
+.visits { margin: 2rem 0 0; text-align: center; font-size: 13px; color: var(--muted); letter-spacing: .02em; }
+.visits[hidden] { display: none; }
+.visits b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* ---- 键盘可见的焦点环：鼠标点击不出现，Tab 一定出现 ---- */
+a:focus-visible, button:focus-visible, summary:focus-visible,
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--blue-l); outline-offset: 2px;
+}
+
+/* ---- 手机：触控目标不低于 44px，正文不缩到看不清 ---- */
+@media (max-width: 560px) {
+  .wrap { padding: 14px 14px 26px; }
+  h1 { font-size: 19px; }
+  h2 { margin-top: 22px; }
+  .banner { font-size: 12px; padding: 5px 10px; }
+  .back { min-height: 44px; margin-bottom: 6px; }
+  /* 语言切换和 .back 一样是「点一下就走」的链接，手机上同给 44px：这一格在右上角，
+     指头落点比视线更难对准。 */
+  .lang { min-height: 44px; padding: 4px 16px; font-size: 14px; }
+  .btn { font-size: 16px; min-height: 52px; padding: 14px 16px; }
+  .mini, .op { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  .go { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  /* 页内 `.req .go`、`.mine .row button.op` 比上面两条更具体，字号得单独抬一档。 */
+  .req .go, .mine .row button.op { font-size: 14px; }
+  .bar .mini { font-size: 14px; }
+  .dcard .go, .door .go, .linkcard .go { min-height: 0; padding: 0; font-size: 12px; }
+  /* 卡片底栏：手机上一行放不下「期限 + 按键」，就让按键独占一行，整行可点。 */
+  .req .foot .go { width: 100%; }
+  /* iOS 在 < 16px 的输入框上会强制放大页面：这一处必须压过页内的 14px。 */
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* ---- 桌面：一栏还是那一栏，留白多一点，别把内容拉成一条长线 ---- */
+@media (min-width: 900px) {
+  .wrap { max-width: 680px; padding: 24px 20px 40px; }
+  .btn { min-height: 48px; }
+}
+/* ==== DG-UI END ==== */
+
+  .big { font-size: 24px; font-weight: 600; }
+  .num { font-variant-numeric: tabular-nums; font-weight: 500; }
+  table.m { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.m th { text-align: left; font-weight: 500; color: #5f5e5a; padding: 6px 4px; border-bottom: 1px solid #d3d1c7; }
+  table.m td { padding: 6px 4px; border-bottom: 1px dashed #e5e3db; font-variant-numeric: tabular-nums; }
+  table.m td.bar-cell { width: 42%; }
+  .bar { height: 8px; background: #185fa5; border-radius: 4px; min-width: 2px; }
+</style></head>
+<body>
+<div class="wrap">
+  <div class="langrow"><a class="lang" href="/numbers">中文</a></div>
+
+  <a class="back" href="/en/home">← Back to lobby</a>
+  <h1>Public-good numbers</h1>
+  <p class="sub">What can be measured is shown as a number; what cannot is shown with the reason. No scores, no rankings, no targets.</p>
+
+  <div class="anchor">
+    <b>Data generated at</b>
+    <code id="genAt">Fetching…</code>
+    <p>A scheduled job on the server computes this once a day; this page only reads that result and never counts on the fly.</p>
+  </div>
+
+  <div class="card warn" id="warnBox" hidden>
+    <b>No numbers available</b>
+    <p>The endpoint returned nothing. This page would rather stay empty than print 0: zero is a claim, and right now we do not know.</p>
+  </div>
+
+  <h2>External reads</h2>
+  <p class="sub">Window: the last 7 calendar days, cut by Beijing time.</p>
+  <div class="card">
+    <div class="row"><code>External reads</code><span class="num big" id="ext">—</span></div>
+    <div class="row"><code>Per day, average</code><span class="num" id="perDay">—</span></div>
+    <div class="row"><code>Distinct IPs</code><span class="num" id="ips">—</span></div>
+    <div class="row"><code>Excluded: our own probes</code><span class="num" id="self">—</span></div>
+    <div class="row"><code>Excluded: search-engine crawlers</code><span class="num" id="bot">—</span></div>
+  </div>
+
+  <div class="card warn">
+    <b>What this number is, and is not</b>
+    <p>It is not the non-member benefit rate. The read endpoints are anonymous and the logs carry no identity field at all, so “is this reader a member?” cannot be decided — see the third section below for why.</p>
+    <p>It is an upper bound: a hand-run curl with a different user agent lands in it too. Read it as a trend, not as an achievement.</p>
+  </div>
+
+  <h2>External reads by day</h2>
+  <table class="m">
+    <thead><tr><th>Date</th><th>External</th><th>Self-test</th><th>Crawlers</th><th class="bar-cell"></th></tr></thead>
+    <tbody id="daily"></tbody>
+  </table>
+
+  <h2>What gets read</h2>
+  <p class="sub">The eight paths with the most external reads.</p>
+  <table class="m">
+    <thead><tr><th>Path</th><th>Count</th></tr></thead>
+    <tbody id="paths"></tbody>
+  </table>
+
+  <h2>Ledger and reuse</h2>
+  <div class="card">
+    <div class="row"><code>Ledger entries</code><span class="num" id="items">—</span></div>
+    <div class="row"><code>Registered parties</code><span class="num" id="parties">—</span></div>
+    <div class="row"><code>Requests (by state)</code><span id="reqs">—</span></div>
+    <div class="row"><code>fork</code><span class="num" id="forks">—</span></div>
+    <div class="row"><code>star</code><span class="num" id="stars">—</span></div>
+    <div class="row"><code>Downloads, last month</code><span class="num" id="dl">—</span></div>
+  </div>
+
+  <h2>Three things we cannot measure</h2>
+  <div class="card warn">
+    <b>Non-member benefit rate · ratio</b>
+    <p>The read endpoints are anonymous; logs hold only IP and user agent. Computing it needs an optional identity on the read side — a protocol-level change that has to go through the notice period.</p>
+  </div>
+  <div class="card warn">
+    <b>Independent deployments / integrations</b>
+    <p>No public registry, no reporting endpoint, and no telemetry. Reporting behind people’s backs to feed a metric would be worse than not having the number.</p>
+  </div>
+  <div class="card warn">
+    <b>Share surviving 90 days</b>
+    <p>A survival rate needs a list of instances first; without the item above there is no item here.</p>
+  </div>
+
+  <h2>What this page does not do</h2>
+  <div class="card">
+    <p>No rankings, no scores, no treating a number as an achievement. Nor do we pass our own self-tests off as evidence of outside use — that is why probes and crawlers are listed apart instead of blended into the main figure.</p>
+    <p>Sources: Caddy access log (kept 30 days), GitHub API, pypistats. A machine-readable version sits at <code>/api/metrics</code>。</p>
+  </div>
+
+  <p class="next"><a href="/en/ledger">Next: ledger queries →</a></p>
+
+  <footer><p><a href="/en/home">Back to lobby</a>·<a href="mailto:2379731846@qq.com">Only contact address: 2379731846@qq.com</a></p></footer>
+</div>
+
+<script>
+/* 这一页不算数，只取数。所有数字来自 /api/metrics 那一份快照：
+   定时任务在服务器上算好，页面拿到什么显示什么。取不到就把「取不到」摆出来，
+   绝不退化成 0——0 会被读成「没人来」，而真实情况是「没在数」。 */
+(function () {
+  function n(v) {
+    if (v === null || v === undefined) return '—';
+    return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function txt(id, v) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = n(v);
+  }
+  function fail() {
+    var w = document.getElementById('warnBox');
+    if (w) w.hidden = false;
+    var g = document.getElementById('genAt');
+    if (g) g.textContent = '—';
+  }
+  if (!window.fetch) { fail(); return; }
+  fetch('/api/metrics', { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (d) {
+      var g = document.getElementById('genAt');
+      if (g) {
+        var age = (d.age_hours === null || d.age_hours === undefined) ? '' : d.age_hours + ' h';
+        g.textContent = (d.generated_at || '—') + (age ? ' · ' + age : '') + (d.stale ? ' · STALE' : '');
+      }
+      var rd = d.reads || {};
+      txt('ext', rd.external);
+      txt('perDay', rd.external_per_day);
+      txt('ips', rd.external_unique_ips);
+      txt('self', rd.self_probe);
+      txt('bot', rd.crawler);
+
+      var tb = document.getElementById('daily');
+      var rows = d.daily || [];
+      var mx = 1;
+      rows.forEach(function (r) { if (r.external > mx) mx = r.external; });
+      if (tb) {
+        tb.innerHTML = '';
+        rows.forEach(function (r) {
+          var tr = document.createElement('tr');
+          [r.date, n(r.external), n(r.self), n(r.crawler)].forEach(function (v) {
+            var td = document.createElement('td');
+            td.textContent = v;
+            tr.appendChild(td);
+          });
+          var barTd = document.createElement('td');
+          barTd.className = 'bar-cell';
+          var bar = document.createElement('div');
+          bar.className = 'bar';
+          bar.style.width = Math.max(2, Math.round(r.external / mx * 100)) + '%';
+          barTd.appendChild(bar);
+          tr.appendChild(barTd);
+          tb.appendChild(tr);
+        });
+      }
+
+      var tp = document.getElementById('paths');
+      if (tp) {
+        tp.innerHTML = '';
+        (d.top_paths || []).forEach(function (p) {
+          var tr = document.createElement('tr');
+          var a = document.createElement('td');
+          var code = document.createElement('code');
+          code.textContent = p.path;
+          a.appendChild(code);
+          var b = document.createElement('td');
+          b.textContent = n(p.n);
+          tr.appendChild(a);
+          tr.appendChild(b);
+          tp.appendChild(tr);
+        });
+      }
+
+      var lg = d.ledger || {};
+      txt('items', lg.items);
+      txt('parties', lg.parties);
+      if (lg.requests) {
+        var parts = [];
+        Object.keys(lg.requests).forEach(function (k) { parts.push(k + ' ' + lg.requests[k]); });
+        var re = document.getElementById('reqs');
+        if (re) re.textContent = parts.length ? parts.join(' · ') : '—';
+      }
+      var ru = d.reuse || {};
+      txt('forks', ru.github && ru.github.forks);
+      txt('stars', ru.github && ru.github.stars);
+      txt('dl', ru.pypi && ru.pypi.downloads_last_month);
+    })
+    .catch(fail);
+})();
+</script>
+</body>
+</html>

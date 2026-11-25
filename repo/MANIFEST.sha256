@@ -2,7 +2,7 @@
 # 生成：cd repo && python ../evidence/regen_repo_manifest.py
 # 校验：sha256sum -c MANIFEST.sha256
 # 口径：git ls-files --cached --others --exclude-standard（与 repo_lint 的 tracked_files 同源）
-# 生成时点：2026-11-25　条目：103
+# 生成时点：2026-11-25　条目：106
 #
 # 本清单只固定字节，不解释内容；条款与规范的含义以各文件正文为准。
 eb2a9bfb80d726dd2d2de8781f90607b47bb6b24e4af69863c6320954b9ab8fa  CONTRIBUTING.md
@@ -24,8 +24,9 @@ ca9c46d3e44764f99babfe1d619f86d3df3ec71b7653bb9e33378c5269700578  deploy/README.
 60bb8f33133ec9da7ad96a5f4e6e32a3272dc9b60aa6bcaea4fe8a8ead5858f2  deploy/app/Dockerfile
 c57da7345e605b7724166f85e71724fb7e022d91ee54b68f93f720628db6afd9  deploy/app/Dockerfile.ingest
 575e444a83c95753c928986f77372b823b9d292d9d7c27a04743b28c99796581  deploy/app/agent.md
-216072ce9c88a2a491a8ab6f6c61d3365c002e7f542f6edac0c6efd1fd3ceb70  deploy/app/app.py
+05463f5b977ee4b2d81bffe5239a503cb903ea97235fb703f655bc635a0b845b  deploy/app/app.py
 615bb80eb33a8ceaeda1abfa48e9d50c0a78b5bd53c4af59fb55b1f7227642ae  deploy/app/audit.md
+f872d86efc3e96964429aabd3e5bbac13dfebde12da091b17ec09c84880433a2  deploy/app/collect_metrics.py
 dfd02951a3958670087529e96cebdd7707a71b9a8b6ba6331cafc999ae8799e6  deploy/app/content/README.md
 0fad3142451026e3b8b35e543e0232216d4a84da80fc3cf978d7dff001718af4  deploy/app/content/en/home.html
 25b88d5b4b48c137d5b6ff264372e73d534cff4044e10da71882c60f029cd803  deploy/app/content/en/testing.html
@@ -46,7 +47,7 @@ e3a1603924144196290db4f0312f80d73697a30efcdf98f1361641d6118eb377  deploy/app/sel
 91d6c3cf233ab475e2d0be04172ea99a713861d929107aa7b08b6592f61771a8  deploy/app/signing.py
 7d04b6d182886b08ea8ad7a460f58be03d3b6e57babc9be7d7e42e62fd53e67b  deploy/compose.yml
 05a21bd99aeaf1cfcc8daf45c8849f1fe14b95241771f8c76f92cbde327c0067  deploy/daily.sh
-3e76bf5d4d00192b144c9bbb8dd464704e3196d66bd35c78ebc49ac929770fa1  deploy/git-hooks/post-receive
+ae6c53a81464453aea304e9928948435ae90ac5f58e8d58f17cae8efc9f3b6c6  deploy/git-hooks/post-receive
 45d8111ffbd09b665cbdd2abcda1a009398d7f4e0b6532af86b9ab0f924fb378  deploy/git-hooks/update
 965785e6b52fb4b3a53daa98cf0edeaebb73066495dc904f6921ea7cc38d3697  deploy/site/agents.html
 9792f04ccf92fbb7382d14a66dc4732d10e9cbea3b57b31354cf7f4a8967f73e  deploy/site/browse.html
@@ -60,9 +61,10 @@ c2db4572fe51efd5c2f3c4b22580b2167d471adaf7373b20aef32456c8372fdd  deploy/site/en
 379c6b5437e531e47807c680ca3c0f8560d747932dc7d03e9dee003e74504d43  deploy/site/en/deliver.html
 5d7c95b08bd75758323796816fef8512910297f24dd90af42f5b46e4f4092030  deploy/site/en/feedback.html
 22b020acbc82777b458d09163dab366c09df3608cd58bfc52f6d99aa85d15268  deploy/site/en/home.html
-d938a406895be95efc90b4ec073e5ff2c8baf6d1f8224667922eb78c8d1b200a  deploy/site/en/ledger.html
+ef1fba8f303002eab7cb4a8aca868c7305d3cb36908a6c928454922a7d2d04c7  deploy/site/en/ledger.html
 6f6fbdfd6eccb8edfcb992a60d371d5a1d236bc694d686f4593394af13ed1f12  deploy/site/en/mine.html
 49013b744a977b8067d0b5335b2e6c6a1ea04f80b672b676c28595602c238de7  deploy/site/en/notices.html
+d2ff2b6d281434e295005a637c519d856602c09c5e87ef0e37a67842aa5b649c  deploy/site/en/numbers.html
 6cb1ed1f5599780373eca3c72418fc9be55e8d3da34cd5e7e85c8a7a8df22e27  deploy/site/en/post.html
 14282d5b5e6546a9495b32427340ee06afb5ee7b8387e1316becab6ed34153ab  deploy/site/en/taken.html
 6953182d98289213d2c06b22863d1433d96b65cd495317e27e8a29d43ed55ce8  deploy/site/en/tasks.html
@@ -70,9 +72,10 @@ d938a406895be95efc90b4ec073e5ff2c8baf6d1f8224667922eb78c8d1b200a  deploy/site/en
 dab4c22438083fd6a6441c0eb3414075c84d7a98648affe9d539bd8332d7594a  deploy/site/en/verify.html
 238bc0ca301a5a263c63dcda749c1b18f5c7d998b5267274f334edd68d5873f1  deploy/site/feedback.html
 1769cfa81a02cfcf67fd5abfe92319cdb76a62be12297e3b0cc89b6ff58cf478  deploy/site/home.html
-d361ebeaa448960e172c3de9df263b923e7d2e6037530d057e9386b57e38ad14  deploy/site/ledger.html
+988c95dd7ff42da4a67dcc36ca21a8b1acb88811a1492738bf2667a4463ce65a  deploy/site/ledger.html
 801bb513d9e6f0342af4a23d656ff525c1a2f85748cc93989d151cd0c9b28f8e  deploy/site/mine.html
 d905e9f2c6e4363cb9a038363330b64e7896ceffaf45b06922952187608cb65e  deploy/site/notices.html
+e146e38636c637c1253a00e761c5472a5f7051c6e548c71d3b172c35613c92cf  deploy/site/numbers.html
 761285fd99db2812b07a857e21b1aa851773be7d0a4b4e7037494d08c580801f  deploy/site/post.html
 3298d703f535a8f670aaabd5800f4aee57314af208025b6281538e6cf99e7a9e  deploy/site/taken.html
 d4db66d4f56d611911acff93e4526421eaa0bf033d1815489dada32c1c01e52e  deploy/site/tasks.html

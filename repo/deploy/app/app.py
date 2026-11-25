@@ -111,6 +111,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
@@ -127,6 +128,13 @@ from ledger_store import (REQUEST_STATES, decode_cursor, load_confirmations,
 import legal
 
 DB_PATH = os.environ.get("LEDGER_DB", "data/ledger.db")
+
+# 公共品指标的快照（2026-11-25 加）。**不是本进程算的**：由宿主机的定时任务
+# `collect_metrics.py` 从 Caddy 的 access.log 与 GitHub/PyPI 取数后写在这里，
+# 本进程只读、只补一个「几小时前的」。放在账本目录旁边而不是塞进账本库：
+# 指标是观测，账本是事实，两者混一起会让备份、锚值、迁移都多一层无关变量。
+METRICS_PATH = os.environ.get("METRICS_JSON") or os.path.join(
+    os.path.dirname(DB_PATH), "metrics.json")
 
 # 给 agent 的接入指南。放磁盘而不是内嵌成字符串：它是一份会被反复改的文档，
 # 而内嵌进代码的文档只有一种下场——代码里那份和仓库里那份慢慢不一样，且没人发现。
@@ -1801,6 +1809,7 @@ def render_llms() -> bytes:
 站点 https://drawcommons.org · 本文件 https://drawcommons.org/llms.txt
 面向机器的完整说明：https://drawcommons.org/agent.md （约 14 KB，含可直接跑的接入脚本）
 **不想注册、只想核对数字**：https://drawcommons.org/audit.md （只读，8 项检查，一次跑完）
+**想先看数字**：https://drawcommons.org/numbers （能测的写成数，测不出的写成原因）
 
 ## 这是什么
 
@@ -1814,6 +1823,8 @@ def render_llms() -> bytes:
 - `GET /api/ledger/verify` — 链校验：`ok` / `first_bad` / `items` / `chain_tail`（服务端自述，可自行复算）
 - `GET /api/ledger/export` — 导出件原文；它的 sha256 就是锚值
 - `GET /api/v1/requests` — 需求单（`?state=open` 只看可接的）
+- `GET /api/metrics` — 公共品指标快照：外部读取量、账本与复用，外加「测不出来的三项」
+  （数据由服务器上的定时任务每天算一次；读口不认证，所以**没有**「非成员受益率」的比例）
 
 ## 现在的状态（每次请求现算，不缓存）
 
@@ -2902,6 +2913,10 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_requests_page("en" if path.startswith("/en/") else "zh")
         elif path.startswith("/r/"):
             self._serve_request(path[len("/r/"):])
+        # 公共品指标的只读出口（G8′ 可观测门）。数据是宿主机定时任务算好的快照，
+        # 这里不解析日志、不碰 IP——原始日志留在 caddy 容器里，公开读口够不着。
+        elif path == "/api/metrics":
+            self._serve_metrics()
         elif path == "/api/ledger/items":
             # indent=2：浏览器直接打开也整齐可读；量小（测试期），排版开销可忽略
             body = json.dumps(
@@ -2943,6 +2958,42 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_audit_md()
         else:
             self._send(404, b'{"error":"not found"}', "application/json")
+
+    def _serve_metrics(self) -> None:
+        """公共品指标快照。只读一份 JSON，不现算、不碰原始日志。
+
+        三种「没有数」分开报，因为读者要做的事不同：
+        - 文件不在 → 503 `metrics_not_collected`：定时任务还没跑过，或挂错路径。
+        - 文件坏了 → 503 `metrics_unreadable`。
+        - 文件在但旧 → 200 + `stale` + `age_hours`：任务停了。**旧数照常给**，
+          只标明「这不是今天的数」——藏起来会让人读成 0，而 0 是一个断言。
+        """
+        try:
+            with open(METRICS_PATH, "rb") as f:
+                obj = json.loads(f.read().decode("utf-8"))
+        except FileNotFoundError:
+            self._json(503, {
+                "ok": False, "endpoint": "metrics",
+                "error": "metrics_not_collected",
+                "detail": "定时任务尚未生成快照；页面此时应显示「取不到」，不要显示 0",
+            })
+            return
+        except Exception as e:
+            self._json(503, {
+                "ok": False, "endpoint": "metrics",
+                "error": "metrics_unreadable", "detail": str(e)[:200],
+            })
+            return
+        ts = obj.get("generated_ts")
+        if isinstance(ts, int):
+            age = max(0, int(time.time() - ts))
+            obj["age_hours"] = round(age / 3600.0, 1)
+            # 36 小时：日更任务漏一次还不算坏（人在睡觉），漏两次就是停了。
+            obj["stale"] = age > 36 * 3600
+        else:
+            obj["age_hours"] = None
+            obj["stale"] = True
+        self._json(200, obj)
 
     def _count_home_visit(self) -> None:
         """主页那个数字：记一次，再把累计数回给页面。

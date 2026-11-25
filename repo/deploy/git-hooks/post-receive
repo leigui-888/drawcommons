@@ -119,8 +119,12 @@ if [ -d "$APP_DIR" ] && command -v docker >/dev/null 2>&1; then
     # r6 起同一个 build context 出两个镜像：app（只读）与 ingest（写入面）。
     # 少同步一个文件的后果是「仓库里改了、线上构建用的还是旧的」，而日志一切正常
     # ——这正是 2026-11-12 那次四小时未上线的原因，所以按 context 全量列。
+    # 2026-11-25 加 `collect_metrics.py`：它不是服务进程，是宿主机的定时任务要跑的
+    # 采集脚本。放进这张表是为了「仓库里改了什么、机器上跑的就是什么」——把它留在
+    # 仓库里而不同步，cron 跑的就是上一次手抄的副本，指标会静默停在旧口径上。
     for f in app.py ledger_hash.py ledger_store.py legal.py Dockerfile \
-             ingest.py signing.py Dockerfile.ingest agent.md audit.md; do
+             ingest.py signing.py Dockerfile.ingest agent.md audit.md \
+             collect_metrics.py; do
         if head_file "repo/deploy/app/$f" > "$APP_DIR/$f.new" 2>/dev/null && [ -s "$APP_DIR/$f.new" ]; then
             if cmp -s "$APP_DIR/$f.new" "$APP_DIR/$f"; then
                 rm -f "$APP_DIR/$f.new"
