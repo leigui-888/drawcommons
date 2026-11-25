@@ -20,7 +20,7 @@
 
 | 步 | 你算的东西 | 它推翻什么 |
 | --- | --- | --- |
-| A | `sha256(导出件原始字节)` 与页面上印的锚值是否逐字符相等 | 「锚值是装饰」——不等，说明页面上的值不是这份字节的哈希 |
+| A | `sha256(导出件原始字节)` 与公示的锚值（`/llms.txt`，服务端现算）是否逐字符相等 | 「锚值是装饰」——不等，说明公示出来的值不是这份字节的哈希 |
 | B | `count`、`len(items)`、`verify.items`、`/llms.txt` 的条数是否同一个数 | 「各页各说各话」——复盘时真抓到过：文档写 4、实际 6 |
 | C | `verify.ok` 是否为 `true`，`chain_tail` 是否等于最后一条的 `hash` | 「链断了却还在说 ok」 |
 
@@ -47,18 +47,24 @@ def bad(msg):  global FAIL; FAIL += 1; print("FAIL  " + msg)
 # ── A. 锚值 ────────────────────────────────────────────────────────────────
 raw = get("/api/ledger/export")                     # 原始字节，不解码
 calc = hashlib.sha256(raw).hexdigest()
-page = re.search(r"[0-9a-f]{64}", get("/ledger").decode("utf-8"))
-llms = re.search(r"[0-9a-f]{64}", get("/llms.txt").decode("utf-8"))
+page = get("/ledger").decode("utf-8")
+m = re.search(r"锚值（`/api/ledger/export` 的 sha256）[：:]\s*\n?\s*([0-9a-f]{64})",
+              get("/llms.txt").decode("utf-8"))
+llms = m.group(1) if m else None
 
 ok(f"A1 导出件长度 {len(raw)} 字节，sha256={calc}")
-if page and calc == page.group(0):
-    ok("A2 页面印的锚值 = 你算的")
+# /ledger 有两种形态：应用层渲染时直接印完整锚值；线上静态页只用 JS 现取
+# /llms.txt、HTML 里只有一个 8 位入口。两种都算对，但必须有一条路给出可比对的值。
+if calc in page:
+    ok("A2 /ledger 页印的锚值 = 你算的")
+elif 'id="anchorVal"' in page and "/llms.txt" in page:
+    ok("A2 /ledger 页不自带写死的锚值，交给 /llms.txt 现算")
 else:
-    bad(f"A2 页面印的是 {page.group(0) if page else '（找不到）'}，实算 {calc}")
-if llms and calc == llms.group(0):
-    ok("A3 llms.txt 的锚值 = 你算的")
+    bad("A2 /ledger 页既没有锚值，也没有指向 /llms.txt 的入口")
+if llms and calc == llms:
+    ok("A3 /llms.txt 公示的锚值 = 你算的")
 else:
-    bad(f"A3 llms.txt 写的是 {llms.group(0) if llms else '（找不到）'}，实算 {calc}")
+    bad(f"A3 /llms.txt 写的是 {llms if llms else '（找不到）'}，实算 {calc}")
 
 # ── B. 条数：四个来源必须同一个数 ──────────────────────────────────────────
 items  = json.loads(get("/api/ledger/items"))
@@ -113,7 +119,8 @@ PY
 
 ```bash
 curl -s https://drawcommons.org/api/ledger/export | sha256sum
-# 再打开 https://drawcommons.org/ledger 对照页面上印的那串
+# 再打开 https://drawcommons.org/llms.txt 对照「锚值」那一行
+#（/ledger 页只给前 8 位的入口；全值以 /llms.txt 与你自己算的为准）
 ```
 
 ## 4. 怎么报

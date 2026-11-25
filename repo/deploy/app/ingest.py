@@ -707,6 +707,24 @@ def preflight() -> list[str]:
               "entry_confirm", "ingest_nonce"):
         if t not in have:
             problems.append(f"库缺表 {t}——先跑 spec/ddl_w4.sql 与 spec/ddl_v1.4.sql")
+    # 只查「表在不在」挡不住 2026-11-25 那次事故：库停在 v1.4、代码已到 v1.7，
+    # 认领时 `cur["poster_email"]` 抛的是 **IndexError**，不是 sqlite3.Error——
+    # 连 ledger_store 里那些 `except sqlite3.Error` 的兜底都接不住，直接 500。
+    # 加列比加表危险得多：加表能被 try/except 变软成「这个功能没有」，加列会穿透。
+    # 所以这里按列签名再核一遍，让「库落后于代码」在容器启动时就喊出来，
+    # 而不是等第一个认领的人替我们撞上。
+    need_cols = {"request": ("poster_email", "claimer_email")}
+    try:
+        con = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+        for t, cols in need_cols.items():
+            present = {r[1] for r in con.execute(f"PRAGMA table_info({t})")}
+            lack = [c for c in cols if c not in present]
+            if lack:
+                problems.append(f"库缺列 {t}.{','.join(lack)}"
+                                "——库落后于代码，先跑 spec/ddl_v1.7.sql")
+        con.close()
+    except sqlite3.Error as exc:
+        problems.append(f"核列失败（{type(exc).__name__}: {exc}）")
     # 写得进去才算数。只查表存在的话，卷以只读挂入或宿主 uid 不对时，启动会「成功」，
     # 然后每一条写入都 500——而日志里只有一堆 traceback，看不出是权限。
     # `BEGIN IMMEDIATE` 拿一次写锁再回滚：不改一个字节，但确实证明了能写。

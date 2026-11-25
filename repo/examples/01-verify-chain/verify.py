@@ -5,7 +5,7 @@
 
     1. 每条记录的 hash == sha256(prev_hash + "\\n" + canonical(entry))
     2. prev_hash 真的指向上一条的 hash（链没有断点）
-    3. /api/ledger/export 的字节 sha256 == 页面上印的锚值
+    3. /api/ledger/export 的字节 sha256 == 公示的锚值（/llms.txt，服务端现算）
 
 只有标准库，不需要账号、密钥、也不需要装任何东西。
 
@@ -64,13 +64,19 @@ def get(url: str, binary: bool = False):
 
 
 def page_anchor(base: str) -> str | None:
-    """从 /ledger 页面里读人眼可见的锚值。
+    """从 /llms.txt 读公示的锚值（服务端每次请求现算）。
 
-    刻意用正则而不是 HTML 解析器：这里要抓的是「页面上写着的那串字符」，
-    用宽松的匹配反而更诚实——若页面结构变了抓不到，应当报错，而不是静默跳过。
+    2026-11-25 改到这里：此前抓的是 `/ledger` 页里 `class="val">64位<` 的那串，
+    而 `/ledger` 早已改成用 JS 现取 `/llms.txt`——页面 HTML 里根本没有 64 位值，
+    这个正则必然抓空、脚本必然 exit 1，链与锚值本身却是对的。**判据指错了地方，
+    报出来的「不通过」就是假的。**
+
+    现在只认一处真源：`/llms.txt` 里「锚值（`/api/ledger/export` 的 sha256）：」
+    这一行下面的那个值。仍然用正则而不是解析器：要抓的是「文本里写着的那串字符」，
+    若文档结构变了抓不到，应当报错，而不是静默跳过或去猜别处的 64 位串。
     """
-    html = get(base.rstrip("/") + "/ledger", binary=True).decode("utf-8", "replace")
-    m = re.search(r'class="anchor".*?class="val">([0-9a-f]{64})<', html, re.S)
+    txt = get(base.rstrip("/") + "/llms.txt", binary=True).decode("utf-8", "replace")
+    m = re.search(r"锚值（`/api/ledger/export` 的 sha256）[：:]\s*\n?\s*([0-9a-f]{64})", txt)
     return m.group(1) if m else None
 
 
@@ -90,7 +96,7 @@ def check_chain(items: list[dict]) -> tuple[bool, int | None, str]:
 
 
 def check_anchor(base: str, raw: bytes) -> tuple[bool, str]:
-    """页面印的锚值 vs 导出件字节算出来的。
+    """公示的锚值（`/llms.txt`）vs 导出件字节算出来的。
 
     `raw` 由调用方传进来：同一份字节既算锚值又数确认条数，只取一次。
     早先这里自己再取一次，于是 items 与 export 是两次独立 GET——中间只要有
@@ -99,10 +105,10 @@ def check_anchor(base: str, raw: bytes) -> tuple[bool, str]:
     actual = hashlib.sha256(raw).hexdigest()
     printed = page_anchor(base)
     if printed is None:
-        return False, "页面上找不到锚值（页面结构可能变了），无法比对"
+        return False, "取不到公示锚值（/llms.txt 结构可能变了），无法比对"
     if printed != actual:
         return False, f"页面锚值 {printed[:16]}… ≠ 导出件实测 {actual[:16]}…"
-    return True, f"锚值 {actual[:16]}…（页面印的与字节算的一致）"
+    return True, f"锚值 {actual[:16]}…（/llms.txt 公示的与字节算的一致）"
 
 
 def tamper(items: list[dict]) -> list[dict]:
@@ -173,7 +179,7 @@ def main() -> int:
         try:
             ok_anchor, anchor_why = check_anchor(base, raw_export)
         except Exception as e:                               # noqa: BLE001
-            print(f"取数失败（/ledger）：{e}", file=sys.stderr)
+            print(f"取数失败（/llms.txt）：{e}", file=sys.stderr)
             print("（页面拿不到 = 取不到数据，不是锚值对不上——退出码 2）", file=sys.stderr)
             return 2
 

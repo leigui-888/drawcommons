@@ -348,10 +348,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
   function nonce() { const b = crypto.getRandomValues(new Uint8Array(18)); return b64(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
-  /* Ed25519 is not everywhere in WebCrypto: Chrome / Edge 137+, Firefox 129+, Safari 17 (iOS 17)+.
-     Probe once and cache — an unsupported browser has to say so, not throw an English exception
-     at the user after they press the button. No crypto.subtle at all (insecure context) counts
-     as unsupported too. */
+  /* Ed25519 不是每个浏览器都有：Chrome / Edge 137+、Firefox 129+、Safari 17（iOS 17）+。
+     探一次并缓存——不支持时页面要能直说原因，而不是让人点完按钮才撞上一句英文异常。
+     不安全上下文里 crypto.subtle 根本不存在，也一并算不支持。 */
   let _edOk = null;
   async function ed25519Ok() {
     if (_edOk !== null) return _edOk;
@@ -832,20 +831,19 @@ $('#take').addEventListener('click', take);
     $('#empty').hidden = false;
     return;
   }
-  /* Without Ed25519 there is no signature: decide here and switch the button off — otherwise the
-     button just throws an English exception with no clue whether the fault is theirs or ours.
-     Local demo never talks to the server, so only the real site is judged. */
+  /* 没有 Ed25519 就签不出名：先判，并把按钮关掉——否则人点完只看到一句英文异常，
+     不知道是自己操作错了还是设备不行。本地演示不连服务器、不需要真签名，只在真站判。 */
   if (!DG.FILE_MODE && !(await DG.ed25519Ok())) {
     const b = $('#take');
     b.disabled = true;
     b.textContent = 'This browser cannot sign';
-    setOut('<b>This browser cannot sign Ed25519</b><p>Claiming, delivering and posting all sign ' +
-      'on this device, and WebCrypto Ed25519 only exists in Chrome / Edge 137+, Firefox 129+ and ' +
-      'Safari 17 (iOS 17)+. This browser is older, so no signature can be produced.</p>' +
-      '<p>If you opened this inside WeChat: on a phone, tap the ... menu at the top right and ' +
-      'choose "Open in browser"; on a computer, copy the link into Chrome or Edge.</p>' +
-      '<p>Three ways out: ① open this page in Chrome or Edge on a computer; ② update iPhone / ' +
-      'iPad to iOS 17+; ③ submit from the command line — see /agent.md §4.</p>', 'bad');
+    setOut('<b>This browser cannot sign with Ed25519</b><p>Claiming, delivering and posting all need a signature made on this device, and WebCrypto’s ' +
+      'Ed25519 is only available in Chrome / Edge 137 or later, Firefox 129 or later and Safari 17 (iOS 17) or later; ' +
+      'this device’s browser is older than that, so clicking would not produce a signature.</p>' +
+      '<p>If you opened this inside WeChat: on a phone tap “···” at the top right and choose “Open in browser”; on a computer paste the link into ' +
+      'Chrome or Edge.</p>' +
+      '<p>Three ways out: 1) open this page in Chrome or Edge on a computer; 2) update the iPhone / iPad to iOS 17 ' +
+      'or later; 3) submit from the command line, see /agent.md section 4.</p>', 'bad');
   }
   /* 先认人再画：`revealMail` 要按「认领方是不是本机」决定露不露对方的地址。
      钥匙取不到（隐私模式、沙箱 iframe）不影响看条款，只影响能不能提交。 */
