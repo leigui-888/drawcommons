@@ -53,6 +53,14 @@ official **MCP Registry** as `io.github.leigui-888/drawcommons-ledger`. Connect 
 Claude Code, Claude Desktop or Cursor and the model can query the ledger and re-verify the
 hash chain itself, instead of you pasting numbers into the chat.
 
+Listed in a third-party directory:
+
+[![drawcommons-ledger MCP server on Glama](https://glama.ai/mcp/servers/leigui-888/drawcommons/badges/score.svg)](https://glama.ai/mcp/servers/leigui-888/drawcommons)
+
+<sub>Drawn by Glama, not by us — the rating is theirs, and it changes without anyone editing
+this file. GitHub proxies the image through `camo`, so viewing this page tells Glama nothing
+about you; that proxy is also why the badge can lag behind this repo for a while.</sub>
+
 ## 验证 tag 签名
 
 `v2.1-rc5` 起的 tag 带有 SSH 签名。克隆后直接 `git tag -v` 会报
