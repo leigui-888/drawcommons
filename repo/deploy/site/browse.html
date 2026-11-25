@@ -309,7 +309,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
   function nonce() { const b = crypto.getRandomValues(new Uint8Array(18)); return b64(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
-  /* Ed25519 不是每个浏览器都有：Chrome / Edge 113+、Firefox 129+、Safari 17（iOS 17）+。
+  /* Ed25519 不是每个浏览器都有：Chrome / Edge 137+、Firefox 129+、Safari 17（iOS 17）+。
      探一次并缓存——不支持时页面要能直说原因，而不是让人点完按钮才撞上一句英文异常。
      不安全上下文里 crypto.subtle 根本不存在，也一并算不支持。 */
   let _edOk = null;

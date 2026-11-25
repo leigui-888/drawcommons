@@ -309,7 +309,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
   function nonce() { const b = crypto.getRandomValues(new Uint8Array(18)); return b64(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
-  /* Ed25519 is not everywhere in WebCrypto: Chrome / Edge 113+, Firefox 129+, Safari 17 (iOS 17)+.
+  /* Ed25519 is not everywhere in WebCrypto: Chrome / Edge 137+, Firefox 129+, Safari 17 (iOS 17)+.
      Probe once and cache — an unsupported browser has to say so, not throw an English exception
      at the user after they press the button. No crypto.subtle at all (insecure context) counts
      as unsupported too. */

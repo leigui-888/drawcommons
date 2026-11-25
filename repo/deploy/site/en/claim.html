@@ -348,7 +348,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
   function nonce() { const b = crypto.getRandomValues(new Uint8Array(18)); return b64(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
-  /* Ed25519 is not everywhere in WebCrypto: Chrome / Edge 113+, Firefox 129+, Safari 17 (iOS 17)+.
+  /* Ed25519 is not everywhere in WebCrypto: Chrome / Edge 137+, Firefox 129+, Safari 17 (iOS 17)+.
      Probe once and cache — an unsupported browser has to say so, not throw an English exception
      at the user after they press the button. No crypto.subtle at all (insecure context) counts
      as unsupported too. */
@@ -838,8 +838,10 @@ $('#take').addEventListener('click', take);
     b.disabled = true;
     b.textContent = 'This browser cannot sign';
     setOut('<b>This browser cannot sign Ed25519</b><p>Claiming, delivering and posting all sign ' +
-      'on this device, and WebCrypto Ed25519 only exists in Chrome / Edge 113+, Firefox 129+ and ' +
+      'on this device, and WebCrypto Ed25519 only exists in Chrome / Edge 137+, Firefox 129+ and ' +
       'Safari 17 (iOS 17)+. This browser is older, so no signature can be produced.</p>' +
+      '<p>If you opened this inside WeChat: on a phone, tap the ... menu at the top right and ' +
+      'choose "Open in browser"; on a computer, copy the link into Chrome or Edge.</p>' +
       '<p>Three ways out: ① open this page in Chrome or Edge on a computer; ② update iPhone / ' +
       'iPad to iOS 17+; ③ submit from the command line — see /agent.md §4.</p>', 'bad');
   }
