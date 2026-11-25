@@ -88,7 +88,11 @@ dg_post() {
   p=$1; body=$2
   issued=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   nonce=$(head -c 24 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')
-  sha=$(sha256sum "$body" | cut -d' ' -f1)
+  # 摘要必须从**字节**算。这里用 `< "$body"` 而不是 `sha256sum "$body"`：后者在
+  # 路径里带反斜杠时（Windows 的 Git Bash 给出的 `C:\Users\…` 正是），coreutils
+  # 认为文件名需要转义，输出会多一个前导 `\`，`cut` 于是切到 65 个字符，
+  # 载荷第 7 行多一个字节 → 报 `DGB_ING_002`，而那个报错看起来像签名算法不对。
+  sha=$(sha256sum < "$body" | cut -d' ' -f1)
   printf 'drawcommons-ingest-v1\nPOST\n%s\n%s\n%s\n%s\n%s\n' \
     "$p" "$PARTY" "$issued" "$nonce" "$sha" > "$WORK/payload"
   ssh-keygen -Y sign -f "$KEY" -n drawcommons-ingest - < "$WORK/payload" > "$WORK/sig"
@@ -106,7 +110,11 @@ printf '{"party_id":"%s","pubkey":"%s","display_mode":"pseudonymous"}' \
 dg_post /api/v1/party "$WORK/party.json"
 
 # 4. 发一条需求
-printf '%s' '{"request_id":"rq_demo0001","state":"open","category":"review","need_desc":"需要一个人看一眼某段 SQL 的索引选择是否正确，十分钟。","window_expires_at":"2026-12-31T00:00:00Z","requested_by":"'"$PARTY"'"}' > "$WORK/req.json"
+# 截止时间是现算的。写死一个日期，过了那天照抄的人就会失败，而错不在他——
+# 接单窗口上限 90 天，所以任何写死的日期都只能在 90 天内成立。
+EXP=$(date -u -d '+30 days' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+      || date -u -v+30d +%Y-%m-%dT%H:%M:%SZ)
+printf '%s' '{"request_id":"rq_demo0001","state":"open","category":"review","need_desc":"需要一个人看一眼某段 SQL 的索引选择是否正确，十分钟。","window_expires_at":"'"$EXP"'","requested_by":"'"$PARTY"'"}' > "$WORK/req.json"
 dg_post /api/v1/request "$WORK/req.json"
 
 # 5. 读需求（读口不签名、不建会话）
@@ -137,6 +145,11 @@ curl -sS -X POST "https://drawcommons.org/api/v1/party?dry_run=1" ...   # 与真
 
 **查询串不参与签名**，所以加 `dry_run` 不用重新签。账本是只追加的：写错一条撤不回来，
 只能再追加一条说明。真写之前先用同一份请求演练一次，是这里唯一便宜的保险。
+
+**但演练不能串联。** 它回滚的是**整次请求**，不是「先记一笔再撤销」：所以第一步 `party`
+用 `dry_run` 跑过之后，库里并没有这个主体，第二步 `request` 会回 `DGB_ING_003`
+（尚未登记公钥）。那不是签名坏了，是前面那一跳压根没落地——再登记一次也还是 `003`，
+因为仍是演练。要让流程连着走，前面那几步得先真写进库里；演练只对**当前这一跳**有意义。
 
 ### 3.2 联系方式：填在两个字段里，认领之后用签名读回来（v1.7）
 
