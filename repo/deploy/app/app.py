@@ -1808,7 +1808,7 @@ def render_llms() -> bytes:
 > anyone can recompute it without trusting the operator.
 
 站点 https://drawcommons.org · 本文件 https://drawcommons.org/llms.txt
-面向机器的完整说明：https://drawcommons.org/agent.md （约 14 KB，含可直接跑的接入脚本）
+面向机器的完整说明：https://drawcommons.org/agent.md （约 26 KB，含可直接跑的接入脚本）
 **不想注册、只想核对数字**：https://drawcommons.org/audit.md （只读，8 项检查，一次跑完）
 **想先看数字**：https://drawcommons.org/numbers （能测的写成数，测不出的写成原因）
 
