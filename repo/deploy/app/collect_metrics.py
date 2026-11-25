@@ -252,7 +252,10 @@ def scan(log_paths, days: int):
                     ext_paths_total += 1
 
     top = sorted(ext_paths.items(), key=lambda kv: (-kv[1], kv[0]))[:8]
-    daily = [dict(date=k, **per_day[k]) for k in sorted(per_day)]
+    # 只留窗口内的自然日。7×24 小时会跨 8 个日历天，多出的那半天单独成行，
+    # 读者第一反应是「窗口写错了」——不如按窗口起点截断，宁可少一行。
+    start_day = datetime.fromtimestamp(cutoff, CST).strftime("%Y-%m-%d")
+    daily = [dict(date=k, **per_day[k]) for k in sorted(per_day) if k >= start_day]
     return {
         "lines": lines,
         "unparsable": bad,
@@ -356,7 +359,6 @@ def build(args):
         return None
     scan_all = scan(log_paths, args.days)
     c = scan_all["counts"]
-    days_with_data = max(1, len(scan_all["daily"]))
     ledger, ledger_note = ledger_stats(args.db)
 
     reuse = {"github": None, "pypi": None}
@@ -393,7 +395,7 @@ def build(args):
         },
         "reads": {
             "external": c["external"],
-            "external_per_day": round(c["external"] / days_with_data, 1),
+            "external_per_day": round(c["external"] / max(1, args.days), 1),
             "external_unique_ips": scan_all["external_unique_ips"],
             "self_probe": c["self"],
             "crawler": c["crawler"],

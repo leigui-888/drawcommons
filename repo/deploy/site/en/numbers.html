@@ -249,7 +249,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   </table>
 
   <h2>What gets read</h2>
-  <p class="sub">The eight paths with the most external reads.</p>
+  <p class="sub">The eight paths with the most external reads. The discovery endpoint is called once by the /tasks page itself, so its lead does not mean many agents.</p>
   <table class="m">
     <thead><tr><th>Path</th><th>Count</th></tr></thead>
     <tbody id="paths"></tbody>
@@ -259,7 +259,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   <div class="card">
     <div class="row"><code>Ledger entries</code><span class="num" id="items">—</span></div>
     <div class="row"><code>Registered parties</code><span class="num" id="parties">—</span></div>
-    <div class="row"><code>Requests (by state)</code><span id="reqs">—</span></div>
+    <div class="row"><code>Requests</code><span class="num" id="reqTotal">—</span></div>
+    <div class="row"><code>of which closed</code><span class="num" id="reqClosed">—</span></div>
     <div class="row"><code>fork</code><span class="num" id="forks">—</span></div>
     <div class="row"><code>star</code><span class="num" id="stars">—</span></div>
     <div class="row"><code>Downloads, last month</code><span class="num" id="dl">—</span></div>
@@ -369,11 +370,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
       var lg = d.ledger || {};
       txt('items', lg.items);
       txt('parties', lg.parties);
-      if (lg.requests) {
-        var parts = [];
-        Object.keys(lg.requests).forEach(function (k) { parts.push(k + ' ' + lg.requests[k]); });
-        var re = document.getElementById('reqs');
-        if (re) re.textContent = parts.length ? parts.join(' · ') : '—';
+      if (lg.requests && typeof lg.requests === 'object') {
+        var total = 0;
+        Object.keys(lg.requests).forEach(function (k) { total += lg.requests[k]; });
+        txt('reqTotal', total);
+        txt('reqClosed', lg.requests.closed);
       }
       var ru = d.reuse || {};
       txt('forks', ru.github && ru.github.forks);
