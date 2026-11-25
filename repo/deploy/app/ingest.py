@@ -86,6 +86,7 @@ STATUS = {
     "DGB_ING_019": 400,   # 未知 rule_version
     "DGB_ING_020": 413,   # 请求体过大
     "DGB_ING_021": 411,   # 缺 Content-Length
+    "DGB_ING_022": 400,   # 发布方认领自己的单
 }
 
 # 需求单里允许 API 直写的状态。`closed` 要等双方签名与两条账目都落库——而那两件事
@@ -130,6 +131,7 @@ CODE_HINTS = {
     "DGB_ING_019": "省略 rule_version（默认 v1），或显式写 v1",
     "DGB_ING_020": "请求体压到 64 KiB 以内；大文件放 evidence_uri 指过去",
     "DGB_ING_021": "用 curl -d 或显式带 Content-Length；分块传输不被接受",
+    "DGB_ING_022": "发布方不能认领自己的单：换另一把钥匙的人来认领，或让发布方撤回后由别人重发",
     "DGB_LED_038": "同一张单 24 小时只能催一次；冷却过后再来",
     "DGB_LED_039": "只有当前认领方能催交付中的单；其他人不签",
     # —— 库约束（触发器）——
@@ -279,6 +281,20 @@ def op_request(writer, party: str, data: dict, env: dict) -> dict:
     with writer.tx(commit=not env.get("dry_run")) as con:
         writer.spend_nonce(con, env["nonce"], party)
         cur = writer.current_request(con, data["request_id"])
+
+        # ── 发布方不能成为自己单子的认领方（2026-11-25）────────────────────
+        # 库里其实有一条 `trg_ledger_give_not_self`（`DGB_LED_033`）在管「给方与受方
+        # 不得同一」，但那要等到 **交付** 那一次才报，而且报出来的是库约束——提交的人
+        # 只知道「服务端不让我写」，不知道自己踩的是哪条规矩。更要紧的是它拦晚了：
+        # 自认领一旦成立，这张单就被发布方自己占住——别人再来认领是
+        # open→claimed 而当前已是 claimed，只会拿到 `DGB_LED_020`「非法迁移」，
+        # 于是这张单对所有人关闭，却不是 withdrawn、也不在任何人的待办里。
+        # 所以在**认领那一刻**拦。判据用 `cur`（库里的真值）而不是请求体里的
+        # `requested_by`：后者是客户端写的，改个值就能绕过去。
+        if state == "claimed" and cur is not None and (cur["requested_by"] or "") == party:
+            raise ledger_store.WriteError(
+                "DGB_ING_022",
+                "发布方不能认领自己发的单：一单的发布方与认领方必须是两个主体")
 
         # ── 联系方式两格：谁给、能不能改、怎么沿用（v1.7）──────────────────
         # 规则只有三条，都是「这版没有编辑功能」的直接推论：

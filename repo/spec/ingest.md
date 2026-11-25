@@ -378,6 +378,7 @@ X-DG-Sig: <对 GET 载荷的签名>
 | `DGB_ING_019` | 400 | 未知 `rule_version` |
 | `DGB_ING_020` | 413 | 请求体超过 64 KiB |
 | `DGB_ING_021` | 411 | 缺 `Content-Length` |
+| `DGB_ING_022` | 400 | 发布方认领自己发的单（一单的发布方与认领方必须是两个主体） |
 | `DGB_LED_012` | 403 | 对 `request` / 三张账目表 / 归档表的 `UPDATE` 被拒（账本只追加） |
 | `DGB_LED_013` | 403 | 对同一批表的 `DELETE` 被拒（账本只追加） |
 | `DGB_LED_014` | 422 | `archive_magnitude_v1` 是只读归档表 |

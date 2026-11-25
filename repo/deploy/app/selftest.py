@@ -348,6 +348,43 @@ def main() -> int:
         T.check("open 带 claim_agent_id（第 1 行只能是 open 本身）→ 200 或 422",
                 st in (200, 422), f"{st} {r}")
 
+        T.section("4b. 自认领：发布方不能成为自己单子的认领方")
+        # 为什么要在**认领那一刻**拦，而不是等交付时让 `trg_ledger_give_not_self`
+        # （DGB_LED_033）兜：兜出来的是「服务端缺陷」，对提交的人没有解释力；而当
+        # 「自己发自己接」真的交付成功，账本里就多一条**没有真实互助**的撮合记录，
+        # 账本只增不改，那条记录永久留着，污染的是它自己声称的信誉。
+        # 清一次限流计数：本节连发四条，测的是归属，不是速率。
+        with ingest.LIMITER.lock:
+            ingest.LIMITER.hits.clear()
+
+        def _cur(rid):
+            con = sqlite3.connect(db)
+            try:
+                return con.execute("SELECT state, claim_agent_id FROM v_request_current"
+                                   " WHERE request_id=?", (rid,)).fetchone()
+            finally:
+                con.close()
+
+        own = {"request_id": "rq_selfclaim1", "state": "open", "category": "compute",
+               "need_desc": "发布方想自己把这张单认下来", "requested_by": "pt_alice"}
+        st, r = alice.send("/api/v1/request", jbody(own))
+        T.check("（前置）发布方发布一张单 → 200", st == 200, f"{st} {r}")
+        st, r = alice.send("/api/v1/request", jbody(dict(own, state="claimed",
+                                                        claim_agent_id="pt_alice")))
+        T.check("发布方认领自己的单 → 400 DGB_ING_022",
+                st == 400 and r.get("error") == "DGB_ING_022", f"{st} {r}")
+        now_row = _cur("rq_selfclaim1")
+        T.check("被拒之后这张单仍是 open、认领方为空（没留下半个认领）",
+                now_row is not None and now_row[0] == "open" and not now_row[1],
+                str(now_row))
+        st, r = mallory.send("/api/v1/request", jbody(dict(own, state="claimed",
+                                                          claim_agent_id="pt_mallory")))
+        after = _cur("rq_selfclaim1")
+        T.check("（反证）换一把钥匙认领同一张单 → 200，认领方变成 pt_mallory"
+                "（只拦自己，不拦别人）",
+                st == 200 and after is not None and after[0] == "claimed"
+                and after[1] == "pt_mallory", f"{st} {r} / {after}")
+
         T.section("5. 三处共用同一验签实现")
         scan = scan_sites()
         T.check("`ssh-keygen -Y verify` 调用点恰好 1 处", len(scan["verify_calls"]) == 1,
@@ -717,12 +754,28 @@ def main() -> int:
                 st == 403 and r6.get("error") == "DGB_ING_011", f"{st} {r6}")
 
         rid2 = "rq_selfdel01"
-        T.check("（准备）自己发单自己认领 → 200",
-                alice.send("/api/v1/request", jbody(dict(base_req, request_id=rid2,
-                                                         state="open")))[0] == 200
-                and alice.send("/api/v1/request", jbody(dict(base_req, request_id=rid2,
-                                                             state="claimed",
-                                                             claim_agent_id="pt_alice")))[0] == 200)
+        # 这一行必须**绕过写入面**造。§4b 之后，`claimed` 若由发布方自己提交，会在
+        # 认领那一刻就 400 `DGB_ING_022`——正常路径已经造不出「自己发自己接」了。
+        # 但 `DGB_LED_033` 仍然得在：它管的是**任何**路径落进库之后的「自己给自己」，
+        # 包括直接写库、以及这条规则上线前就存在的行。所以这里直插一行，专门验库
+        # 这道闸；绕过去是为了测兜底，不是为了绕过校验还假装没绕过。
+        st, r = alice.send("/api/v1/request",
+                           jbody(dict(base_req, request_id=rid2, state="open")))
+        T.check("（准备）发布方发布一张单 → 200", st == 200, f"{st} {r}")
+        con = sqlite3.connect(db)
+        try:
+            con.execute(
+                "INSERT INTO request(request_id, seq, state, category, need_desc,"
+                " window_expires_at, requested_by, claim_agent_id, created_at)"
+                " VALUES(?,2,'claimed',?,?,'',?,?,?)",
+                (rid2, base_req["category"], base_req["need_desc"],
+                 "pt_alice", "pt_alice", now_iso()))
+            con.commit()
+        finally:
+            con.close()
+        T.check("（准备）直写一行自认领 → 库接受（这道闸在账目层，不在需求层）",
+                q1("SELECT claim_agent_id FROM v_request_current WHERE request_id=?",
+                   (rid2,))[0] == "pt_alice")
         st, r7 = alice.send("/api/v1/request", jbody(dict(delivered, request_id=rid2,
                                                           claim_agent_id="pt_alice")))
         T.check("自己给自己交付 → 422 DGB_LED_033（受方确认会变成自签）",
