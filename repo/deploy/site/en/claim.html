@@ -751,7 +751,8 @@ async function take() {
      都不让它走到提交——那一步一旦落下，单子就卡在自己名下了。 */
   if (me && item && String(item.requested_by || '') === me) return;
   const before = btn.textContent;
-  /* 邮箱选填，填了就得像个地址：这是双方唯一的联系通道，写错了没人能替他对上。 */
+  /* 邮箱选填，填了就得像个地址：这是双方唯一的联系通道，写错了没人能替他对上。
+     填了就随这一行提交（v1.7 的 `claimer_email`）——只校验不提交，等于这一栏没填过。 */
   const mail = $('#mineMail').value.trim();
   if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
     setOut('<b>That does not look like an address</b><p>Check that it is complete, like name@example.com.</p>', 'bad');
@@ -780,6 +781,7 @@ async function take() {
       window_expires_at: item.window_expires_at || '',
       requested_by: item.requested_by,
       claim_agent_id: k.party,
+      claimer_email: mail || null,
       evidence_uri: null,
       occurred_at: null,
     };

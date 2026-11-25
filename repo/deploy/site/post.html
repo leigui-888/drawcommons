@@ -542,9 +542,9 @@ function formValue() {
            maxDueYmd() + '）。</p>', 'bad');
     $('#due').focus(); return null;
   }
-  /* 联系邮箱只随这一单走，**不进请求体**：协议现在没有这个字段，塞进 body 会被
-     写口按「多余字段」拒。它在这一页只做两件事：校验形状、记在提示里给人看。
-     真站要落库，得先加协议字段与可见性规则（v2.2）。 */
+  /* 联系邮箱随这一单走：v1.7 起写口收 `poster_email`，落在第 1 行，认领之后
+     只对认领方可见（不进任何公开视图）。空着传 null——空串与不传在写口是
+     同一件事，但显式 null 让读端只有「没填」一个分支。 */
   const mail = $('#mail').value.trim();
   if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
     setOut('<b>邮箱不像</b><p>检查一下有没有写全，像 name@example.com 这样。</p>', 'bad');
@@ -563,6 +563,7 @@ function formValue() {
   return {
     request_id: ensureReqId(draft),
     ...draft,
+    poster_email: mail || null,
     requested_by: null,
     claim_agent_id: null,
     evidence_uri: null,
