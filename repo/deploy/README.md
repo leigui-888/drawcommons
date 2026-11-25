@@ -183,6 +183,48 @@ v1.6 的定义包含 v1.5 的全部条件。先跑 v1.6 再跑 v1.5，站点会�
 一整段时间没人写，那些单只是晚一点变成 `expired`——列表早就由视图 `v_public_request` 收走了，
 外人看不到差别。运维不用为它做任何事，也不该手工去补那一行（`expired` 不接受直写是刻意的）。
 
+## 2.6 指标快照与 cron（2026-11-25）
+
+`/numbers` 与 `/api/metrics` 背后是**一份 JSON 快照**，不是实时计算：
+
+```
+caddy:/data/access.log ──(root cron 03:17)──> collect_metrics.py
+                                              └─> app/data/metrics.json
+                                                   └─> app:/srv/data:ro ─> /api/metrics（只读）
+```
+
+为什么不让 app 自己算：`access.log` 在 caddy 容器里，且**每一行都有 IP**。公开读口去读原始
+日志，等于顺手给出一条读到访客 IP 的路径。所以「算」放在宿主机的定时任务里，输出只有计数，
+没有任何一条 IP——`_ops/w0/metrics_check.py` 的 B 项专门钉这一条。
+
+装的是一条 root cron（不是 deploy 的，因为日志与 `app/data` 都要 root 才读得动）：
+
+```cron
+17 3 * * * /usr/bin/python3 /opt/drawcommons/app/collect_metrics.py \
+  --log "/opt/drawcommons/data/access.log*" \
+  --out /opt/drawcommons/app/data/metrics.json \
+  --db  /opt/drawcommons/app/data/ledger.db --days 7 \
+  >> /var/log/drawcommons-metrics.log 2>&1
+```
+
+- **03:17 而不是整点**：整点与备份（03:30）、日志轮转挤在一起，取到的可能是正在被切的文件。
+- **不带 `--no-net`**：GitHub 与 PyPI 两格靠它取。取不到写 `null` 并记 `notes`，**不写 0**——
+  0 是「测了，是零」，null 是「没测到」。
+- 手工重算一次：`ssh … 'sudo python3 /opt/drawcommons/app/collect_metrics.py --days 7'`。
+- 改动这个脚本后必须重新推一次：钩子的同步表里加了 `collect_metrics.py`，否则 cron 跑的是
+  上一份手抄的副本，指标会静默停在旧口径上（和 11-12 那次「改了页面、线上还是旧的」同一类错）。
+
+自检三件：
+
+```bash
+curl -s https://drawcommons.org/api/metrics | head -20     # 应有 reads / ledger / reuse
+curl -s -o /dev/null -w '%{http_code}\n' https://drawcommons.org/numbers
+ssh … 'sudo tail -3 /var/log/drawcommons-metrics.log'      # 每天应有一条「已写 … 字节」
+```
+
+`stale: true`（>36 小时）说明任务停了。页面照常显示旧数并标注「过期」，**不隐藏**——
+藏起来会被读成 0。判据 `metrics` 会把 stale 判红。
+
 ## 3. 部署（改一个文件也要走完）
 
 ```bash
