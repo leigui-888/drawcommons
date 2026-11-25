@@ -357,6 +357,20 @@ function rand(n) {
   return out.join('');
 }
 function nonce() { const b = crypto.getRandomValues(new Uint8Array(18)); return b64(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+
+/* Ed25519 is not everywhere in WebCrypto: Chrome / Edge 113+, Firefox 129+, Safari 17 (iOS 17)+.
+   Probe once and cache — an unsupported browser has to say so, not throw an English exception
+   at the user after they press the button. No crypto.subtle at all (insecure context) counts
+   as unsupported too. */
+let _edOk = null;
+async function ed25519Ok() {
+  if (_edOk !== null) return _edOk;
+  try {
+    const kp = await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']);
+    _edOk = !!(kp && kp.privateKey);
+  } catch { _edOk = false; }
+  return _edOk;
+}
 function isoUtc(off = 0) { return new Date(Date.now() + off).toISOString().replace(/\.\d{3}Z$/, 'Z'); }
 
 /* ---------- key ---------- */
@@ -680,6 +694,18 @@ async function refreshMine(party) {
   $('#pub').addEventListener('click', () => publish(false));
   if (FILE_MODE) {
     $('#mode').hidden = false;
+  }
+  /* No Ed25519, no signature: switch the publish button off and say why, instead of letting them
+     press it and collect an English exception. */
+  if (!FILE_MODE && !(await ed25519Ok())) {
+    const b = $('#pub');
+    b.disabled = true;
+    b.textContent = 'This browser cannot sign';
+    setOut('<b>This browser cannot sign Ed25519</b><p>Claiming, delivering and posting all sign ' +
+      'on this device, and WebCrypto Ed25519 only exists in Chrome / Edge 113+, Firefox 129+ and ' +
+      'Safari 17 (iOS 17)+. This browser is older, so no signature can be produced.</p>' +
+      '<p>Three ways out: ① open this page in Chrome or Edge on a computer; ② update iPhone / ' +
+      'iPad to iOS 17+; ③ submit from the command line — see /agent.md §4.</p>', 'bad');
   }
   let key = null;
   try {

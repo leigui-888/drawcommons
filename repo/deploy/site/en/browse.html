@@ -308,6 +308,20 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
     return out.join('');
   }
   function nonce() { const b = crypto.getRandomValues(new Uint8Array(18)); return b64(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+
+  /* Ed25519 is not everywhere in WebCrypto: Chrome / Edge 113+, Firefox 129+, Safari 17 (iOS 17)+.
+     Probe once and cache — an unsupported browser has to say so, not throw an English exception
+     at the user after they press the button. No crypto.subtle at all (insecure context) counts
+     as unsupported too. */
+  let _edOk = null;
+  async function ed25519Ok() {
+    if (_edOk !== null) return _edOk;
+    try {
+      const kp = await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']);
+      _edOk = !!(kp && kp.privateKey);
+    } catch { _edOk = false; }
+    return _edOk;
+  }
   function isoUtc(off = 0) { return new Date(Date.now() + off).toISOString().replace(/\.\d{3}Z$/, 'Z'); }
 
   /* 本机已有就用，没有就生成一把。认领方和发布方是两台机器上的两个主体，
@@ -511,7 +525,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
 
   window.DG = {
-    FILE_MODE, KEY_STORE, store, getKey, fpOf, send, syncClock, demoReqs, demoTaken,
+    FILE_MODE, KEY_STORE, store, getKey, ed25519Ok, fpOf, send, syncClock, demoReqs, demoTaken,
     esc, b64, unb64, cat, str, u32, pubLine, rand,
   };
 })();

@@ -2,7 +2,7 @@
 # 生成：cd repo && python ../evidence/regen_repo_manifest.py
 # 校验：sha256sum -c MANIFEST.sha256
 # 口径：git ls-files --cached --others --exclude-standard（与 repo_lint 的 tracked_files 同源）
-# 生成时点：2026-11-22　条目：103
+# 生成时点：2026-11-25　条目：103
 #
 # 本清单只固定字节，不解释内容；条款与规范的含义以各文件正文为准。
 eb2a9bfb80d726dd2d2de8781f90607b47bb6b24e4af69863c6320954b9ab8fa  CONTRIBUTING.md
@@ -49,22 +49,22 @@ f5e240694e73371ff5e26ae367db4af60ce8be4942fdf34bcd3adcc6d9b5fd10  deploy/app/leg
 3e76bf5d4d00192b144c9bbb8dd464704e3196d66bd35c78ebc49ac929770fa1  deploy/git-hooks/post-receive
 45d8111ffbd09b665cbdd2abcda1a009398d7f4e0b6532af86b9ab0f924fb378  deploy/git-hooks/update
 965785e6b52fb4b3a53daa98cf0edeaebb73066495dc904f6921ea7cc38d3697  deploy/site/agents.html
-83b9729d0f61e4c30324b2b4d352277b7d89647a735f4ecd0027a5155930b37e  deploy/site/browse.html
-ffac772bc0be0b35a8bc76f5fa7517d7d30ce2561658d0b183a1724754fda96e  deploy/site/claim.html
+43c8d9bd386d7ed57f78a9d8993257147f6ce268e2fe57870bbfce53c7101b0b  deploy/site/browse.html
+d06b8bfdb753575f10fee48854acefbbbe25b8eca6c69f51b64d77341b553a73  deploy/site/claim.html
 7013d79f5576a2c5987335e829438bf7c1ce4b2d96abc97d19102c7f3552838a  deploy/site/contributors.html
-9d1b1d8d37ff73e759f659d241b880b5de9e1255151e4536b4e12f962b556434  deploy/site/deliver.html
+c640dd3e272b5fd58a9ea111d3d1f430e50ed019752c70c279c8e2692429a1b3  deploy/site/deliver.html
 abbbaf71b73078a08e8fd0b37332c8255fa1956e974cbacc58d22eb9b7cefddf  deploy/site/en/agents.html
-b909dcf32a4fe680d9225a188b96c83f856f04905c4577e2c8ad85cae1029ab6  deploy/site/en/browse.html
-ee3f79b65db9ff6afc7d649e1a69f6e4b857f0d924239f261d1cf5ed7409790e  deploy/site/en/claim.html
+40e8f591294c574cf4f2912bbc80b2ee1137934ed098a66824a32743f22e12c0  deploy/site/en/browse.html
+f9cbe0dcbe5cd8517be21e823f2b5760652a4c9b82462027db2c4fa0afc65826  deploy/site/en/claim.html
 395c5b4689d2dea8807fc977594c882e879d4c9eb361f499261ee3139302ee1c  deploy/site/en/contributors.html
-8c6df0e5618dddd1ce003919412176c4c08cb03458d03b85319162f5db5d0894  deploy/site/en/deliver.html
+731bc2d12045df1189fc6a2640404f9ba57da36df0b075bca8188d08a7d58fc5  deploy/site/en/deliver.html
 5d7c95b08bd75758323796816fef8512910297f24dd90af42f5b46e4f4092030  deploy/site/en/feedback.html
 8f0a1846c8d8a002b62f9311797f001a40e1ba6bb4741c24aa825a6add69dccc  deploy/site/en/home.html
 d938a406895be95efc90b4ec073e5ff2c8baf6d1f8224667922eb78c8d1b200a  deploy/site/en/ledger.html
 6f6fbdfd6eccb8edfcb992a60d371d5a1d236bc694d686f4593394af13ed1f12  deploy/site/en/mine.html
 b19d1c9ddbad05649c4667c5c263d578e97d5d3019ac86b57ff91924d70709ff  deploy/site/en/notices.html
-494b9fb54581be4148c871a068ce58d52df57f60901fa635ba801038bbf92037  deploy/site/en/post.html
-c3560890704036135446778dfadbc77f8a898b66241cca5093a8e9c9b882728f  deploy/site/en/taken.html
+6967d81cf5ddae9f229ec82b535a516b9525c52e3e810c13d5b2db1f58b0f880  deploy/site/en/post.html
+9deb873bedaea271700a8cfca8e3ef0fd2ad5da87869a864f57ce36e37ce6d91  deploy/site/en/taken.html
 6953182d98289213d2c06b22863d1433d96b65cd495317e27e8a29d43ed55ce8  deploy/site/en/tasks.html
 637de3810d575afa3aa7f7cf108b8ce223427f27a29e05686c1a3d74c6dad2ce  deploy/site/en/terms.html
 dab4c22438083fd6a6441c0eb3414075c84d7a98648affe9d539bd8332d7594a  deploy/site/en/verify.html
@@ -73,8 +73,8 @@ dab4c22438083fd6a6441c0eb3414075c84d7a98648affe9d539bd8332d7594a  deploy/site/en
 d361ebeaa448960e172c3de9df263b923e7d2e6037530d057e9386b57e38ad14  deploy/site/ledger.html
 801bb513d9e6f0342af4a23d656ff525c1a2f85748cc93989d151cd0c9b28f8e  deploy/site/mine.html
 d5cf711d63d507ed9163c3915b874eac1f67ef1d65c5166f44957a485910193c  deploy/site/notices.html
-bc6671c1021a969ed92122fe537c779817ccd72547b0f6e269f696baff604411  deploy/site/post.html
-af5e49f16b0595c1136a1d3746610bcf1706d1229dc1c5f87e69b20bc44bcbc1  deploy/site/taken.html
+0b7b5a2769945e9eee41274b07bd6222fc04ec1dc9c3777edea519f2798c3dcd  deploy/site/post.html
+e6e7ab9fd778599a544634f4f730063fadd10606b43155bf1b29864bf2e239ee  deploy/site/taken.html
 d4db66d4f56d611911acff93e4526421eaa0bf033d1815489dada32c1c01e52e  deploy/site/tasks.html
 9a8d1b3e96e60ff95cbe9470bbcdf7517e367405403b99d42fccedd203f6993f  deploy/site/terms.html
 337ad35ff41fb16fc85318566317958e7d025daa16e792efe266f2f20b8659bc  deploy/site/verify.html

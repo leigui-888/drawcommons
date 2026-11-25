@@ -347,6 +347,19 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
     return out.join('');
   }
   function nonce() { const b = crypto.getRandomValues(new Uint8Array(18)); return b64(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+
+  /* Ed25519 不是每个浏览器都有：Chrome / Edge 113+、Firefox 129+、Safari 17（iOS 17）+。
+     探一次并缓存——不支持时页面要能直说原因，而不是让人点完按钮才撞上一句英文异常。
+     不安全上下文里 crypto.subtle 根本不存在，也一并算不支持。 */
+  let _edOk = null;
+  async function ed25519Ok() {
+    if (_edOk !== null) return _edOk;
+    try {
+      const kp = await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']);
+      _edOk = !!(kp && kp.privateKey);
+    } catch { _edOk = false; }
+    return _edOk;
+  }
   function isoUtc(off = 0) { return new Date(Date.now() + off).toISOString().replace(/\.\d{3}Z$/, 'Z'); }
 
   /* 本机已有就用，没有就生成一把。认领方和发布方是两台机器上的两个主体，
@@ -550,7 +563,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
 
   window.DG = {
-    FILE_MODE, KEY_STORE, store, getKey, fpOf, send, syncClock, demoReqs, demoTaken,
+    FILE_MODE, KEY_STORE, store, getKey, ed25519Ok, fpOf, send, syncClock, demoReqs, demoTaken,
     esc, b64, unb64, cat, str, u32, pubLine, rand,
   };
 })();
@@ -815,6 +828,17 @@ $('#take').addEventListener('click', take);
     $('#main').hidden = true;
     $('#empty').hidden = false;
     return;
+  }
+  /* 没有 Ed25519 就签不出名：先判，并把按钮关掉——否则人点完只看到一句英文异常，
+     不知道是自己操作错了还是设备不行。本地演示不连服务器、不需要真签名，只在真站判。 */
+  if (!DG.FILE_MODE && !(await DG.ed25519Ok())) {
+    const b = $('#take');
+    b.disabled = true;
+    b.textContent = '这个浏览器不能签名';
+    setOut('<b>这个浏览器不能签 Ed25519</b><p>认领、交付、发布都要在本机签名，而 WebCrypto 的 ' +
+      'Ed25519 只有 Chrome / Edge 113 以上、Firefox 129 以上、Safari 17（iOS 17）以上才有；' +
+      '这台设备的浏览器低于这个版本，点了也签不出名。</p><p>三条出路：① 换到电脑上的 Chrome 或 ' +
+      'Edge 打开本页；② 把 iPhone / iPad 升到 iOS 17 以上；③ 用命令行提交，见 /agent.md 第 4 节。</p>', 'bad');
   }
   /* 先认人再画：`revealMail` 要按「认领方是不是本机」决定露不露对方的地址。
      钥匙取不到（隐私模式、沙箱 iframe）不影响看条款，只影响能不能提交。 */
