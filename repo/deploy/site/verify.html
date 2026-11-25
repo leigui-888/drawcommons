@@ -23,6 +23,10 @@
   .linkcard p { margin: 4px 0 0; font-size: 12px; color: #5f5e5a; }
   h2 { font-size: 14px; font-weight: 500; color: #5f5e5a; margin: 24px 0 10px; }
   .tag { font-size: 11px; background: #fac775; color: #633806; border-radius: 4px; padding: 1px 6px; vertical-align: 2px; }
+  /* 存证那一节：命令块与「能证明什么」的细字。都只在本页用，故不进制式单源。 */
+  .linkcard code { font-size: 12px; color: #185fa5; background: #f0f4f8; padding: 1px 5px; border-radius: 3px; word-break: break-all; }
+  pre.cmd { margin: 8px 0 0; background: #2c2c2a; color: #e5e3db; padding: 10px 12px; border-radius: 8px; font-size: 12px; overflow-x: auto; }
+  .fine { font-size: 12px; color: #888780; margin: 0 2px; }
   footer { border-top: 1px solid #e5e3db; margin-top: 28px; padding: 14px 0 6px; text-align: center; font-size: 12px; color: #888780; }
   footer a { color: #5f5e5a; text-decoration: none; margin: 0 8px; }
 /* ==== DG-UI BEGIN ==== */
@@ -231,6 +235,15 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   <h2>核验</h2>
   <a class="linkcard" href="/ledger">账本数据查询<span class="go">现网 ↗</span><p>逐条目、逐哈希地翻账本</p></a>
   <a class="linkcard" href="https://drawcommons.org/audit.md">在线审计任务书<span class="go">现网 ↗</span><p>给人跑的：只读 8 项检查，零依赖一次跑完</p></a>
+
+  <h2>需求单的签名存证 <span class="tag">2026-11-25 起</span></h2>
+  <div class="linkcard">
+    <b>每一行都留了写下它的那一次签名</b>
+    <p>拿单号取走<b>逐字载荷、SSHSIG 原文、签名者公钥</b>，自己跑一遍
+       <code>ssh-keygen -Y verify</code>——<b>验的人不必信本站</b>。</p>
+    <pre class="cmd">curl -sS https://drawcommons.org/api/v1/requests/&lt;单号&gt;/evidence</pre>
+  </div>
+  <p class="fine">能证明的是「这一行来自那把钥的这一次请求」；<b>不能</b>证明「每个字段逐字等于请求体」——落库值经服务端规整，请求体原文不留存。2026-11-25 之前的行只有一个「没存」的标记，补不出来，也不该补。</p>
 
   <h2>下载区 <span class="tag">新收拢</span></h2>
   <a class="linkcard" href="https://drawcommons.org/api/ledger/export">账本导出（JSON）<span class="go">下载 ↗</span><p>算锚值的原件，sha256 即锚值</p></a>

@@ -93,6 +93,26 @@ def ssh_sign(payload: bytes, key_path: str, namespace: str = NAMESPACE) -> str:
     return p.stdout.decode("utf-8")
 
 
+def ssh_verify_stored(workdir: str, payload: str, sig: str, pubkey_line: str,
+                      signer: str, namespace: str = NAMESPACE) -> tuple[bool, str]:
+    """**按读者会用的方式验**：只用存下来的三段文本 + 公钥行，不碰服务端任何代码。
+
+    这一段刻意与 `signing.py` 无关：它证明的是「库里那几列足以让陌生人复验」，
+    而不是「服务端的验签函数还能跑」。两件事差得很远——后者在签名只存在于请求里
+    的时候也成立，而那正是这一版要修的问题。
+    """
+    allowed = os.path.join(workdir, "allowed_signers")
+    sigf = os.path.join(workdir, "stored.sig")
+    with open(allowed, "w", encoding="utf-8") as fh:
+        fh.write(f"{signer} {pubkey_line}\n")
+    with open(sigf, "w", encoding="utf-8") as fh:
+        fh.write(sig)
+    p = subprocess.run(["ssh-keygen", "-Y", "verify", "-f", allowed, "-I", signer,
+                        "-n", namespace, "-s", sigf],
+                       input=payload.encode("utf-8"), capture_output=True, timeout=20)
+    return p.returncode == 0, (p.stdout + p.stderr).decode("utf-8", "replace").strip()
+
+
 def now_iso(offset_seconds: int = 0) -> str:
     dt = (datetime.datetime.now(datetime.timezone.utc)
           + datetime.timedelta(seconds=offset_seconds))
@@ -764,10 +784,14 @@ def main() -> int:
         T.check("（准备）发布方发布一张单 → 200", st == 200, f"{st} {r}")
         con = sqlite3.connect(db)
         try:
+            # v1.8 起，每一行都要声明自己是谁写的。这一行是夹具，不是客户端动作，
+            # 所以标 `derived` 并把来历写进 `sig_ref`——**不能标 `http`**：那要给出一段
+            # 真签名，而造一段假签名来测试「签名存证」，等于用假钞验钞机。
             con.execute(
                 "INSERT INTO request(request_id, seq, state, category, need_desc,"
-                " window_expires_at, requested_by, claim_agent_id, created_at)"
-                " VALUES(?,2,'claimed',?,?,'',?,?,?)",
+                " window_expires_at, requested_by, claim_agent_id, created_at,"
+                " sig_kind, sig_ref)"
+                " VALUES(?,2,'claimed',?,?,'',?,?,?,'derived','selftest:direct-insert')",
                 (rid2, base_req["category"], base_req["need_desc"],
                  "pt_alice", "pt_alice", now_iso()))
             con.commit()
@@ -776,6 +800,23 @@ def main() -> int:
         T.check("（准备）直写一行自认领 → 库接受（这道闸在账目层，不在需求层）",
                 q1("SELECT claim_agent_id FROM v_request_current WHERE request_id=?",
                    (rid2,))[0] == "pt_alice")
+        # 同一张直写路径，少声明一个来源就写不进去（v1.8 的 `DGB_LED_040`）。
+        # 这一条测的是「将来某条新代码路径忘了传参」——它不会报错，只会静静少一样东西。
+        con = sqlite3.connect(db)
+        try:
+            con.execute(
+                "INSERT INTO request(request_id, seq, state, category, need_desc,"
+                " window_expires_at, requested_by, created_at)"
+                " VALUES('rq_nokind001',1,'open',?,?,'',?,?)",
+                (base_req["category"], base_req["need_desc"], "pt_alice", now_iso()))
+            con.commit()
+            missing_kind = None
+        except sqlite3.IntegrityError as exc:
+            missing_kind = str(exc)
+        finally:
+            con.close()
+        T.check("直写一行但不声明来源 → 库拒绝 DGB_LED_040（新代码路径忘传参写不进去）",
+                bool(missing_kind) and "DGB_LED_040" in missing_kind, str(missing_kind))
         st, r7 = alice.send("/api/v1/request", jbody(dict(delivered, request_id=rid2,
                                                           claim_agent_id="pt_alice")))
         T.check("自己给自己交付 → 422 DGB_LED_033（受方确认会变成自签）",
@@ -804,6 +845,88 @@ def main() -> int:
         T.check("关单之后再重发交付 → 仍是 200 already（幂等跨状态成立）",
                 st == 200 and r9.get("already") is True and r9.get("state") == "closed",
                 f"{st} {r9}")
+
+        T.section("10. 签名存证（v1.8）：存下来的字节，陌生人能不能验过")
+        rid_ev = "rq_evidence01"
+        st, r = alice.send("/api/v1/request", jbody({
+            "request_id": rid_ev, "state": "open", "category": "compute",
+            "need_desc": "存证用的单", "requested_by": "pt_alice",
+            "poster_email": "poster@example.com"}))
+        T.check("（准备）发布一张带联系方式的单 → 200 且回报已存证",
+                st == 200 and r.get("evidence") == "http", f"{st} {r}")
+
+        store = ledger_store.load_request_evidence(db, rid_ev)
+        T.check("存证读得回来，行数与状态行一致",
+                bool(store) and len(store["rows"]) == 1,
+                str(store and len(store["rows"])))
+        row = store["rows"][0]
+        T.check("这一行标为 http（客户端签名写的）",
+                row["evidence"] == "http", str(row.get("evidence")))
+        T.check("签名者 = pt_alice，指纹 = 本地 ssh-keygen -lf 算的指纹",
+                row["signed"].get("signer") == "pt_alice"
+                and row["key_fp"] == local_fp(pub_a),
+                f'{row["signed"].get("signer")} / {row["key_fp"]} vs {local_fp(pub_a)}')
+        T.check("载荷绑了方法与路径（POST /api/v1/request）",
+                row["signed"].get("method") == "POST"
+                and row["signed"].get("path") == "/api/v1/request", str(row["signed"]))
+        T.check("载荷里没有联系方式（只存请求体摘要，不复制个人信息）",
+                "poster@example.com" not in (row["payload"] or ""), row["payload"])
+
+        ok, out = ssh_verify_stored(tmp, row["payload"], row["sig"],
+                                    store["pubkeys"]["pt_alice"], "pt_alice")
+        T.check("用存下来的载荷 + 签名 + 公钥**独立**验过（不经过服务端任何代码）",
+                ok, out[:200])
+        t_ok, _ = ssh_verify_stored(tmp, row["payload"].replace("POST", "post", 1),
+                                    row["sig"], store["pubkeys"]["pt_alice"], "pt_alice")
+        T.check("载荷改一个字母 → 复验失败（证据不是随便一段字）", not t_ok)
+        # 身份来自**库里那把钥**，不来自名字：`allowed_signers` 是「谁说自己是 pt_alice」
+        # 的唯一依据。名字写对、钥换一把，就该验不过——这条比「换个名字」有意义得多，
+        # 因为 SSHSIG 的 principal 是读者自己填的标签，签名根本不绑它。
+        w_ok, _ = ssh_verify_stored(tmp, row["payload"], row["sig"], pub_b, "pt_alice")
+        T.check("名字对、钥换成另一把 → 复验失败（身份来自公钥，不来自自称）", not w_ok)
+
+        # 同一张单的其他行：closed 是确认派生的，delivered 是客户端签的。
+        store2 = ledger_store.load_request_evidence(db, rid)
+        closed = store2["rows"][-1]
+        T.check("closed 行标 derived、ref 指向那条确认、且没有签名",
+                closed["state"] == "closed" and closed["evidence"] == "derived"
+                and (closed["ref"] or "").startswith("confirm:") and not closed["sig"],
+                str({k: closed.get(k) for k in ("state", "evidence", "ref", "sig")}))
+        T.check("同一张单里客户端写的行仍是 http（一行一行标，不整单一个标签）",
+                any(x["evidence"] == "http" for x in store2["rows"]),
+                str([x["evidence"] for x in store2["rows"]]))
+
+        # 时钟结算那条路也要自己声明来历——它是最容易漏传参的一条（没有请求、没有调用方）。
+        rid_past = "rq_clockold1"
+        st, r = alice.send("/api/v1/request", jbody({
+            "request_id": rid_past, "state": "open", "category": "docs",
+            "need_desc": "早已过期的单", "requested_by": "pt_alice",
+            "window_expires_at": "2020-01-01"}))
+        T.check("（准备）发布一张截止在过去的单 → 200", st == 200, f"{st} {r}")
+        alice.send("/api/v1/request", jbody({
+            "request_id": "rq_sweeptrig1", "state": "open", "category": "docs",
+            "need_desc": "触发一次 sweep", "requested_by": "pt_alice"}))
+        store3 = ledger_store.load_request_evidence(db, rid_past)
+        clock_rows = [x for x in store3["rows"] if x["state"] == "expired"]
+        T.check("时钟结算的 expired 行标 derived + ref=clock，且没有签名",
+                bool(clock_rows) and clock_rows[-1]["evidence"] == "derived"
+                and clock_rows[-1]["ref"] == "clock" and not clock_rows[-1]["sig"],
+                str([{k: x.get(k) for k in ("state", "evidence", "ref")}
+                     for x in store3["rows"]]))
+
+        none_rows = [x for rid_i in (rid_ev, rid, rid_past)
+                     for x in ledger_store.load_request_evidence(db, rid_i)["rows"]
+                     if x["evidence"] == "none"]
+        T.check("新库里一行 `none` 都没有（`none` 只该出现在 v1.8 之前的旧行上）",
+                not none_rows, str(len(none_rows)))
+
+        con_pub = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        try:
+            pub_cols = [x[1] for x in con_pub.execute("PRAGMA table_info(v_public_request)")]
+        finally:
+            con_pub.close()
+        T.check("存证列不进公开视图（列表读口拿不到签名，也拿不到载荷）",
+                not [c for c in pub_cols if c.startswith("sig")], str(pub_cols))
 
         T.section("结果")
         print(f"  OK {T.ok} / FAIL {T.bad}")

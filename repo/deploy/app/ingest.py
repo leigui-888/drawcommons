@@ -159,6 +159,11 @@ CODE_HINTS = {
     "DGB_LED_035": "该条目已确认过；确认不可覆盖，要纠正只能追加说明",
     "DGB_LED_036": "拒收只能由发布方签；认领方与第三方不能拒别人的交付",
     "DGB_LED_037": "认领与交付只能推进状态，不能改条款；要改让发布方撤回后重发",
+    # 签名存证（v1.8）。这三条对调用方只有一个动作：把 500 连同时间贴给运营方——
+    # 它们全都意味着「服务端有一条写库路径少给了一样东西」，客户端改请求改不好。
+    "DGB_LED_040": "服务端未声明该状态行的来源；这是服务端的错，请带着时间与端点报告",
+    "DGB_LED_041": "服务端未随行存证（载荷/签名/指纹缺一）；这是服务端的错，请报告",
+    "DGB_LED_042": "派生行被写入了签名（时钟与派生没有钥）；这是服务端的错，请报告",
 }
 
 
@@ -278,6 +283,19 @@ def op_request(writer, party: str, data: dict, env: dict) -> dict:
         if party != data["claim_agent_id"]:
             raise ledger_store.WriteError(
                 "DGB_ING_011", f"{state} 只能由认领方（claim_agent_id）提交")
+    # ── 签名存证（v1.8）─────────────────────────────────────────────────────
+    # 这一段就是「签名证据在服务端」那句话的实物：`signed_payload` 是 `signing.verify`
+    # 算出来并验过的那一段载荷（不是这里重拼的），`sig_text` 是客户端交上来的 SSHSIG
+    # 原文，`key_fp` 是刚验过的那把钥。三样一起落库，事后任何人拿
+    # `GET /api/v1/requests/<id>/evidence` 就能离线复验，不需要信本服务。
+    #
+    # 它证明的是「这一行来自这把钥的这一次请求」，**不是**「这一行的每个字段逐字等于
+    # 请求体」——落库值经过规整（空串存 NULL、联系方式沿用上一行、seq 与 created_at
+    # 由服务端盖）。这条边界写在 ddl_v1.8.sql 头部与 /requests 页面上，改之前先读。
+    evidence = {"kind": "http",
+                "payload": env["signed_payload"].decode("utf-8"),
+                "sig": env["sig_text"],
+                "key_fp": env["key_fp"]}
     with writer.tx(commit=not env.get("dry_run")) as con:
         writer.spend_nonce(con, env["nonce"], party)
         cur = writer.current_request(con, data["request_id"])
@@ -433,10 +451,10 @@ def op_request(writer, party: str, data: dict, env: dict) -> dict:
                     or (cur["state"] == "delivered"
                         and not writer.rejected_seq(con, cur["request_id"], cur["seq"]))):
                 return writer.delivery_replay(con, data, cur)
-            res = writer.append_request(con, data)
+            res = writer.append_request(con, data, evidence)
             res.update(writer.convert_delivery(con, data["request_id"]))
         else:
-            res = writer.append_request(con, data)
+            res = writer.append_request(con, data, evidence)
     return res
 
 
@@ -729,15 +747,27 @@ def preflight() -> list[str]:
     # 加列比加表危险得多：加表能被 try/except 变软成「这个功能没有」，加列会穿透。
     # 所以这里按列签名再核一遍，让「库落后于代码」在容器启动时就喊出来，
     # 而不是等第一个认领的人替我们撞上。
-    need_cols = {"request": ("poster_email", "claimer_email")}
+    #
+    # 每一列对应「哪个文件补的」，报错才能指到具体一步：只说「先跑最新那份」，
+    # 跳着一份不跑照样起不来，而错误信息看起来一模一样（2026-11-25 差点又踩）。
+    need_cols = {"request": {
+        "poster_email": "spec/ddl_v1.7.sql",
+        "claimer_email": "spec/ddl_v1.7.sql",
+        "sig_kind": "spec/ddl_v1.8.sql",
+        "sig_payload": "spec/ddl_v1.8.sql",
+        "sig": "spec/ddl_v1.8.sql",
+        "sig_key_fp": "spec/ddl_v1.8.sql",
+        "sig_ref": "spec/ddl_v1.8.sql",
+    }}
     try:
         con = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
         for t, cols in need_cols.items():
             present = {r[1] for r in con.execute(f"PRAGMA table_info({t})")}
             lack = [c for c in cols if c not in present]
             if lack:
+                files = sorted({cols[c] for c in lack})
                 problems.append(f"库缺列 {t}.{','.join(lack)}"
-                                "——库落后于代码，先跑 spec/ddl_v1.7.sql")
+                                f"——库落后于代码，先跑 {' 与 '.join(files)}")
         con.close()
     except sqlite3.Error as exc:
         problems.append(f"核列失败（{type(exc).__name__}: {exc}）")

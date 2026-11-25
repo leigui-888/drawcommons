@@ -315,4 +315,8 @@ def verify(headers, method: str, path: str, body: bytes, lookup, hint_pubkey: st
     # 这两项放回信封，是为了让调用方不必再读一次库：确认层要用同一把钥验第二段签名，
     # 而那时已经验过「这个请求是这把钥发的」。再查一次库只会多一个「两次读到不同结果」的窗口。
     env["key_line"], env["key_fp"] = key_line, fp
+    # 逐字载荷也放回信封（v1.8）：需求单要把它连同签名一起存进库里，让事后的人能
+    # 离线复验。**必须是这里算出来的那一段**，不能让调用方自己重拼——重拼出来的载荷
+    # 只要差分一字节，存下去的就是一段永远验不过的「证据」，而它看起来完全正常。
+    env["signed_payload"] = payload
     return env["party"], fp, env

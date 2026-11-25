@@ -85,6 +85,11 @@ LED_STATUS = {"012": 403, "013": 403,          # append-only：UPDATE / DELETE �
               # 客户端隔一天再来即可 → 409（冲突，不是永久拒绝）。
               # 039 是「这不是你能催的单」——只有当前认领方能催 delivered 的单 → 403。
               "038": 409, "039": 403,
+              # 签名存证（v1.8）：040–042 全是**服务端自己写错了**，不是调用方填错。
+              # 「这一行没声明谁写的」「http 行缺证据」「派生行带了签名」三种状态，
+              # 客户端做什么都改不了它，只有改代码。所以 500 而不是 422——
+              # 422 会让调用方去改自己的请求，而他改一百遍也不会好。
+              "040": 500, "041": 500, "042": 500,
               # 入账转换：029 是「这一单的交付已经定局，你这次提交的字段与它不一致」。
               # 不是冲突（409 会让人以为重试一下就好了），是规矩不让——凭据以第一次为准。
               "029": 422}
@@ -141,6 +146,46 @@ class WriteError(Exception):
         if "NOT NULL constraint failed" in msg:
             return cls("DGB_ING_016", f"缺必填字段：{msg}")
         return cls("DGB_ING_016", msg)
+
+
+# ── 签名存证（v1.8）：把「这一行是谁写的」折成五列 ───────────────────────────
+EVIDENCE_TAG = "drawcommons-ingest-v1"
+
+
+def _evidence_columns(evidence: dict) -> tuple:
+    """`append_request(evidence=...)` 的入参校验，返回五个列值。
+
+    库里有三条触发器守着同一件事（`040/041/042`），这里再判一遍只为把错误信息说得
+    像人话——两处都判不是冗余：触发器防绕过（任何写库路径都躲不开），这里防
+    「报一串 SQL 给调用方看」。
+
+    三种输入都必须给出结论，**没有「不填」这个选项**：这一行是谁写的，是这条记录的
+    一半，不是附加信息。v1.8 之前的老行留 NULL 是历史，不是模板。
+    """
+    if not isinstance(evidence, dict):
+        raise WriteError("DGB_LED_040",
+                         "append_request 必须带 evidence：{'kind': 'http'|'derived', ...}")
+    kind = evidence.get("kind")
+    if kind == "http":
+        payload = evidence.get("payload") or ""
+        sig = evidence.get("sig") or ""
+        fp = evidence.get("key_fp") or ""
+        if not payload or not sig or not fp:
+            raise WriteError("DGB_LED_041",
+                             "http 行必须同时带 payload / sig / key_fp（缺一样就不是证据）")
+        if not payload.startswith(EVIDENCE_TAG + "\n"):
+            # 同一把钥、另一个域（确认层 / 拒收层 / 催告层）的载荷。这种错在库里
+            # 是一段格式正确的签名，只有拿它去验才会失败，而失败点离出错的地方很远。
+            raise WriteError("DGB_LED_041",
+                             f"载荷第一行必须是 {EVIDENCE_TAG}：这像是另一个域的签名")
+        return ("http", payload, sig, fp, None)
+    if kind == "derived":
+        if evidence.get("sig") or evidence.get("payload"):
+            raise WriteError("DGB_LED_042",
+                             "派生行不能带签名：时钟与派生没有钥，签了就是伪造")
+        ref = (evidence.get("ref") or "").strip() or None
+        return ("derived", None, None, None, ref)
+    raise WriteError("DGB_LED_040", f"未知 evidence.kind={kind!r}（只能是 http / derived）")
 
 
 # ── 读：三表 → 统一条目 ──────────────────────────────────────────────────────
@@ -467,6 +512,68 @@ def load_request_detail(db_path: str, request_id: str) -> dict | None:
         con.close()
 
 
+# ── 签名存证（v1.8）：读 ────────────────────────────────────────────────────
+def split_signed_payload(payload: str) -> dict:
+    """把逐字载荷拆成七行。**只为好读**，验签必须用原串（`payload` 整段）。
+
+    拆出来的东西不能反过来拼回载荷——拼回去只要差分一个换行，验签就永远失败，
+    而那看起来像「证据坏了」。所以返回体里既给拆开的字段，也给原文。
+    """
+    lines = (payload or "").split("\n")
+    if len(lines) < 7:
+        return {}
+    return {"tag": lines[0], "method": lines[1], "path": lines[2], "signer": lines[3],
+            "issued": lines[4], "nonce": lines[5], "body_sha256": lines[6]}
+
+
+def load_request_evidence(db_path: str, request_id: str) -> dict | None:
+    """一单的全部状态行 + 每一行的签名存证 + 签名者的公钥。没有这张单返回 None。
+
+    **返回的是能离线复验的原料**，不是本站的判断：逐字载荷、SSHSIG 原文、公钥行。
+    `serve` 那一侧再附一句「照这条命令跑」，本站说「验过了」不算数——这正是
+    存证与「我们相信我们的代码」之间的差别。
+
+    旧库（v1.7 及之前）没有这五列：`sqlite3.OperationalError` 原样抛给调用方，
+    由它决定回 503 还是别的。这里**不吞**——吞掉会变成「一单没有存证」，
+    而那是另一个意思（v1.8 之前的行确实没有，但那是逐行的，不是整站读不出）。
+    """
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+    con.row_factory = sqlite3.Row
+    try:
+        con.execute("PRAGMA busy_timeout=5000")
+        rows = con.execute(
+            "SELECT seq, state, created_at, requested_by, claim_agent_id,"
+            " sig_kind, sig_payload, sig, sig_key_fp, sig_ref"
+            " FROM request WHERE request_id=? ORDER BY seq", (request_id,)).fetchall()
+        if not rows:
+            return None
+        out = []
+        signers: set[str] = set()
+        for r in rows:
+            d = dict(r)
+            kind = d.pop("sig_kind")
+            raw = d.pop("sig_payload")
+            sig = d.pop("sig")
+            d["key_fp"] = d.pop("sig_key_fp")
+            d["ref"] = d.pop("sig_ref")
+            d["evidence"] = kind or "none"
+            # `none` 只可能是 v1.8 之前写下的行：那时不存，现在补不出来（旧行禁改）。
+            d["payload"] = raw
+            d["sig"] = sig
+            d["signed"] = split_signed_payload(raw) if raw else {}
+            if kind == "http" and d["signed"].get("signer"):
+                signers.add(d["signed"]["signer"])
+            out.append(d)
+        keys = {}
+        for pid in sorted(signers):
+            row = con.execute("SELECT pubkey FROM party WHERE party_id=?",
+                              (pid,)).fetchone()
+            keys[pid] = (row["pubkey"] if row else None)
+        return {"request_id": request_id, "rows": out, "pubkeys": keys}
+    finally:
+        con.close()
+
+
 def contact_for(db_path: str, request_id: str, party_id: str) -> dict | None:
     """取一单的联系方式，**只给这条单的两方**，且只在认领成立之后。
 
@@ -572,7 +679,7 @@ class Writer:
         return {"created": False, "attached": False}
 
     # ── 需求单 ──────────────────────────────────────────────────────────────
-    def append_request(self, con, body: dict) -> dict:
+    def append_request(self, con, body: dict, evidence: dict) -> dict:
         """追加一行需求状态。`seq` 与 `created_at` 由服务端算，不接受客户端自带。
 
         `created_at` 记的是**本行落库时间**，不是首行时间。公开视图的 90 天规则
@@ -582,8 +689,22 @@ class Writer:
         `poster_email` / `claimer_email`（v1.7）跟着行一起写：这两列是「本行这一方
         留下的联系方式」，不是 `party` 的属性。追加行时由调用方决定填什么——
         沿用上一行、置空、或者新填（认领那一刻才第一次有认领方邮箱）。
+
+        `evidence`（v1.8，**必填**）说明这一行是谁写的：
+
+            {"kind": "http", "payload": str, "sig": str, "key_fp": str}
+                客户端签名请求直接写的行。载荷逐字来自那次请求（`signing.verify`
+                算出来的那一段），签名与指纹同源。
+            {"kind": "derived", "ref": "clock" | "confirm:<entry_id>"}
+                服务端派生的行：时钟结算的 `expired`、确认派生的 `closed`。
+                这两类没有自己的签名，**不许**带签名（库里 `DGB_LED_042` 拦）。
+
+        为什么必填而不是可选：可选等于「以后会有人忘」，而忘了之后库里多出来的那一行
+        与别的行长得一模一样，只有专门去查才发现。库里 `trg_request_sig_required`
+        与这里各判一次——库里的那条是底线，这里的这条只为把错误信息说得更像人话。
         """
         rid = body["request_id"]
+        sig_cols = _evidence_columns(evidence)
         seq = con.execute(
             "SELECT COALESCE(MAX(seq),0)+1 FROM request WHERE request_id=?", (rid,)
         ).fetchone()[0]
@@ -591,14 +712,16 @@ class Writer:
         con.execute(
             "INSERT INTO request(request_id, seq, state, category, need_desc, window_expires_at,"
             " requested_by, claim_agent_id, evidence_uri, occurred_at, created_at, note,"
-            " poster_email, claimer_email)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " poster_email, claimer_email, sig_kind, sig_payload, sig, sig_key_fp, sig_ref)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (rid, seq, body["state"], body["category"], body["need_desc"],
              body.get("window_expires_at") or "", body["requested_by"],
              body.get("claim_agent_id"), body.get("evidence_uri"),
              body.get("occurred_at"), now, body.get("note"),
-             body.get("poster_email") or None, body.get("claimer_email") or None))
-        return {"request_id": rid, "seq": seq, "created_at": now}
+             body.get("poster_email") or None, body.get("claimer_email") or None,
+             *sig_cols))
+        return {"request_id": rid, "seq": seq, "created_at": now,
+                "evidence": evidence.get("kind")}
 
     # ── 账目条目 ────────────────────────────────────────────────────────────
     def append_entry(self, con, kind: str, body: dict) -> dict:
@@ -830,8 +953,9 @@ class Writer:
             con.execute(
                 "INSERT INTO request(request_id, seq, state, category, need_desc,"
                 " window_expires_at, requested_by, claim_agent_id, evidence_uri,"
-                " occurred_at, created_at, note, poster_email, claimer_email)"
-                " VALUES(?,?,'expired',?,?,?,?,?,?,?,?,?,?,?)",
+                " occurred_at, created_at, note, poster_email, claimer_email,"
+                " sig_kind, sig_ref)"
+                " VALUES(?,?,'expired',?,?,?,?,?,?,?,?,?,?,?,'derived','clock')",
                 (r["request_id"], seq, r["category"], r["need_desc"], r["window_expires_at"],
                  r["requested_by"], r["claim_agent_id"], r["evidence_uri"],
                  r["occurred_at"], now, r["note"], r["poster_email"], r["claimer_email"]))
@@ -1035,6 +1159,8 @@ class Writer:
         # occurred_at 与 evidence_uri，漏一个就退化成「关闭时交付凭据消失了」。
         # 邮箱两列同理——关单之后双方还要联系，凭据行缺了邮箱等于把联系方式
         # 从当前行抹掉（历史行仍在，但「一单一行当前状态」的口径残缺了）。
+        # 证据（v1.8）不复制：这一行不是谁签的，是那条确认的副产品。`sig_ref` 指向
+        # 真正被签的那条确认，读的人顺着它就能走到 `entry_confirm` 的签名上去。
         self.append_request(con, {
             "request_id": request_id,
             "state": "closed",
@@ -1048,7 +1174,7 @@ class Writer:
             "note": row["note"],
             "poster_email": row["poster_email"],
             "claimer_email": row["claimer_email"],
-        })
+        }, {"kind": "derived", "ref": f"confirm:{entry_id}"})
         return request_id
 
     # ── 重放闸门 ────────────────────────────────────────────────────────────

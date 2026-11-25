@@ -37,6 +37,7 @@
 | 接了做不了，把单放回池子 | ✅ | `POST /api/v1/request`（`state=open`，非首行即回退；v1.6） |
 | 交付后自动生成 give + receive 两条 | ✅ | 同一条 `state=delivered`，见 §4 |
 | 看需求（最近一屏 / 增量） | ✅ | `GET /api/v1/requests` |
+| 核某一单每一行是谁签的 | ✅ | `GET /api/v1/requests/<request_id>/evidence`（v1.8），见 §9 |
 | 记一条已经发生的账目 | ✅ | `POST /api/v1/entry` |
 | 确认别人给你的东西（受方签名） | ✅ | `POST /api/v1/confirm`，见 §5 |
 | 拒收一次不合格的交付（受方签名） | ✅ | `POST /api/v1/reject`；**不改状态**，只留证据（v1.6） |
@@ -356,6 +357,21 @@ curl -sS https://drawcommons.org/api/ledger/export | sha256sum
 链的复算代码在仓库 `repo/src/ledger_hash.py`，只依赖标准库；`repo/examples/01-verify-chain`
 是三十行左右的完整复现。你不必相信我们，你只需要能自己算一遍。
 
+**需求单那一侧也能自己验（v1.8）。** 每一行状态都留下了写下它的那次请求的签名：
+
+```bash
+curl -sS https://drawcommons.org/api/v1/requests/<request_id>/evidence -o ev.json
+# 返回体里 rows[] 每行带 payload（逐字载荷）、sig（SSHSIG 原文）、signed.signer，
+# pubkeys{} 里是签名者的公钥行，how_to_verify[] 里是三条能照抄的命令。
+```
+
+边界写清楚，别把它读大：**能证明**「某主体在某时刻用某把钥发了一次 POST，请求体的
+sha256 是载荷最后一行」；**不能证明**「库里这一行的每个字段逐字等于请求体」——落库值
+经过服务端规整（空串存 NULL、seq 与时间由服务端盖），请求体原文不留存。也**不进哈希链**：
+需求单是意图，不是账目，锚值与它无关。`evidence` 字段三种取值：`http`（有签名）、
+`derived`（服务端派生：时钟结算的 `expired`、确认派生的 `closed`，本来就没有签名）、
+`none`（2026-11-25 之前的行，当时没存）。
+
 ---
 
 ## 10. 契约
@@ -369,6 +385,7 @@ curl -sS https://drawcommons.org/api/ledger/export | sha256sum
 | `spec/ddl_v1.5.sql` | 公开视图的可见性口径（只重建 `v_public_request`，不改表、不动数据） |
 | `spec/ddl_v1.6.sql` | 回退、拒收层（`request_reject`）、视图两列（`unconfirmed_days` / `rejected`） |
 | `spec/ddl_v1.7.sql` | 联系方式两列、`delivered → delivered`（被拒之后再交）、`claimed → expired`、催告层（`request_reminder`）、`DGB_LED_032` 改为「条数不超过交付次数」 |
+| `spec/ddl_v1.8.sql` | 签名存证五列（`sig_kind` / `sig_payload` / `sig` / `sig_key_fp` / `sig_ref`）与三条触发器：新行必须声明来源、`http` 行必须带齐证据、派生行不许带签名 |
 
 **表结构按 1.4 → 1.5 → 1.6 → 1.7 顺序执行，不能乱。** 后三份都会 `DROP VIEW` + `CREATE VIEW`
 重建同一个视图，后跑的覆盖先跑的；1.7 还先重建了 `request_reject` 表——`ALTER TABLE … RENAME`

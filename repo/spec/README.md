@@ -14,6 +14,7 @@
 | `../../spec/ddl_v1.5.sql` | **表结构增量**（SQLite，w4-ddl v1.5，跑在 v1.4 之后） | 只重建 `v_public_request`：未认领的单（截止已过，或无期限满 90 天）不再公开、`expired` 立即不收。不改表、不动数据、不影响锚值 |
 | `../../spec/ddl_v1.6.sql` | **表结构增量**（SQLite，w4-ddl v1.6，跑在 v1.5 之后） | `claimed → open` 回退（认领人的退路）、`open` 不再限定首行、`request_reject` 拒收层与两条触发器、视图末尾加 `unconfirmed_days` 与 `rejected` 两列。不改表结构、不动数据、不影响锚值 |
 | `../../spec/ddl_v1.7.sql` | **表结构增量**（SQLite，w4-ddl v1.7，跑在 v1.6 之后） | `request` 加 `poster_email` / `claimer_email` 两列（不进公开视图）、`delivered → delivered`（被拒之后才能再交）、`claimed → expired`（逾期作废）、`request_reject` 主键改为 `(request_id, seq)`、`DGB_LED_032` 改为「条数不超过交付次数」、新增 `request_reminder` 催告层。**含表重建与视图重建**：`ALTER TABLE … RENAME` 会改写引用它的触发器与视图，所以状态机触发器与 `v_public_request` 都在重建之后重做，顺序不能颠倒 |
+| `../../spec/ddl_v1.8.sql` | **表结构增量**（SQLite，w4-ddl v1.8，跑在 v1.7 之后） | `request` 加签名存证五列（`sig_kind` / `sig_payload` / `sig` / `sig_key_fp` / `sig_ref`）与三条触发器：新行必须声明来源（`DGB_LED_040`）、`http` 行必须带齐载荷/签名/指纹且载荷首行是写入面标签（`041`）、派生行不许带签名（`042`）。只加列、不重建视图、不动数据、不影响锚值 |
 
 **为什么 DDL 在 `../../spec/` 而不是本目录。** 发布包（`git archive`）的根有两棵树：`repo/`
 是代码与这份规范，`spec/` 是表结构。DDL 是 Apache-2.0 的实现件，本目录按 R5 只能放 CC0，

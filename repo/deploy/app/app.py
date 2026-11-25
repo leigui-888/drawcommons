@@ -120,7 +120,8 @@ from ledger_hash import GENESIS, build_chain, canonical, verify_chain
 # 里再写一遍：两份实现的失败方式不是报错，而是「写进去的 hash 与读出来的链对不上」，
 # 且只在第三方复算时暴露。
 from ledger_store import (REQUEST_STATES, decode_cursor, load_confirmations,
-                          load_entries, load_request_detail, load_request_page)
+                          load_entries, load_request_detail, load_request_evidence,
+                          load_request_page)
 
 # 三件套的公示文本。由 `_ops/build_legal_pages.py` 从 Markdown 生成，勿手改：
 # 里面装的是原文（逐字节）与预渲染好的 HTML。运行时不解析 Markdown——一份法律
@@ -1823,6 +1824,8 @@ def render_llms() -> bytes:
 - `GET /api/ledger/verify` — 链校验：`ok` / `first_bad` / `items` / `chain_tail`（服务端自述，可自行复算）
 - `GET /api/ledger/export` — 导出件原文；它的 sha256 就是锚值
 - `GET /api/v1/requests` — 需求单（`?state=open` 只看可接的）
+- `GET /api/v1/requests/<id>/evidence` — 那一单每一行的**签名存证**：逐字载荷、SSHSIG、
+  签名者公钥，附一条 `ssh-keygen -Y verify` 命令（2026-11-25 起；此前的老行标 `none`）
 - `GET /api/metrics` — 公共品指标快照：外部读取量、账本与复用，外加「测不出来的三项」
   （数据由服务器上的定时任务每天算一次；读口不认证，所以**没有**「非成员受益率」的比例）
 
@@ -2216,8 +2219,13 @@ def render_requests(state: str | None = None, note: str = "", lang: str = "zh") 
 <p class="plain">一单一条状态行，历史只追加（<code>seq</code> 递增），不改写。列表只显示
    <b>当前状态</b>，最多最近 50 条；已结 / 已撤回 / 已过期的单子 90 天后从列表隐藏，
    <code>/r/&lt;id&gt;</code> 永久可读。</p>
-<p class="plain">每一条都来自提交时签名的请求；签名证据在服务端，<b>不在本页</b>。
-   自行验证请去 <a href="/ledger">账本数据查询</a>——可验的是<b>账目</b>，不是需求单。</p>
+<p class="plain">每一条都来自提交时签名的请求。<b>签名证据在服务端，可以逐条取走自己验</b>：
+   <code>/api/v1/requests/&lt;id&gt;/evidence</code> 给出那次请求的<b>逐字载荷、SSHSIG 原文、
+   签名者公钥</b>，照返回体里那条 <code>ssh-keygen -Y verify</code> 命令跑一遍即可，
+   <b>不必信本站</b>（2026-11-25 起才真的存下来，此前的行只有一个「没存」的标记）。</p>
+<p class="plain">两件事别混：<a href="/ledger">账本</a>那一侧能验的是<b>哈希链</b>；需求单这一侧的
+   存证只证明「这一行是那把钥的这次请求写下的」，<b>不证明</b>「每个字段逐字等于请求体」
+   ——落库值经过服务端规整，请求体原文不留存。</p>
 <p class="plain">想接其中一单？先看 <a href="/testing">测试与验证</a>——签署页只认发布方发的
    任务卡，<b>不能把这里的编号直接粘进去</b>。</p>
 <p class="plain">本页<b>不做匹配</b>：按时间排序，先到先得；不排名、不推荐、不收费。
@@ -2288,8 +2296,17 @@ def render_request_detail(detail: dict) -> bytes:
     steps = []
     for h in detail["history"]:
         note = (f'<div class="plain">{esc(h["note"])}</div>' if h.get("note") else "")
+        # 每一行是谁写的（v1.8）。三句话，因为读者要做的事不同：
+        # 有存证的可以去对；派生的本来就没有签名；旧行是「当时没存」，不是「现在丢了」。
+        kind = h.get("sig_kind")
+        if kind == "http":
+            mark = (f' · 已存证 <code>{esc((h.get("sig_key_fp") or "")[:16])}…</code>')
+        elif kind == "derived":
+            mark = " · 服务端派生（无签名）"
+        else:
+            mark = " · 未存证（v1.8 之前）"
         steps.append(f'<li>{_state_chip(h["state"])}'
-                     f'<span class="plain"> 第 {h["seq"]} 行</span>'
+                     f'<span class="plain"> 第 {h["seq"]} 行{mark}</span>'
                      f'<time>{esc(h["created_at"])}</time>{note}</li>')
 
     if detail["entries"]:
@@ -2338,8 +2355,15 @@ def render_request_detail(detail: dict) -> bytes:
 <p class="plain"><b>状态行不是账目。</b>「轨迹」里每一行都是一次已签名请求落下的结果，
    但它们不进哈希链，没有可供第三方重算的 hash——本页<b>不能</b>证明「这单确实是这个状态」，
    只是把库里那一行如实印出。</p>
+<p class="plain"><b>但每一行的签名留下来了</b>（2026-11-25 起）。按行标着「已存证」的，
+   去 <a href="/api/v1/requests/{esc(rid)}/evidence">/api/v1/requests/{esc(rid)}/evidence</a>
+   能拿到那次请求的<b>逐字载荷、签名与签名者公钥</b>，照返回体里的
+   <code>ssh-keygen -Y verify</code> 命令跑一遍——<b>验的人不必信本站</b>。
+   标着「服务端派生」的本来就该没有签名（时钟与派生没有钥），
+   标着「v1.8 之前」的是当时没存，现在也补不出来。</p>
 <p class="plain"><b>账目是账目。</b>交付生成的两条进链、进锚值，任何人可下载导出件自行复算。
-   验证入口：<a href="/ledger">账本数据查询</a> 或 <code>/api/ledger/verify</code>。</p>
+   验证入口：<a href="/ledger">账本数据查询</a> 或 <code>/api/ledger/verify</code>。
+   存证与入链是两件事：前者证明「谁写的这一行」，后者证明「这两条没被改过」。</p>
 <p class="plain" style="margin-top:2.2rem">接着看：<a href="/requests">需求发布 →</a></p>
 """
     return _page(
@@ -2687,6 +2711,95 @@ class Handler(BaseHTTPRequestHandler):
                    json.dumps(obj, ensure_ascii=False, indent=2).encode("utf-8"),
                    "application/json; charset=utf-8")
 
+    def _serve_request_evidence(self, path: str) -> None:
+        """需求单的签名存证（v1.8）。**这个口存在的唯一理由**：让「签名证据在服务端」
+        这句话能被任何人不经本站地验一遍。
+
+        所以返回体里给的是**原料**——逐字载荷、SSHSIG 原文、签名者公钥、一条能照抄的
+        命令。本站的判断只放在 `counts` 与每行的 `why` 里，那是方便话，不是证据。
+        把「我验过了」当结论，与把结论当证据，是两件不同的事。
+
+        三类行三种说法，不合并（读者要做的事不同）：
+          http     有载荷有签名 → 照 `how_to_verify` 跑；
+          derived  本来就没有自己的签名 → 别去找，`ref` 指向真正被签的那件事；
+          none     v1.8 之前的行，当时不存 → 不补、不猜。
+        """
+        tail = path[len("/api/v1/requests/"):]
+        rid, _, leaf = tail.partition("/")
+        if leaf != "evidence" or not rid.startswith("rq_") or len(rid) > 64:
+            self._json(404, {"ok": False, "endpoint": "request_evidence",
+                             "error": "not_found",
+                             "detail": "只有 /api/v1/requests/<request_id>/evidence"})
+            return
+        try:
+            data = load_request_evidence(DB_PATH, rid)
+        except sqlite3.Error as exc:
+            # 旧库（v1.7 及之前）没有这五列。这时**不能**回「这一单没有存证」——
+            # 那是逐行的事实，而这里是整站读不出来。两者混在一起，读者会以为
+            # 「存证机制上线了，只是这一单没有」，而实际上一个都读不到。
+            self._json(503, {"ok": False, "endpoint": "request_evidence",
+                             "error": "data_layer_unavailable",
+                             "detail": f"{type(exc).__name__}: {exc}"})
+            return
+        if data is None:
+            self._json(404, {"ok": False, "endpoint": "request_evidence",
+                             "error": "request_not_found",
+                             "detail": f"没有这张单：{rid}",
+                             "note": "与 /r/<id> 同一条口径：不存在与 id 形状不对不作区分"})
+            return
+
+        rows = []
+        counts = {"http": 0, "derived": 0, "none": 0}
+        for r in data["rows"]:
+            kind = r["evidence"]
+            counts[kind] = counts.get(kind, 0) + 1
+            row = {"seq": r["seq"], "state": r["state"], "created_at": r["created_at"],
+                   "evidence": kind, "key_fp": r["key_fp"], "ref": r["ref"],
+                   "payload": r["payload"], "sig": r["sig"], "signed": r["signed"]}
+            if kind == "derived":
+                ref = r["ref"] or ""
+                row["why"] = ("由确认派生：真正被签的是那条确认（entry_id 见 ref）；"
+                              "在这一行上挂签名等于伪造"
+                              if ref.startswith("confirm:") else
+                              "时钟结算（到期作废）：时钟没有钥，所以这一行没有签名")
+            elif kind == "none":
+                row["why"] = ("v1.8（2026-11-25）之前的行：服务端当时不存签名，"
+                              "现在也补不出来——旧行只增不改")
+            rows.append(row)
+
+        # 命令里给出真实主机名，读者才能直接复制粘贴。协议取反代给的那一个：
+        # 线上由 Caddy 终结 TLS、会带 `X-Forwarded-Proto: https`；直接连本进程
+        # （没有反代）时退回 https——那只是把话写完整，不是断言此刻就是 TLS。
+        host = (self.headers.get("Host") or "").strip() or "drawcommons.org"
+        scheme = (self.headers.get("X-Forwarded-Proto") or "https").split(",")[0].strip()
+        base = f"{scheme}://{host}"
+        how = [
+            f"curl -sS '{base}/api/v1/requests/{rid}/evidence' -o ev.json",
+            "python3 -c \"import json;d=json.load(open('ev.json'));r=d['rows'][0];"
+            "open('payload','w').write(r['payload']);open('sig','w').write(r['sig']);"
+            "open('allowed_signers','w').write(r['signed']['signer']+' '+"
+            "d['pubkeys'][r['signed']['signer']]+chr(10))\"",
+            "ssh-keygen -Y verify -f allowed_signers -I <signer> "
+            "-n drawcommons-ingest -s sig < payload",
+        ]
+        self._json(200, {
+            "ok": True,
+            "endpoint": "request_evidence",
+            "contract": "v1",
+            "request_id": rid,
+            "counts": counts,
+            "what_this_proves": (
+                "每一行 http 的载荷加签名，能证明「某主体在某个时刻用某把钥向该路径发了一次 "
+                "POST，请求体的 sha256 是载荷最后一行」，且不需要相信本站。"),
+            "what_this_does_not_prove": (
+                "不能证明库里这一行的每个字段逐字等于那次请求体：落库值经过服务端规整"
+                "（空串存 NULL、联系方式沿用上一行、seq 与 created_at 由服务端盖），"
+                "而请求体原文不留存。也不进哈希链——需求单不是账目，锚值与此无关。"),
+            "how_to_verify": how,
+            "pubkeys": data["pubkeys"],
+            "rows": rows,
+        })
+
     def _serve_requests(self) -> None:
         """需求单发现口。读数：`v_public_request`（与公开页同一口径）。
 
@@ -2939,6 +3052,10 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, LEDGER.export_bytes, "application/json; charset=utf-8")
         # 发现口（r6 · 需求发布页的数据源）。只读、不验签、不碰链：
         # 它读的是需求单，不是账目，所以既不改锚值，也不依赖 Ledger 的内存链。
+        # 单条的存证（v1.8）排在前面：`/api/v1/requests/<id>/evidence` 与
+        # `/api/v1/requests` 是两种资源，前者不能落到后者的 404 上。
+        elif path.startswith("/api/v1/requests/"):
+            self._serve_request_evidence(path)
         elif path == "/api/v1/requests":
             self._serve_requests()
         # 欢迎层的图片。放在 PAGES 之后、兜底 404 之前：它只服务白名单里的六个名字。

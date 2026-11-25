@@ -23,6 +23,10 @@
   .linkcard p { margin: 4px 0 0; font-size: 12px; color: #5f5e5a; }
   h2 { font-size: 14px; font-weight: 500; color: #5f5e5a; margin: 24px 0 10px; }
   .tag { font-size: 11px; background: #fac775; color: #633806; border-radius: 4px; padding: 1px 6px; vertical-align: 2px; }
+  /* 存证那一节：命令块与「能证明什么」的细字。都只在本页用，故不进制式单源。 */
+  .linkcard code { font-size: 12px; color: #185fa5; background: #f0f4f8; padding: 1px 5px; border-radius: 3px; word-break: break-all; }
+  pre.cmd { margin: 8px 0 0; background: #2c2c2a; color: #e5e3db; padding: 10px 12px; border-radius: 8px; font-size: 12px; overflow-x: auto; }
+  .fine { font-size: 12px; color: #888780; margin: 0 2px; }
   footer { border-top: 1px solid #e5e3db; margin-top: 28px; padding: 14px 0 6px; text-align: center; font-size: 12px; color: #888780; }
   footer a { color: #5f5e5a; text-decoration: none; margin: 0 8px; }
 /* ==== DG-UI BEGIN ==== */
@@ -231,6 +235,15 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   <h2>Checks</h2>
   <a class="linkcard" href="/en/ledger">Ledger data<span class="go">Live ↗</span><p>Walk the ledger entry by entry, hash by hash</p></a>
   <a class="linkcard" href="https://drawcommons.org/audit.md">Audit brief<span class="go">Live ↗</span><p>For a human to run: 8 read-only checks, zero dependencies, one pass</p></a>
+
+  <h2>Signature evidence for requests <span class="tag">since 2026-11-25</span></h2>
+  <div class="linkcard">
+    <b>Every row keeps the signature that wrote it</b>
+    <p>Take the request id and fetch its<b>byte-exact payload, SSHSIG and the signer’s public key</b>, then run
+       <code>ssh-keygen -Y verify</code>——<b>the verifier does not have to trust this site</b>。</p>
+    <pre class="cmd">curl -sS https://drawcommons.org/api/v1/requests/&lt;id&gt;/evidence</pre>
+  </div>
+  <p class="fine">What it proves: this row came from that key, in that request.<b>What it does not prove:</b>that every field is byte-identical to the request body: values are normalised on the way in and the raw body is not kept. Rows written before 2026-11-25 carry a “not stored” mark — it cannot be reconstructed, and should not be.</p>
 
   <h2>Downloads <span class="tag">Newly gathered</span></h2>
   <a class="linkcard" href="https://drawcommons.org/api/ledger/export">Ledger export (JSON)<span class="go">Download ↗</span><p>The file the anchor is computed from</p></a>

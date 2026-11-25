@@ -246,9 +246,23 @@ X-DG-Party / X-DG-Issued / X-DG-Nonce / X-DG-Sig      # 与写口同一套信封
 
 ## 7. 结构落在哪里
 
-表结构分五份：`../ddl_w4.sql`（v1.3 基线）→ `../ddl_v1.4.sql` → `../ddl_v1.5.sql`（可见性收窄）→ `../ddl_v1.6.sql`（回退、拒收层、视图两列）→ `../ddl_v1.7.sql`（联系方式、再交一次、催告层、claimed 到期）。
+表结构分六份：`../ddl_w4.sql`（v1.3 基线）→ `../ddl_v1.4.sql` → `../ddl_v1.5.sql`（可见性收窄）→ `../ddl_v1.6.sql`（回退、拒收层、视图两列）→ `../ddl_v1.7.sql`（联系方式、再交一次、催告层、claimed 到期）→ `../ddl_v1.8.sql`（签名存证五列与三条触发器）。
 
-**必须按序执行**：v1.5 / v1.6 / v1.7 都用 `DROP VIEW` + `CREATE VIEW` 重建视图，后跑的覆盖先跑的。v1.7 还多一处顺序依赖——它先重建 `request_reject` 表，而 `ALTER TABLE … RENAME` 会把所有引用旧表的触发器与视图**一起改写**成旧表名，所以状态机触发器与 `v_public_request` 都必须在那之后重建。`evidence/build_ledger.py` 把这五份写在一个元组里，不靠调用方记得。
+**必须按序执行**：v1.5 / v1.6 / v1.7 都用 `DROP VIEW` + `CREATE VIEW` 重建视图，后跑的覆盖先跑的。v1.7 还多一处顺序依赖——它先重建 `request_reject` 表，而 `ALTER TABLE … RENAME` 会把所有引用旧表的触发器与视图**一起改写**成旧表名，所以状态机触发器与 `v_public_request` 都必须在那之后重建。`evidence/build_ledger.py` 把这六份写在一个元组里，不靠调用方记得。
+
+### 7.1 签名存证（v1.8）
+
+每一行状态都记下**写下它的那次请求**的签名：逐字载荷（`sig_payload`）、SSHSIG（`sig`）、
+签名者指纹（`sig_key_fp`），外加一个说明来历的 `sig_ref`。读口是
+`GET /api/v1/requests/<id>/evidence`。
+
+**它证明什么、不证明什么**，写在 `ddl_v1.8.sql` 头部，这里只留一句：证明「这一行来自
+那把钥的这一次请求」，不证明「每个字段逐字等于请求体」。后者做不到，因为请求体原文
+不留存——留了就是把一份可能含联系方式的原文钉进只增不删的表。
+
+`evidence` 三类：`http`（有签名）、`derived`（时钟结算的 `expired`、确认派生的
+`closed`；**禁止**带签名，`DGB_LED_042`）、`none`（v1.8 之前的行，当时没存，
+`trg_request_no_update` 也不许补）。仍**不进链**：存证不是上链，锚值不因这一版改变。
 
 本节只写「为什么是这几条约束」，不重复贴 SQL——同一段 SQL 贴两处，早晚会有一处是旧的；判据脚本直接执行那些文件，文档与实现因此没有第二个版本。
 

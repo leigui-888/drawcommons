@@ -141,13 +141,21 @@ curl -sSI 'https://drawcommons.org/needs?state=open' | grep -i '^location'   # 3
 已经有 `ledger.db` 的部署，升级时**只跑增量脚本**，不要重建库：
 
 ```bash
-# 顺序：v1.3 基线（只有 v1.2 及更早需要）→ v1.4 → v1.5 → v1.6
+# 顺序：v1.3 基线（只有 v1.2 及更早需要）→ v1.4 → v1.5 → v1.6 → v1.7 → v1.8
 sqlite3 ledger.db < spec/ddl_w4.sql      # 只有 v1.2 及更早需要
 sqlite3 ledger.db < spec/ddl_v1.4.sql
 sqlite3 ledger.db < spec/ddl_v1.5.sql    # 重建 v_public_request（可见性收窄）
 sqlite3 ledger.db < spec/ddl_v1.6.sql    # 状态机回退 + request_reject + 视图两列
 sqlite3 ledger.db < spec/ddl_v1.7.sql    # 联系方式 + 再交一次 + 催告层 + claimed 到期
+sqlite3 ledger.db < spec/ddl_v1.8.sql    # 签名存证五列 + 三条触发器（只加列）
 ```
+
+**v1.8 只有 `ALTER TABLE … ADD COLUMN` 与 `CREATE TRIGGER`**，不重建视图、不改任何数据行。
+`ADD COLUMN` 不能重跑（第二次会撞 `duplicate column name`），所以同样要包事务；
+好在它失败时是一条语句整体回滚，不会留下「加了一半」的库（`CHECK` 与触发器都是随列一起建的）。
+**升级顺序很重要**：老库上先跑 DDL 再重启 `ingest`。反过来，先是 `ingest` 启动就报
+「库缺列 sig_kind…先跑 spec/ddl_v1.8.sql」（`preflight` 会逐个点名缺哪一列、该跑哪一份）。
+app（公开页）那边读不到列时回 503 `data_layer_unavailable`，不会把「读不出」说成「这一单没存证」。
 
 **v1.5 与 v1.6 的先后不能颠倒**：两者都 `DROP VIEW` + `CREATE VIEW` 重建同一个视图，
 v1.6 的定义包含 v1.5 的全部条件。先跑 v1.6 再跑 v1.5，站点会退回旧口径，而且不报错——

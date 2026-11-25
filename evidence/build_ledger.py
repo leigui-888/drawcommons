@@ -25,7 +25,8 @@ def _ddl_paths() -> list[str]:
     # 而那份定义不认识 `delivered → delivered`。
     # 少跑一个不会报错（视图还在，只是旧口径），这才是危险的地方——所以列在这里，
     # 不靠调用方记得。
-    names = ("ddl_w4.sql", "ddl_v1.4.sql", "ddl_v1.5.sql", "ddl_v1.6.sql", "ddl_v1.7.sql")
+    names = ("ddl_w4.sql", "ddl_v1.4.sql", "ddl_v1.5.sql", "ddl_v1.6.sql", "ddl_v1.7.sql",
+             "ddl_v1.8.sql")
     out = []
     for n in names:
         cands = [os.path.join(_HERE, "..", "spec", n), os.path.join(_HERE, n)]
