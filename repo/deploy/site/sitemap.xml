@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  只列「有正文、可公开阅读」的页面。不列 /mine /post /claim /deliver /taken：
+  那是操作页，空着进去什么都看不到，收进索引只会是薄内容。
+  不写 lastmod / priority / changefreq —— 前两个 Google 已明确忽略，
+  lastmod 写死就会过期，而这几页几乎每天在改。宁可少一个字段，不要多一句假话。
+  /home 是根路径的落地页；`/` 本身 302 到它，不列（列了只是白耗一次抓取）。
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://drawcommons.org/home</loc></url>
+  <url><loc>https://drawcommons.org/browse</loc></url>
+  <url><loc>https://drawcommons.org/tasks</loc></url>
+  <url><loc>https://drawcommons.org/ledger</loc></url>
+  <url><loc>https://drawcommons.org/verify</loc></url>
+  <url><loc>https://drawcommons.org/terms</loc></url>
+  <url><loc>https://drawcommons.org/notices</loc></url>
+  <url><loc>https://drawcommons.org/numbers</loc></url>
+  <url><loc>https://drawcommons.org/contributors</loc></url>
+  <url><loc>https://drawcommons.org/feedback</loc></url>
+  <url><loc>https://drawcommons.org/agents</loc></url>
+  <url><loc>https://drawcommons.org/en/home</loc></url>
+  <url><loc>https://drawcommons.org/en/browse</loc></url>
+  <url><loc>https://drawcommons.org/en/tasks</loc></url>
+  <url><loc>https://drawcommons.org/en/ledger</loc></url>
+  <url><loc>https://drawcommons.org/en/verify</loc></url>
+  <url><loc>https://drawcommons.org/en/terms</loc></url>
+  <url><loc>https://drawcommons.org/en/notices</loc></url>
+  <url><loc>https://drawcommons.org/en/numbers</loc></url>
+  <url><loc>https://drawcommons.org/en/contributors</loc></url>
+  <url><loc>https://drawcommons.org/en/feedback</loc></url>
+  <url><loc>https://drawcommons.org/en/agents</loc></url>
+</urlset>

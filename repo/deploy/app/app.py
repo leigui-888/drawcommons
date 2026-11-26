@@ -2957,12 +2957,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802（基类命名）
         path = self.path.split("?", 1)[0].rstrip("/") or "/"
-        # 入口分流（2026-11-15）：进入应用先看三屏引导。`/` 与 `/en` 不再直接是
-        # 主页——主页搬到 /home 与 /en/home，引导页是 /welcome 与 /en/welcome
-        # （独立文档，与主页零共享）。用 302 不用 301：这是产品决策不是地址变更，
-        # 301 会被浏览器长期缓存，哪天改主意就收不回来了。
+        # 入口分流（2026-11-15，2026-11-26 改落点）：`/` 与 `/en` 不再直接是主页，
+        # 主页在 /home 与 /en/home。**落点从引导页改成了主页**——引导页是 noindex，
+        # 而根路径必须是可收录的那一页，否则 Google 抓根域读到的是「不要收录」。
+        # 引导页仍在 /welcome 与 /en/welcome，由站内链接进。
+        # 用 302 不用 301：这是产品决策不是地址变更，301 会被浏览器长期缓存。
         if path in ("/", "/en"):
-            self._redirect("/welcome" if path == "/" else "/en/welcome", code=302)
+            self._redirect("/home" if path == "/" else "/en/home", code=302)
             return
         # 引导第 1 屏的地址是 `/welcome`（不是 `/welcome/1`）。手输 `/welcome/1`
         # 的人不该看到 404——301 归位；**只认这一个**，`/welcome/9` 仍旧 404，

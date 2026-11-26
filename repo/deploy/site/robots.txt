@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# 下面四处是「不该进索引」的，用 robots 直接不上门；它们同时另有 X-Robots-Tag。
+# 注意：/welcome* 故意**不写在这里**。它自己是 noindex —— 一旦用 robots 挡掉，
+# Google 就永远读不到那条 noindex，早已被收录的旧快照反而更难消失。
+# 「用 robots 挡 + 用 noindex 删」是互相打架的两件事，只能选一个。
+Disallow: /api/
+Disallow: /repo.git/
+Disallow: /download/
+Disallow: /sign/
+
+Sitemap: https://drawcommons.org/sitemap.xml

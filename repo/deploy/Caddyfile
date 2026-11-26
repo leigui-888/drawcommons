@@ -32,11 +32,12 @@ drawcommons.org, www.drawcommons.org {
 	}
 
 	# ============ 重定向（静态兜底之前） ============
-	# `/` 到引导第一屏：这一步原先是 app 做的（do_GET 里 path in ("/","/en") → 302）。
-	# 人类页面换成静态后 app 不再碰 `/`，不写这条首页就是 404。
+	# `/` 到**首页**。原先到引导第一屏 `/welcome`，而 welcome 是 noindex ——
+	# 于是 Google 抓根域，跟过去看到的是一句「不要收录」。2026-11-26 改到 /home：
+	# 根路径必须是可收录的，引导页留在 /welcome 给站内链接用。
 	# 用 302 不用 301：这是产品决策不是地址变更，301 会被浏览器长期缓存。
-	redir / /welcome 302
-	redir /en /en/welcome 302
+	redir / /home 302
+	redir /en /en/home 302
 
 	# 旧入口改道。301 而不是 302：这是永久搬家，让搜索引擎与外部链接自己更新。
 	# `{?query}` 而不是裸路径：`/needs?state=open` 里的筛选必须跟着走。丢掉它
