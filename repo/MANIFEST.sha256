@@ -2,7 +2,7 @@
 # 生成：cd repo && python ../evidence/regen_repo_manifest.py
 # 校验：sha256sum -c MANIFEST.sha256
 # 口径：git ls-files --cached --others --exclude-standard（与 repo_lint 的 tracked_files 同源）
-# 生成时点：2026-11-26　条目：106
+# 生成时点：2026-11-26　条目：108
 #
 # 本清单只固定字节，不解释内容；条款与规范的含义以各文件正文为准。
 eb2a9bfb80d726dd2d2de8781f90607b47bb6b24e4af69863c6320954b9ab8fa  CONTRIBUTING.md
@@ -19,12 +19,12 @@ b93108bc1a1c920d3a1a5be8999619af9be11d35ee97055eb0073b0465e15494  REVIEWS.md
 f9ad51b3b30e49ec6efb8ffe8c33a17d1fbeced697c0eb61ce9aac38732fa40f  allowed_signers
 5710a71c146ffb7d976d875447db401c8d989fc71dbc2298405f7b6550b677b3  credits.json
 b18ae5c06cebb4359a963e717d59973d857c4af9affaa9eb61d57cd11cc61431  credits.json.license
-3328cd5fb7904108fe4163f6476d4d840948ccc599e88b6b08ddf79735826258  deploy/Caddyfile
+9ee01c7f9e665f4fc19d8254142e731baccc2aedbd1229b7a03069bbb4c1350e  deploy/Caddyfile
 9ae3674736991083599cfb16114757a8618ddff6c26c0d66f9cd4a57171897a3  deploy/README.md
 60bb8f33133ec9da7ad96a5f4e6e32a3272dc9b60aa6bcaea4fe8a8ead5858f2  deploy/app/Dockerfile
 c57da7345e605b7724166f85e71724fb7e022d91ee54b68f93f720628db6afd9  deploy/app/Dockerfile.ingest
 1d077771201e9b156d6f460f66cab8dd2d5064472c0ec0d9d1dc1fa3f3ca162d  deploy/app/agent.md
-73857344a7d5b9b0bfe159ba20e6874483bd9349e60c6625be7ddfc627f7a4bc  deploy/app/app.py
+0973ced4ee6c04aa215461af556c48d55139ab33e317a7a200a59b5e471b2d73  deploy/app/app.py
 605b05c2042c751dbc4cab02f703a6ff535478cc4c0a4c2d9d0adc4c026deccc  deploy/app/audit.md
 8b12bf70867315cc947a80e4932819c1321d92830ffc22e39c50dab7d502a3ee  deploy/app/collect_metrics.py
 dfd02951a3958670087529e96cebdd7707a71b9a8b6ba6331cafc999ae8799e6  deploy/app/content/README.md
@@ -77,6 +77,8 @@ a14f1eea3f8d8b2ce77e97ff21cc76c00063c24e4fe498d246f670f8ddbbfd2d  deploy/site/en
 d905e9f2c6e4363cb9a038363330b64e7896ceffaf45b06922952187608cb65e  deploy/site/notices.html
 c74b71ef87c93b937de43ab6db9ef1926c6765e866d7d44a464c2039938a4d5a  deploy/site/numbers.html
 761285fd99db2812b07a857e21b1aa851773be7d0a4b4e7037494d08c580801f  deploy/site/post.html
+765adf1cb8daae8aaed68284409417a82d03dc17dc706065aadfead4e6db2389  deploy/site/robots.txt
+2d129ee696485d2c1275cae3f09a21dfb713e7d89d826c6e3c410ed422b99b00  deploy/site/sitemap.xml
 3298d703f535a8f670aaabd5800f4aee57314af208025b6281538e6cf99e7a9e  deploy/site/taken.html
 d4db66d4f56d611911acff93e4526421eaa0bf033d1815489dada32c1c01e52e  deploy/site/tasks.html
 1517b7f2f150ef63e4c55052d1e65e7346c261368a8b8ccaa3d8ab927cf48c2f  deploy/site/terms.html
