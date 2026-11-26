@@ -1303,7 +1303,6 @@ def _page(title: str, desc: str, hero: str, body: str, path: str,
         f"<!doctype html>\n<html lang=\"{lang}\">\n<head>\n"
         "<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        "<meta name=\"robots\" content=\"noindex, nofollow\">\n"
         f'<meta name="description" content="{esc(desc)}">\n'
         f'<link rel="canonical" href="https://drawcommons.org{path}">\n'
         f"<title>{esc(title)}</title>\n"
@@ -1844,7 +1843,8 @@ def render_llms() -> bytes:
 - https://drawcommons.org/ledger — 账本与当前锚值
 - https://drawcommons.org/testing — 测试与验证
 - https://drawcommons.org/terms — 三份协议正文；纯文本另有 `/terms/<key>.txt`
-- 全站 `noindex`：不供搜索引擎收录，本站也不做 SEO
+- 收录：人类可读页面允许搜索引擎收录；`/welcome*`（引导三屏）、`/sign/*`（某人正在签的一单）、
+  `/api/*`（JSON）三处不供收录
 
 ## 边界
 

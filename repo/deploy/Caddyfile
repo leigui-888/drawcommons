@@ -23,10 +23,11 @@ drawcommons.org, www.drawcommons.org {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
-		# 2026-11-17 加。此前 noindex 是 app 逐页发的（app.py 的 Handler 里），
-		# 人类页面换成 Caddy 直出后就没人发了——15 页会变成可被搜索引擎收录，
-		# 而「测试期不收录」是刻意的（站点里还是结构样例）。这一条不能漏。
-		X-Robots-Tag "noindex, nofollow"
+		# 2026-11-26 撤掉全站 noindex。11-17 加它的理由是「测试期、站点里还是结构样例」，
+		# 现在协议已公示、账本有真实闭环、MCP 已发布，公开投放要求搜索结果能收到站点——
+		# 保留它就等于「投放只是发链接」，而且没有第二次机会。
+		# 只在下面三处保留：/sign/*（某人正在签的一单）、/welcome*（六张图，无文字）、
+		# /api/*（JSON 不是内容页）。静态 15 页与 app 渲染的协议/需求页一律可收录。
 		-Server
 	}
 
@@ -82,6 +83,8 @@ drawcommons.org, www.drawcommons.org {
 	# handle 组按匹配器具体性排序，`/api/v1/requests*` 比 `/api/v1/*` 更具体，
 	# 永远排在前面；`/api/v1/request`（单数，写口）不会被它吃掉，两者互不重叠。
 	handle /api/v1/requests* {
+		# JSON 不是内容页：收了也只会把接口原样摊到搜索结果里
+		header X-Robots-Tag "noindex, nofollow"
 		reverse_proxy app:8000 {
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
@@ -91,6 +94,7 @@ drawcommons.org, www.drawcommons.org {
 
 	# 写入面（r6）：三条受控 POST。与公开页是两个容器、两条路径。
 	handle /api/v1/* {
+		header X-Robots-Tag "noindex, nofollow"
 		reverse_proxy ingest:8001 {
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
@@ -102,6 +106,7 @@ drawcommons.org, www.drawcommons.org {
 	# 加了静态兜底之后，不显式写这段，这些接口会去 /srv/site 找文件而全部 404。
 	# 比上面的 /api/v1/* 短，按具体性排序永远在后，吃不掉写面。
 	handle /api/* {
+		header X-Robots-Tag "noindex, nofollow"
 		reverse_proxy app:8000 {
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
@@ -122,6 +127,8 @@ drawcommons.org, www.drawcommons.org {
 
 	# 欢迎三屏（一页一屏：/welcome、/welcome/2、/welcome/3 与英文同名三屏），仍是 app 渲染。
 	handle /welcome* {
+		# 六张图、一页一屏，没有可被检索引的文字
+		header X-Robots-Tag "noindex, nofollow"
 		reverse_proxy app:8000 {
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
@@ -148,6 +155,7 @@ drawcommons.org, www.drawcommons.org {
 	# 英文站其余 14 页（/en/home、/en/terms、/en/ledger …）已出静态件，走末尾兜底。
 	# 不做 `handle /en/*` 显式静态块：兜底已经是同一件事，多一条只是多一个会走偏的地方。
 	handle /en/welcome* {
+		header X-Robots-Tag "noindex, nofollow"
 		reverse_proxy app:8000 {
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
