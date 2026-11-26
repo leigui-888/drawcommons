@@ -758,7 +758,14 @@ def preflight() -> list[str]:
         "sig": "spec/ddl_v1.8.sql",
         "sig_key_fp": "spec/ddl_v1.8.sql",
         "sig_ref": "spec/ddl_v1.8.sql",
-    }}
+    },
+        # v1.10 的入链次序。缺了它不会 500（`append_entry` 会让路），但链会退回
+        # 「按内容排序」——那正是 2026-11-26 让两条真实确认验不过的那条路。
+        # 所以这里按硬要求报：**库跟不上，宁可起不来**。
+        "ledger_give": {"ord": "spec/ddl_v1.10.sql"},
+        "ledger_receive": {"ord": "spec/ddl_v1.10.sql"},
+        "ledger_payback": {"ord": "spec/ddl_v1.10.sql"},
+    }
     try:
         con = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
         for t, cols in need_cols.items():

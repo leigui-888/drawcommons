@@ -190,26 +190,47 @@ def _evidence_columns(evidence: dict) -> tuple:
 
 # ── 读：三表 → 统一条目 ──────────────────────────────────────────────────────
 def entries_from(con: sqlite3.Connection) -> list[dict]:
-    """把三张 append-only 表读成统一条目列表（已按 canonical 排序）。
+    """把三张 append-only 表读成统一条目列表（已按**入链次序**排序）。
 
     `scope_unresolved=1` 时 `scope` 置 null：库里的 NULL 是「不可判定」，不是「互助」。
     排序口径与读面、写面、第三方复现三处必须一致，所以放在这里，不放在调用方。
+
+    ── 为什么按 `ord` 排，而不是按条目内容（2026-11-26，v1.10）────────────────
+    原先这里是 `entries.sort(key=canonical)`，而 `build_chain` 按这个顺序逐条算
+    prev_hash/hash。两者合起来的后果是：**hash 不是写入时钉死的，是每次导出按当前
+    排序重算的**。于是新条目只要在内容上排在旧条目之前，就会插进链中间，把后面每一条
+    的 hash 全部重算——「只追加」就被悄悄改写成了「可重排」。
+
+    实测后果：链路自测单 `rq_linktest01` 的两条落到了 `g-rq_reviewprivacy1` 之前，
+    两条真实互助的确认（签的是旧 hash）当场验不过，第三方按我们自己的脚本会读到
+    「2 条确认验不过」。
+
+    `ord` 是不参与哈希的入链序号（见 `spec/ddl_v1.10.sql`）：排序只看它，位置就不再
+    由内容推出。旧库没有这一列时全部退化成旧行为（NULL 排最后、按 canonical 兜底），
+    所以「代码先上、库后迁」的窗口期只是排序退步，不会 500。
     """
-    entries: list[dict] = []
+    rows: list[tuple[int | None, dict]] = []
     for kind, table in TABLES:
-        for row in con.execute(f"SELECT * FROM {table} ORDER BY 1"):
+        for row in con.execute(f"SELECT * FROM {table}"):
             d = {"type": kind}
             pk = f"{kind}_id"
+            ordv = None
             for k in row.keys():
                 if k == pk:
                     d["entry_id"] = row[k]
+                elif k == "ord":
+                    # **不进条目内容**：进了就进 canonical、就进 hash，
+                    # 等于让条目自述自己在链上的位置——那不是事实，是申明。
+                    ordv = row[k]
                 else:
                     d[k] = row[k]
             if d.get("scope_unresolved"):
                 d["scope"] = None
-            entries.append(d)
-    entries.sort(key=canonical)
-    return entries
+            rows.append((ordv, d))
+    # NULL 的排最后（清单外的历史行），同 ord 不可能出现（有唯一索引），
+    # 最后一档 canonical 只为让输出在异常库上也确定。
+    rows.sort(key=lambda p: (p[0] is None, p[0] if p[0] is not None else 0, canonical(p[1])))
+    return [d for _, d in rows]
 
 
 def load_entries(db_path: str) -> list[dict]:
@@ -753,6 +774,19 @@ class Writer:
             values["scope"], values["scope_unresolved"] = "mutual", 0
         else:
             values["scope"], values["scope_unresolved"] = None, 1
+        # ── 入链次序（v1.10）───────────────────────────────────────────────
+        # 三表共享一个序列：取三表现有最大 ord 加一。由服务端分配，客户端指定不了
+        # ——`ord` 不在 ENTRY_FIELDS 白名单里，带了会被上面的 DGB_ING_018 拒掉。
+        # 库还没跑 v1.10 时退回旧行为（不写这一列）：窗口期只是排序退步，不会 500。
+        # 这也正是 2026-11-25 那次事故的教训——加列要么在 preflight 里喊，要么在代码里让路，
+        # 不能假定「库一定跟上了」。
+        have_cols = {r[1] for r in con.execute(f"PRAGMA table_info(ledger_{kind})")}
+        if "ord" in have_cols:
+            values["ord"] = con.execute(
+                "SELECT COALESCE(MAX(ord), 0) + 1 FROM ("
+                " SELECT ord FROM ledger_give UNION ALL"
+                " SELECT ord FROM ledger_receive UNION ALL"
+                " SELECT ord FROM ledger_payback)").fetchone()[0]
         names = ",".join(values)
         marks = ",".join("?" * len(values))
         con.execute(f"INSERT INTO ledger_{kind}({names}) VALUES({marks})", tuple(values.values()))
