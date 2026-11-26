@@ -52,12 +52,16 @@ drawcommons.org, www.drawcommons.org {
 	# 本仓本来也不接受外部推送，只接受邮件与 issue 反馈，够用。
 	# 裸仓由 /opt/drawcommons/git/drawcommons.git 挂入（compose 内 :ro）。
 	handle_path /repo.git/* {
+		# 裸仓是分发通道，不是内容页：让索引里出现一堆 git 对象没有意义
+		header X-Robots-Tag "noindex, nofollow"
 		root * /srv/git/drawcommons.git
 		file_server
 	}
 
 	# 免装 git 的复现包（含 sha256），给只想核一次字节的人
 	handle_path /download/* {
+		# 安装包与协议正文的下载件：可被直链引用，但不必进索引
+		header X-Robots-Tag "noindex, nofollow"
 		root * /srv/git/download
 		file_server
 	}
