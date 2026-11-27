@@ -993,6 +993,18 @@ h2 {
 .misc svg { inline-size: 18px; block-size: 18px; color: var(--d-muted); flex-shrink: 0; margin-block-start: 3px; }
 .misc b { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; }
 .misc span { display: block; margin-block-start: 3px; font-size: 12.5px; line-height: 1.55; color: var(--d-muted); }
+/* New 徽章是同一条 .misc 里的 <span>，被上面这条（0,1,1）盖成 muted 灰了：
+   它本来该是琥珀色。抬一档特异性拿回来，display 也从 block 改回行内。 */
+.misc .badge-new {
+  display: inline;
+  margin-block-start: 0;
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: var(--d-amber);
+}
+/* 浅色下这枚 9.5px 的字压在 16% 琥珀底上只有 4.41:1（--d-amber 的 #8A5A00 差一点）：
+   只把浅色主题的这一枚再压深一档，不动全局 amber。 */
+html[data-theme="light"] .misc .badge-new { color: #6F4A00; }
 .badge-new {
   padding: 0 5px;
   border-radius: 4px;
