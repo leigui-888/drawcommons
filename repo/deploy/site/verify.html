@@ -6,50 +6,74 @@
 <title>查账与下载</title>
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #f4f3ef; color: #2c2c2a; line-height: 1.6; }
-  .banner { background: #ba7517; color: #fff; text-align: center; padding: 6px 12px; font-size: 13px; }
+  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #070C14; color: #E9F1F9; line-height: 1.6; }
+  .banner { background: #E9A23B; color: #fff; text-align: center; padding: 6px 12px; font-size: 13px; }
   .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
-  .back { display: inline-block; font-size: 13px; color: #5f5e5a; text-decoration: none; margin-bottom: 12px; }
+  .back { display: inline-block; font-size: 13px; color: #A3B5C9; text-decoration: none; margin-bottom: 12px; }
   h1 { font-size: 18px; font-weight: 500; margin: 0 0 4px; }
-  .sub { font-size: 13px; color: #5f5e5a; margin: 0 0 20px; }
-  .anchor { background: #e6f1fb; border: 1px solid #85b7eb; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; }
+  .sub { font-size: 13px; color: #A3B5C9; margin: 0 0 20px; }
+  .anchor { background: rgba(90, 169, 240, .12); border: 1px solid #2B6DA8; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; }
   .anchor b { font-size: 14px; font-weight: 500; display: block; }
   .anchor code { font-size: 12px; word-break: break-all; }
-  .anchor p { margin: 4px 0 0; font-size: 12px; color: #0c447c; }
-  .linkcard { display: block; background: #fff; border: 1px solid #d3d1c7; border-radius: 12px; padding: 14px 18px; margin-bottom: 10px; text-decoration: none; color: inherit; }
-  .linkcard:hover { border-color: #2c2c2a; }
+  .anchor p { margin: 4px 0 0; font-size: 12px; color: #8CC6F5; }
+  .linkcard { display: block; background: #0D1622; border: 1px solid #22303F; border-radius: 12px; padding: 14px 18px; margin-bottom: 10px; text-decoration: none; color: inherit; }
+  .linkcard:hover { border-color: #E9F1F9; }
   .linkcard b { font-size: 15px; font-weight: 500; }
-  .linkcard .go { float: right; font-size: 13px; color: #888780; }
-  .linkcard p { margin: 4px 0 0; font-size: 12px; color: #5f5e5a; }
-  h2 { font-size: 14px; font-weight: 500; color: #5f5e5a; margin: 24px 0 10px; }
-  .tag { font-size: 11px; background: #fac775; color: #633806; border-radius: 4px; padding: 1px 6px; vertical-align: 2px; }
+  .linkcard .go { float: right; font-size: 13px; color: #869AB0; }
+  .linkcard p { margin: 4px 0 0; font-size: 12px; color: #A3B5C9; }
+  h2 { font-size: 14px; font-weight: 500; color: #A3B5C9; margin: 24px 0 10px; }
+  .tag { font-size: 11px; background: #6A4A1D; color: #EDBC85; border-radius: 4px; padding: 1px 6px; vertical-align: 2px; }
   /* 存证那一节：命令块与「能证明什么」的细字。都只在本页用，故不进制式单源。 */
-  .linkcard code { font-size: 12px; color: #185fa5; background: #f0f4f8; padding: 1px 5px; border-radius: 3px; word-break: break-all; }
-  pre.cmd { margin: 8px 0 0; background: #2c2c2a; color: #e5e3db; padding: 10px 12px; border-radius: 8px; font-size: 12px; overflow-x: auto; }
-  .fine { font-size: 12px; color: #888780; margin: 0 2px; }
-  footer { border-top: 1px solid #e5e3db; margin-top: 28px; padding: 14px 0 6px; text-align: center; font-size: 12px; color: #888780; }
-  footer a { color: #5f5e5a; text-decoration: none; margin: 0 8px; }
+  .linkcard code { font-size: 12px; color: #5AA9F0; background: #0F1B29; padding: 1px 5px; border-radius: 3px; word-break: break-all; }
+  pre.cmd { margin: 8px 0 0; background: #E9F1F9; color: #1A2635; padding: 10px 12px; border-radius: 8px; font-size: 12px; overflow-x: auto; }
+  .fine { font-size: 12px; color: #869AB0; margin: 0 2px; }
+  footer { border-top: 1px solid #1A2635; margin-top: 28px; padding: 14px 0 6px; text-align: center; font-size: 12px; color: #869AB0; }
+  footer a { color: #A3B5C9; text-decoration: none; margin: 0 8px; }
 /* ==== DG-UI BEGIN ==== */
 /* 整站单源样式。由 _theme.py 写进每一页 <style> 的末尾。
    页内同名规则会被这一段覆盖（同选择器、后者胜）——改样式改这里，别改页内副本。
    三档按键：.btn 一栏一个主动作 / .mini .op 行内小键 / .go 卡片里那一个入口。
-   两个断点：≤560px 触控（按键不低于 44px）、≥900px 桌面留白。 */
+   两个断点：≤560px 触控（按键不低于 44px）、≥900px 桌面留白。
+
+   2026-11-27 换深色：色值与 site/home.html 的 --d-* 一一对应，首页与内页同一套底。
+   为什么不把 --blue 也换成品牌青绿：状态标签靠色相区分（开放=蓝、已认领=青、
+   已交付=琥珀、已关闭=绿、已过期=红），两个状态同色就白标了。故青绿只用于
+   主动作（.btn.primary、.go、焦点环），蓝降为「信息与链接」的语义色。 */
 
 :root {
-  --bg: #f4f3ef; --paper: #fff;
-  --ink: #2c2c2a; --sub: #5f5e5a; --muted: #888780; --faint: #a8a69d;
-  --line: #d3d1c7; --hair: #e5e3db; --hair2: #f0eee7;
-  --blue: #185fa5; --blue-h: #134a80; --blue-a: #0f3d6b; --blue-l: #85b7eb; --blue-bg: #e6f1fb;
-  --amber: #ba7517;
-  --green: #27500a;
-  --red: #a32a2a;
+  --bg: #070C14; --paper: #0D1622; --surface2: #131E2C;
+  --ink: #E9F1F9; --sub: #A3B5C9; --muted: #869AB0; --faint: #6E7E92;
+  --line: #22303F; --hair: #1A2635; --hair2: #141F2C;
+  --blue: #5AA9F0; --blue-h: #7CBBF5; --blue-a: #8CC6F5; --blue-l: #2B6DA8; --blue-bg: rgba(90, 169, 240, .12);
+  --brand: #2ED9B8; --brand-soft: rgba(46, 217, 184, .12); --brand-line: rgba(46, 217, 184, .34);
+  --on-brand: #03130F;
+  --amber: #E9A23B;
+  --green: #7DD48A;
+  --red: #FF8A8A;
   --r-lg: 12px; --r-sm: 8px;
-  --press: 0 0 0 3px rgba(24, 95, 165, .14);
+  --press: 0 0 0 3px rgba(46, 217, 184, .22);
 }
 
 html { -webkit-text-size-adjust: 100%; }
 
-/* ---- 主键：一栏一个，50px 高，实心蓝 ---- */
+/* 页内 body 规则各自写过一遍（米色底、深灰字），这一段用 html body 两层的
+   选择器压过它们——不靠 !important，也不依赖书写顺序。 */
+html body {
+  background: var(--bg); color: var(--ink);
+  font-family: ui-sans-serif, -apple-system, "Segoe UI Variable Text", "Segoe UI",
+               "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  line-height: 1.65;
+}
+
+/* ---- 基础链接色：这条以前一直缺 ---- */
+/* 米色时代没人发现，是因为浏览器默认的 #0000EE 在白底上还算「链接蓝」（约 7:1）；
+   换深色后它成了整站最糟的一处——#0000EE 压在 #131E2C 上只有 1.79:1，等于看不见。
+   大多数页面的链接有自己的类，但裸 <a> 一直靠默认值，故在这里兜住。
+   带类的规则（.go/.lang/.tag…）优先级更高，不会被这条压掉。 */
+a { color: var(--blue); }
+a:hover { color: var(--blue-h); }
+
+/* ---- 主键：一栏一个，50px 高 ---- */
 .btn {
   display: block; width: 100%; min-height: 50px; margin: 0;
   padding: 13px 18px;
@@ -59,25 +83,26 @@ html { -webkit-text-size-adjust: 100%; }
   text-align: center; text-decoration: none; cursor: pointer;
   transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s;
 }
-.btn:hover { border-color: var(--muted); }
-.btn:active { background: #faf9f5; }
+.btn:hover { border-color: var(--faint); background: var(--surface2); }
+.btn:active { background: #16222F; }
 .btn.primary {
-  color: #fff; background: var(--blue); border-color: var(--blue);
-  box-shadow: 0 1px 2px rgba(24, 95, 165, .18);
+  color: var(--on-brand); background: var(--brand); border-color: var(--brand);
+  box-shadow: 0 1px 2px rgba(46, 217, 184, .18);
 }
-.btn.primary:hover { background: var(--blue-h); border-color: var(--blue-h); box-shadow: 0 2px 6px rgba(24, 95, 165, .22); }
-.btn.primary:active { background: var(--blue-a); border-color: var(--blue-a); box-shadow: none; }
+.btn.primary:hover { background: #46E4C6; border-color: #46E4C6; box-shadow: 0 2px 10px rgba(46, 217, 184, .26); }
+.btn.primary:active { background: #24C4A6; border-color: #24C4A6; box-shadow: none; }
 .btn[disabled], .btn[aria-disabled="true"] {
   opacity: .45; cursor: not-allowed;
-  background: #f1efe8; border-color: var(--line); color: var(--sub); box-shadow: none;
+  background: #101A26; border-color: var(--hair); color: var(--muted); box-shadow: none;
 }
 .btn.center { text-align: center; }
 .btn small { display: block; font-size: 12px; font-weight: 400; color: var(--sub); margin-top: 3px; }
-/* 只能由本人按、且一按就收不回来的那一类（撤回、拒收）：红字白底，鼠标移上去才转实。
+.btn.primary small { color: rgba(3, 19, 15, .72); }
+/* 只能由本人按、且一按就收不回来的那一类（撤回、拒收）：红字深底，鼠标移上去才转实。
    不做成实心红——那是「马上要发生」，而这几个键按下去之前还有一次确认。 */
-.btn.danger { color: var(--red); background: var(--paper); border-color: #e4b4b4; }
-.btn.danger:hover { background: #fdf4f4; border-color: var(--red); }
-.btn.danger:active { background: #fcebeb; border-color: var(--red); }
+.btn.danger { color: var(--red); background: var(--paper); border-color: rgba(255, 138, 138, .34); }
+.btn.danger:hover { background: rgba(255, 138, 138, .10); border-color: var(--red); }
+.btn.danger:active { background: rgba(255, 138, 138, .16); border-color: var(--red); }
 
 /* ---- 行内小键 ---- */
 .mini, .op {
@@ -89,10 +114,10 @@ html { -webkit-text-size-adjust: 100%; }
   text-decoration: none; cursor: pointer;
   transition: background-color .15s, border-color .15s;
 }
-.mini:hover, .op:hover { border-color: var(--muted); background: #faf9f5; }
-.mini:active, .op:active { background: #f1efe8; }
-.mini.primary { color: var(--blue); background: var(--blue-bg); border-color: var(--blue-l); }
-.mini.primary:hover { background: #dbeaf9; border-color: var(--blue); }
+.mini:hover, .op:hover { border-color: var(--faint); background: var(--surface2); }
+.mini:active, .op:active { background: #16222F; }
+.mini.primary { color: var(--brand); background: var(--brand-soft); border-color: var(--brand-line); }
+.mini.primary:hover { background: rgba(46, 217, 184, .18); border-color: var(--brand); }
 .mini[disabled], .op[disabled] { opacity: .45; cursor: not-allowed; background: var(--paper); border-color: var(--hair); }
 
 /* ---- 卡片里那一个入口（「打开」「去交付」「继续交付」） ---- */
@@ -100,13 +125,13 @@ html { -webkit-text-size-adjust: 100%; }
   display: inline-flex; align-items: center; justify-content: center;
   min-height: 38px; margin: 0; padding: 6px 14px;
   font: inherit; font-size: 13px; line-height: 1.3;
-  color: var(--blue); background: var(--paper);
+  color: var(--brand); background: var(--paper);
   border: 1px solid var(--line); border-radius: var(--r-sm);
   text-decoration: none; cursor: pointer;
   transition: background-color .15s, border-color .15s;
 }
-.go:hover { border-color: var(--blue); background: var(--blue-bg); }
-.go:active { background: #dbeaf9; }
+.go:hover { border-color: var(--brand); background: var(--brand-soft); }
+.go:active { background: rgba(46, 217, 184, .18); }
 .go[disabled] { color: var(--faint); border-color: var(--hair); background: var(--paper); cursor: not-allowed; }
 
 /* ---- 导航卡：大厅的门、接任务的三张、接入与查账的条目 ---- */
@@ -116,41 +141,46 @@ html { -webkit-text-size-adjust: 100%; }
   color: inherit; text-decoration: none;
   transition: border-color .15s, background-color .15s, box-shadow .15s;
 }
-.dcard:hover, .door:hover, .linkcard:hover { border-color: var(--muted); box-shadow: 0 1px 3px rgba(44, 44, 42, .06); }
-.dcard:active, .door:active, .linkcard:active { background: #faf9f5; box-shadow: none; }
-/* 有底色的那几张（发布/浏览/已接、大厅的「热门门」）把描边换成同色系的深一号，
+.dcard:hover, .door:hover, .linkcard:hover { border-color: var(--faint); box-shadow: 0 2px 12px rgba(0, 0, 0, .45); }
+.dcard:active, .door:active, .linkcard:active { background: var(--surface2); box-shadow: none; }
+/* 有底色的那几张（发布/浏览/已接、大厅的「热门门」）把描边换成同色系的亮一号，
    否则一 hover 就变成灰边，看着像掉了色。 */
 .dcard.pub:hover { border-color: var(--blue); }
-.dcard.browse:hover, .door.hot:hover { border-color: #993c1d; }
+.dcard.browse:hover, .door.hot:hover { border-color: #E8926E; }
 .dcard.taken:hover { border-color: var(--green); }
 .dcard b, .door b, .linkcard b { font-size: 15px; font-weight: 500; }
 /* 导航卡右上角那枚「↗」是说明，不是第二个按键：退回成纯文字。 */
 .dcard .go, .door .go, .linkcard .go {
   float: right; min-height: 0; padding: 0; margin-left: 10px;
-  font-size: 12px; color: var(--muted);
+  /* 那枚「↗」在暖色块上只有 4.35:1（--muted 压在橙色半透明底上），提一档到 --sub */
+  font-size: 12px; color: var(--sub);
   background: none; border: 0; border-radius: 0;
 }
 .dcard .go:hover, .door .go:hover, .linkcard .go:hover { background: none; color: var(--sub); }
 
 /* 选中的那一档整块跟着变色：只靠一个小圆点，手机上不容易看出选了哪个。
    选择器要带上 .card.form，否则压不过页内 `.card.form .way`（三个类）。 */
-.card.form .way:has(input:checked) { border-color: var(--blue-l); background: var(--blue-bg); }
-.card.form .way:has(input:focus-visible) { outline: 2px solid var(--blue-l); outline-offset: 2px; }
+.card.form .way:has(input:checked) { border-color: var(--brand-line); background: var(--brand-soft); }
+.card.form .way:has(input:focus-visible) { outline: 2px solid var(--brand-line); outline-offset: 2px; }
+
+/* ---- 顶部公示条：琥珀色。深色底上不能再用深琥珀实心配白字（对比不到 2:1），
+   改成同色系的半透明底 + 亮琥珀字，仍是「一条警示」的份量。 */
+.banner { background: rgba(233, 162, 59, .14); color: #F0C070; border-bottom: 1px solid rgba(233, 162, 59, .30); }
 
 /* ---- 语言切换：每页最上面一行，靠右 ---- */
 /* 为什么单独占一行、而不是塞进 .head 或 .back：这两处每页长得都不一样
    （大厅是「站名 + 一句话」，内页是「← 回大厅」，账本页是「← 返回查账与下载」），
    塞进去要一页一页调对齐，改一次十几处。单独一行就只有一个位置要维护。
    不做 position:fixed：它要盖在内容上，滚起来还挡字，而这一格只需要「一眼看见」。 */
-/* 底色用浅蓝、不用白：白底小胶囊在米色页面上几乎化进背景，只看得见一圈细边。
-   也不做成实心蓝——那是主键（.btn.primary）的份量，语言切换是次要动作。 */
+/* 深色下用青绿半透明底、青绿字：白底小胶囊在深底上会亮得像主键，喧宾夺主。
+   也不做成实心青绿——那是主键（.btn.primary）的份量，语言切换是次要动作。 */
 .langrow { display: flex; justify-content: flex-end; margin: -4px 0 6px; }
 .lang {
   display: inline-flex; align-items: center; min-height: 30px; padding: 4px 12px;
-  font-size: 12px; line-height: 1; color: var(--blue); background: var(--blue-bg);
-  border: 1px solid var(--blue-l); border-radius: 999px; text-decoration: none;
+  font-size: 12px; line-height: 1; color: var(--brand); background: var(--brand-soft);
+  border: 1px solid var(--brand-line); border-radius: 999px; text-decoration: none;
 }
-.lang:hover { border-color: var(--blue); background: #dbeaf9; }
+.lang:hover { border-color: var(--brand); background: rgba(46, 217, 184, .18); }
 
 /* ---- 访问量：一行字。它是次数，不是指标 ---- */
 /* 不做卡片、不做分页分布、不做图表——口径与 app.py 的 Visits 类一致：
@@ -162,10 +192,14 @@ html { -webkit-text-size-adjust: 100%; }
 .visits b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums;
             font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
+/* ---- 行内代码：页内写的是「深底浅字」的徽章，换深色后底色与页面同层，
+   会糊成一片；统一抬到 surface2，字回到 ink。 ---- */
+code { background: var(--surface2); color: var(--ink); border-color: var(--line); }
+
 /* ---- 键盘可见的焦点环：鼠标点击不出现，Tab 一定出现 ---- */
 a:focus-visible, button:focus-visible, summary:focus-visible,
 input:focus-visible, textarea:focus-visible, select:focus-visible {
-  outline: 2px solid var(--blue-l); outline-offset: 2px;
+  outline: 2px solid var(--brand-line); outline-offset: 2px;
 }
 
 /* ---- 手机：触控目标不低于 44px，正文不缩到看不清 ---- */
@@ -187,7 +221,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   .dcard .go, .door .go, .linkcard .go { min-height: 0; padding: 0; font-size: 12px; }
   /* 卡片底栏：手机上一行放不下「期限 + 按键」，就让按键独占一行，整行可点。 */
   .req .foot .go { width: 100%; }
-  /* iOS 在 < 16px 的输入框上会强制放大页面：这一处必须压过页内的 14px。 */
+  /* iOS 在 <16px 的输入框上会强制放大页面：这一处必须压过页内的 14px。 */
   input, textarea, select { font-size: 16px !important; }
 }
 
@@ -250,7 +284,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   <a class="linkcard" href="https://drawcommons.org/download/drawcommons-latest.tar.gz"><b>复现包（tar.gz）</b><span class="go">下载 ↗</span><p>免装 git 的复现包，同目录有 .sha256</p></a>
   <a class="linkcard" href="https://drawcommons.org/download/allowed_signers"><b>签名公钥</b><span class="go">下载 ↗</span><p>免安装，指纹与验法见名录 §10</p></a>
   <a class="linkcard" href="https://drawcommons.org/download/notice-20261114b.md">公告文件<span class="go">下载 ↗</span><p>协议变更逐字段对照</p></a>
-  <p style="font-size:12px;color:#888780;margin:8px 2px 0;">项目支持者记录见「贡献与参与者」页；MCP 工具的安装与配置统一在「Agent 接入」页。</p>
+  <p style="font-size:12px;color:#869AB0;margin:8px 2px 0;">项目支持者记录见「贡献与参与者」页；MCP 工具的安装与配置统一在「Agent 接入」页。</p>
 
   <footer><p><a href="/home">回大厅</a>·<a href="mailto:2379731846@qq.com">唯一联系邮箱：2379731846@qq.com</a></p></footer>
 </div>
