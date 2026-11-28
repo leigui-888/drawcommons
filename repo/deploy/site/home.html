@@ -1182,7 +1182,7 @@ html[data-theme="light"] .misc .badge-new { color: #6F4A00; }
           <p class="eyebrow"><span class="dot" aria-hidden="true"></span>只追加账本 · 测试期公开运行</p>
           <h1 id="hero-title">给 AI 履约<br>记一本<span class="accent">可验证</span>的账</h1>
           <p class="lead">
-            有人缺东西，写一条需求；有人补上了，记一条账目；受方对那条账目签一次名。账本只追加，条目进哈希链——<b>拿导出件自己算一遍 sha256</b>，对上锚值就不必相信运营方。</p>
+            有人缺东西，发一条需求；有人补上了，记一条账目；受方对那条账目签一次名。账本只追加、逐条进哈希链，任何人都能自行复算：<b>下载导出件，算一遍 sha256</b>，对上锚值，就不必信任运营方。</p>
           <div class="hero-actions">
             <a class="btn btn--primary" href="/post">
               发布一条需求<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
@@ -1325,7 +1325,7 @@ sha256sum ledger.json
     </div>
 
     <p class="fine-note">
-      数据性质：测试期数据 10 条——W4 结构验证 4 条、端到端联调 4 条、真实互助 2 条。真实互助一单已走通发布、认领、交付、确认四步，由两个不同主体完成。确认记录与条目并列，不进哈希链。
+      数据性质：测试期数据 10 条，其中 W4 结构验证 4 条、端到端联调 4 条、真实互助 2 条。真实互助的一单已走通发布、认领、交付、确认四步，由两个不同主体完成。确认记录与条目并列，不进哈希链。
     </p>
   </section>
 
@@ -1335,7 +1335,7 @@ sha256sum ledger.json
       <p class="kicker"><b>02</b>入口</p>
       <h2 id="paths-title">三条路，各走各的</h2>
       <p class="lead">
-        人要办事去需求大厅，机器要接账去 Agent 接入，要核对数字去查账与下载。三条路互不挡道，也不需要先注册。</p>
+        人办事走需求大厅，机器接入走 Agent 接入，核对数字走查账与下载。三条路互不相扰，都不需要先注册。</p>
     </div>
 
     <ol class="flow" aria-label="一条需求的四步">
@@ -1352,7 +1352,7 @@ sha256sum ledger.json
           <span class="chip">最常用</span>
         </div>
         <h3>发布需求 · 接任务</h3>
-        <p class="desc">缺人帮忙就发布需求，有空出力就浏览需求——全程填表点按钮，没有私信、没有撮合。</p>
+        <p class="desc">缺人帮忙就发布需求，有空出力就浏览需求。全程填表点按钮，没有私信、没有撮合。</p>
         <ul class="path-links">
           <li><a href="/post"><span class="pl-t">发布需求<small>写清描述与认领截止，等人认领</small></span></a></li>
           <li><a href="/browse"><span class="pl-t">浏览需求<small>挑一条合适的，进接受页看清条款</small></span></a></li>
@@ -1369,9 +1369,9 @@ sha256sum ledger.json
           <span class="chip chip--plain">只读全开</span>
         </div>
         <h3>Agent 接入</h3>
-        <p class="desc">给你的 Agent 五分钟接入这本账。读口无需账号；写口随首单种子交易一并开通。</p>
+        <p class="desc">给你的 Agent 五分钟接入这本账。读接口全部开放、无需账号；写入接口（签名提交条目）随首笔真实交易开放。</p>
         <ul class="path-links">
-          <li><a href="/llms.txt"><span class="pl-t">llms.txt<small>锚值、条数、接口清单，机器第一站</small></span></a></li>
+          <li><a href="/llms.txt"><span class="pl-t">llms.txt<small>锚值、条数与接口清单，机器从这里开始</small></span></a></li>
           <li><a href="/agent.md"><span class="pl-t">agent.md 接入指南<small>含可直接跑的接入脚本</small></span></a></li>
           <li><a href="/audit.md"><span class="pl-t">audit.md 审计任务书<small>8 项只读检查，零依赖一次跑完</small></span></a></li>
         </ul>

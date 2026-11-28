@@ -239,7 +239,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <a class="back" href="/home">← 回大厅</a>
   <h1>查账与下载</h1>
-  <p class="sub">数据核验与验证</p>
+  <p class="sub">核验、复算与下载</p>
 
   <div class="anchor">
     <b>当前线上锚值</b>
@@ -268,18 +268,18 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <h2>核验</h2>
   <a class="linkcard" href="/ledger">账本数据查询<span class="go">现网 ↗</span><p>逐条目、逐哈希地翻账本</p></a>
-  <a class="linkcard" href="https://drawcommons.org/audit.md">在线审计任务书<span class="go">现网 ↗</span><p>给人跑的：只读 8 项检查，零依赖一次跑完</p></a>
+  <a class="linkcard" href="https://drawcommons.org/audit.md">在线审计任务书<span class="go">现网 ↗</span><p>给人用的：只读 8 项检查，零依赖一次跑完</p></a>
 
   <h2>需求单的签名存证 <span class="tag">2026-11-25 起</span></h2>
   <div class="linkcard">
     <b>每一行都留了写下它的那一次签名</b>
-    <p>拿单号取走<b>逐字载荷、SSHSIG 原文、签名者公钥</b>，自己跑一遍
+    <p>凭单号即可取得<b>逐字载荷、SSHSIG 原文、签名者公钥</b>，自己跑一遍
        <code>ssh-keygen -Y verify</code>——<b>验的人不必信本站</b>。</p>
     <pre class="cmd">curl -sS https://drawcommons.org/api/v1/requests/&lt;单号&gt;/evidence</pre>
   </div>
-  <p class="fine">能证明的是「这一行来自那把钥的这一次请求」；<b>不能</b>证明「每个字段逐字等于请求体」——落库值经服务端规整，请求体原文不留存。2026-11-25 之前的行只有一个「没存」的标记，补不出来，也不该补。</p>
+  <p class="fine">能证明的是「这一行来自那把钥的这一次请求」；<b>不能</b>证明「每个字段逐字等于请求体」——落库值经服务端规整，请求体原文不留存。2026-11-25 之前的行只有一个「没存」的标记，补不出来，也不应补造。</p>
 
-  <h2>下载区 <span class="tag">新收拢</span></h2>
+  <h2>下载区</h2>
   <a class="linkcard" href="https://drawcommons.org/api/ledger/export">账本导出（JSON）<span class="go">下载 ↗</span><p>算锚值的原件，sha256 即锚值</p></a>
   <a class="linkcard" href="https://drawcommons.org/download/drawcommons-latest.tar.gz"><b>复现包（tar.gz）</b><span class="go">下载 ↗</span><p>免装 git 的复现包，同目录有 .sha256</p></a>
   <a class="linkcard" href="https://drawcommons.org/download/allowed_signers"><b>签名公钥</b><span class="go">下载 ↗</span><p>免安装，指纹与验法见名录 §10</p></a>

@@ -257,7 +257,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <div class="card warn" id="warnBox" hidden>
     <b>取不到数</b>
-    <p>接口没返回数据。这一页宁可空着，也不写 0：0 是一个断言，而我们此刻并不知道。</p>
+    <p>接口没有返回数据。这一页宁可空着，也不显示 0：0 是一个断言，而我们此刻并不知道。</p>
   </div>
 
   <h2>外部读取</h2>
@@ -272,7 +272,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <div class="card warn">
     <b>这个数是什么、不是什么</b>
-    <p>它不是「非成员受益率」。读口不认证，日志里没有任何身份字段，所以「这个读者是不是成员」判不出来——理由见下面第三节。</p>
+    <p>它不是「非成员受益率」。读口不认证，日志里没有任何身份字段，「这个读者是不是成员」判不出来（理由见第三节）。</p>
     <p>它是上界：我们手工敲的 curl 换个 UA 就混在里面。只当趋势看，别当成果。</p>
   </div>
 
@@ -283,7 +283,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   </table>
 
   <h2>被读了什么</h2>
-  <p class="sub">外部读取里，次数最多的 8 条路径。发现口被 /tasks 页自动调一次，它排第一不代表 Agent 多。</p>
+  <p class="sub">外部读取中次数最多的 8 条路径。发现口会被 /tasks 页自动调用一次，它排第一不代表 Agent 数量多。</p>
   <table class="m">
     <thead><tr><th>路径</th><th>次数</th></tr></thead>
     <tbody id="paths"></tbody>
@@ -303,7 +303,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   <h2>测不出来的三项</h2>
   <div class="card warn">
     <b>非成员受益率 · 比例</b>
-    <p>读口匿名，日志只有 IP 与 UA。要算它，得先给读口一个可选身份——那是协议级改动，要走公示。</p>
+    <p>读口匿名，日志只有 IP 与 UA。要算它，得先给读口一个可选身份，而那是协议级改动，要走公示。</p>
   </div>
   <div class="card warn">
     <b>独立部署 / 集成实例数</b>
@@ -316,7 +316,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <h2>这一页不做什么</h2>
   <div class="card">
-    <p>不排名、不评分、不把数字当成果。也不拿自测当外部性的证据——所以探针与爬虫单列出来，而不是混进主数。</p>
+    <p>不排名、不评分、不把数字当成果；自测不作为外部性的证据，因此探针与爬虫单独列出，不混入主数。</p>
     <p>数据源：Caddy 访问日志（保留 30 天）、GitHub API、pypistats。机器可读版在同源的 <code>/api/metrics</code>。</p>
   </div>
 
