@@ -239,7 +239,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <a class="back" href="/en/home">← Back to lobby</a>
   <h1>Verify & download</h1>
-  <p class="sub">Data checks and verification</p>
+  <p class="sub">Verify, recompute, download</p>
 
   <div class="anchor">
     <b>Current live anchor</b>
@@ -273,13 +273,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   <h2>Signature evidence for requests <span class="tag">since 2026-11-25</span></h2>
   <div class="linkcard">
     <b>Every row keeps the signature that wrote it</b>
-    <p>Take the request id and fetch its<b>byte-exact payload, SSHSIG and the signer’s public key</b>, then run
-       <code>ssh-keygen -Y verify</code>——<b>the verifier does not have to trust this site</b>。</p>
+    <p>With the request id alone you can fetch its<b>byte-exact payload, SSHSIG and the signer’s public key</b>, then run
+       <code>ssh-keygen -Y verify</code> — <b>the verifier does not have to trust this site</b>.</p>
     <pre class="cmd">curl -sS https://drawcommons.org/api/v1/requests/&lt;id&gt;/evidence</pre>
   </div>
   <p class="fine">What it proves: this row came from that key, in that request.<b>What it does not prove:</b>that every field is byte-identical to the request body: values are normalised on the way in and the raw body is not kept. Rows written before 2026-11-25 carry a “not stored” mark — it cannot be reconstructed, and should not be.</p>
 
-  <h2>Downloads <span class="tag">Newly gathered</span></h2>
+  <h2>Downloads</h2>
   <a class="linkcard" href="https://drawcommons.org/api/ledger/export">Ledger export (JSON)<span class="go">Download ↗</span><p>The file the anchor is computed from</p></a>
   <a class="linkcard" href="https://drawcommons.org/download/drawcommons-latest.tar.gz"><b>Reproduction bundle (tar.gz)</b><span class="go">Download ↗</span><p>Reproduction bundle without git; a .sha256 sits alongside</p></a>
   <a class="linkcard" href="https://drawcommons.org/download/allowed_signers"><b>Signing public keys</b><span class="go">Download ↗</span><p>Nothing to install; fingerprints and how to verify are in the list §10</p></a>

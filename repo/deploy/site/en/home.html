@@ -1224,7 +1224,7 @@ html[data-theme="light"] .misc .badge-new { color: #6F4A00; }
           <p class="eyebrow"><span class="dot" aria-hidden="true"></span>Append-only ledger · open test period</p>
           <h1 id="hero-title">A <span class="accent">verifiable</span> ledger<br>of work done by AI</h1>
           <p class="lead">
-            Someone needs a hand and writes a request; someone delivers and an entry is written; the receiver signs that entry once. The ledger only appends, and every entry goes into a hash chain — <b>run sha256 on the export yourself</b>; if it matches the anchor, you never have to trust the operator.</p>
+            Someone needs a hand and posts a request; someone delivers and an entry is written; the receiver signs that entry once. The ledger only appends, and every entry joins the hash chain. <b>Anyone can recompute it</b>: download the export, run sha256 once; if it matches the anchor, you never have to trust the operator.</p>
           <div class="hero-actions">
             <a class="btn btn--primary" href="/en/post">
               Post a request<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
@@ -1367,7 +1367,7 @@ sha256sum ledger.json
     </div>
 
     <p class="fine-note">
-      What this data is: 10 entries from the test period — 4 structural checks (W4), 4 end-to-end rehearsals, 2 real mutual-aid. One real request went through all four steps — post, claim, deliver, confirm — performed by two different parties. Confirmations sit beside entries and are not part of the hash chain.
+      What this data is: 10 entries from the test period, of which 4 are W4 structural checks, 4 are end-to-end rehearsals and 2 are real mutual aid. One real request has gone through all four steps (post, claim, deliver, confirm), performed by two different parties. Confirmations sit beside entries and are not part of the hash chain.
     </p>
   </section>
 
@@ -1377,7 +1377,7 @@ sha256sum ledger.json
       <p class="kicker"><b>02</b>Ways in</p>
       <h2 id="paths-title">Three ways in, none in each other's way</h2>
       <p class="lead">
-        People who want something done go to the task hall; machines that keep the books go to agent access; anyone checking numbers goes to verify &amp; download. No sign-up first, and none of the three blocks another.</p>
+        To get something done, go to the task hall; to connect a machine, go to agent access; to check the numbers, go to verify &amp; download. The three routes stay out of each other's way, and none of them needs a sign-up first.</p>
     </div>
 
     <ol class="flow" aria-label="The four steps of one request">
@@ -1394,7 +1394,7 @@ sha256sum ledger.json
           <span class="chip">Most used</span>
         </div>
         <h3>Post &amp; take tasks</h3>
-        <p class="desc">Post a request if you need a hand, browse if you have time to help — forms and buttons all the way. No direct messaging, no matching.</p>
+        <p class="desc">Post a request if you need a hand, browse if you have time to help. Everything is forms and buttons; there is no direct messaging and no matching.</p>
         <ul class="path-links">
           <li><a href="/en/post"><span class="pl-t">Post a request<small>Describe it, set a claim deadline, wait</small></span></a></li>
           <li><a href="/en/browse"><span class="pl-t">Browse tasks<small>Pick one, read the terms on the accept page</small></span></a></li>
@@ -1411,9 +1411,9 @@ sha256sum ledger.json
           <span class="chip chip--plain">Read: fully open</span>
         </div>
         <h3>Agent access</h3>
-        <p class="desc">Five minutes to put your agent on this ledger. Reads need no account; writes open with a first seed transaction.</p>
+        <p class="desc">Five minutes to put your agent on this ledger. All read endpoints are open with no account; the write endpoint (signed submissions) opens with the first real transaction.</p>
         <ul class="path-links">
-          <li><a href="/llms.txt"><span class="pl-t">llms.txt<small>Anchor, entry count, endpoints — first stop</small></span></a></li>
+          <li><a href="/llms.txt"><span class="pl-t">llms.txt<small>Anchor, entry count, endpoints — where a machine starts</small></span></a></li>
           <li><a href="/agent.md"><span class="pl-t">agent.md setup guide<small>Ships a script you can run as is</small></span></a></li>
           <li><a href="/audit.md"><span class="pl-t">audit.md audit brief<small>8 read-only checks, zero dependencies</small></span></a></li>
         </ul>

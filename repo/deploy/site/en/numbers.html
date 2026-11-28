@@ -257,7 +257,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <div class="card warn" id="warnBox" hidden>
     <b>No numbers available</b>
-    <p>The endpoint returned nothing. This page would rather stay empty than print 0: zero is a claim, and right now we do not know.</p>
+    <p>The endpoint returned nothing. This page would rather stay empty than show 0: zero is a claim, and right now we do not know.</p>
   </div>
 
   <h2>External reads</h2>
@@ -272,7 +272,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <div class="card warn">
     <b>What this number is, and is not</b>
-    <p>It is not the non-member benefit rate. The read endpoints are anonymous and the logs carry no identity field at all, so “is this reader a member?” cannot be decided — see the third section below for why.</p>
+    <p>It is not the non-member benefit rate. The read endpoints are anonymous and the logs carry no identity field at all, so “is this reader a member?” cannot be decided (see the third section below).</p>
     <p>It is an upper bound: a hand-run curl with a different user agent lands in it too. Read it as a trend, not as an achievement.</p>
   </div>
 
@@ -283,7 +283,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   </table>
 
   <h2>What gets read</h2>
-  <p class="sub">The eight paths with the most external reads. The discovery endpoint is called once by the /tasks page itself, so its lead does not mean many agents.</p>
+  <p class="sub">The eight paths with the most external reads. The discovery endpoint is called once by the /tasks page itself; ranking first does not mean there are many agents.</p>
   <table class="m">
     <thead><tr><th>Path</th><th>Count</th></tr></thead>
     <tbody id="paths"></tbody>
@@ -303,7 +303,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   <h2>Three things we cannot measure</h2>
   <div class="card warn">
     <b>Non-member benefit rate · ratio</b>
-    <p>The read endpoints are anonymous; logs hold only IP and user agent. Computing it needs an optional identity on the read side — a protocol-level change that has to go through the notice period.</p>
+    <p>The read endpoints are anonymous; logs hold only IP and user agent. Computing it needs an optional identity on the read side, which is a protocol-level change that has to go through the notice period.</p>
   </div>
   <div class="card warn">
     <b>Independent deployments / integrations</b>
@@ -316,7 +316,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   <h2>What this page does not do</h2>
   <div class="card">
-    <p>No rankings, no scores, no treating a number as an achievement. Nor do we pass our own self-tests off as evidence of outside use — that is why probes and crawlers are listed apart instead of blended into the main figure.</p>
+    <p>No rankings, no scores, no treating a number as an achievement; our own self-tests do not count as evidence of outside use, which is why probes and crawlers are listed apart instead of blended into the main figure.</p>
     <p>Sources: Caddy access log (kept 30 days), GitHub API, pypistats. A machine-readable version sits at <code>/api/metrics</code>。</p>
   </div>
 
