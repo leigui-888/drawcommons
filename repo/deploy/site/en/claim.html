@@ -845,7 +845,7 @@ async function take() {
        这里刚提交完，用本机时间最多差一次往返，落不到分钟以外。 */
     const ddl = deadlineMs(new Date().toISOString(), CLAIM_DELIVERY_DAYS);
     setOut('<b>Claimed' + (DG.FILE_MODE ? '(demo, nothing recorded)' : '') + '</b>' +
-      '<p>This request is now recorded under your name: <code>' + esc(k.party) + '</code>。' +
+      '<p>This request is now recorded under your name: <code>' + esc(k.party) + '</code>.' +
       'Please deliver before <b>' + fmtDeadline(ddl) + '</b>: deliver within 10 days of claiming; after that the request is void.' +
       'When it is done, deliver with the key below — at delivery you only supply the evidence; the terms are neither re-entered nor changeable.</p>' +
       (mail ? '<p>Your contact address <code>' + esc(mail) + '</code> is recorded on this request and the poster can see it here.</p>' : ''), 'ok');
